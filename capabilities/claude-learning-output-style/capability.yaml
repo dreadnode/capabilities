@@ -1,0 +1,6 @@
+version: 1
+name: 'claude-learning-output-style'
+summary: 'Claude plugin port focused on hook-driven interaction style.'
+hooks:
+  - 'hooks/'
+  - 'hooks-handlers/'

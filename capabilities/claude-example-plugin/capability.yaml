@@ -1,0 +1,10 @@
+version: 1
+name: 'claude-example-plugin'
+summary: 'Comprehensive Claude plugin example port with commands, skills, and MCP config.'
+skills:
+  - 'skills/'
+commands:
+  - 'commands/'
+
+mcp:
+  config_file: 'mcp.json'
