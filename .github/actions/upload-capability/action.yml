@@ -1,0 +1,149 @@
+# Composite action: zip a capability directory and upload it to the Dreadnode API.
+#
+# Uses the org import endpoint: POST /api/v1/org/{org}/capabilities/import
+# Auth: X-API-Key header with scoped service-account key (capabilities:write)
+
+name: Upload Capability
+description: Zip and upload a single capability to the Dreadnode platform API.
+
+inputs:
+  capability-name:
+    description: "Capability directory name (e.g. dreadweb)"
+    required: true
+  capability-path:
+    description: "Path to the capability directory relative to repo root"
+    required: true
+  api-url:
+    description: "Dreadnode API base URL (e.g. https://platform.dreadnode.io)"
+    required: true
+  api-key:
+    description: "Scoped API key for the ci-sync service account"
+    required: true
+  org:
+    description: "Organization key to import into"
+    required: true
+  force:
+    description: "Skip SHA-256 hash comparison and always upload"
+    required: false
+    default: "false"
+
+outputs:
+  status:
+    description: "Upload result: uploaded, skipped, or failed"
+    value: ${{ steps.upload.outputs.status }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [[ ! -d "${{ inputs.capability-path }}" ]]; then
+          echo "::error::Capability directory not found: ${{ inputs.capability-path }}"
+          exit 1
+        fi
+        if [[ ! -f "${{ inputs.capability-path }}/capability.yaml" ]]; then
+          echo "::error::No capability.yaml in ${{ inputs.capability-path }}"
+          exit 1
+        fi
+
+    - name: Create capability archive
+      id: archive
+      shell: bash
+      env:
+        CAP_NAME: ${{ inputs.capability-name }}
+        CAP_PATH: ${{ inputs.capability-path }}
+      run: |
+        set -euo pipefail
+        ARCHIVE="/tmp/${CAP_NAME}.zip"
+
+        (cd "${CAP_PATH}" && zip -r "${ARCHIVE}" . \
+          -x "*.pyc" \
+          -x "__pycache__/*" \
+          -x ".git/*" \
+          -x ".DS_Store" \
+        )
+
+        SHA256=$(sha256sum "${ARCHIVE}" | awk '{print $1}')
+
+        echo "archive=${ARCHIVE}" >> "$GITHUB_OUTPUT"
+        echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+        echo "Archived ${CAP_NAME} -> ${ARCHIVE} (sha256: ${SHA256})"
+
+    - name: Upload capability
+      id: upload
+      shell: bash
+      env:
+        CAP_NAME: ${{ inputs.capability-name }}
+        API_URL: ${{ inputs.api-url }}
+        API_KEY: ${{ inputs.api-key }}
+        ORG: ${{ inputs.org }}
+        ARCHIVE: ${{ steps.archive.outputs.archive }}
+        LOCAL_SHA256: ${{ steps.archive.outputs.sha256 }}
+        FORCE: ${{ inputs.force }}
+      run: |
+        set -euo pipefail
+
+        IMPORT_URL="${API_URL}/api/v1/org/${ORG}/capabilities/import"
+
+        # --- SHA-256 comparison (skip no-op uploads) ---
+        if [[ "${FORCE}" != "true" ]]; then
+          # Check if capability already exists with same hash by listing versions
+          HTTP_CODE=$(curl -s -o /tmp/cap-get-response.json -w "%{http_code}" \
+            -H "X-API-Key: ${API_KEY}" \
+            "${API_URL}/api/v1/org/${ORG}/capabilities/${CAP_NAME}/versions" 2>/dev/null || echo "000")
+
+          if [[ "${HTTP_CODE}" == "200" ]]; then
+            # Get the latest version detail to compare hash
+            LATEST_VERSION=$(jq -r '.versions[0] // empty' /tmp/cap-get-response.json)
+            if [[ -n "${LATEST_VERSION}" ]]; then
+              HTTP_CODE_DETAIL=$(curl -s -o /tmp/cap-detail-response.json -w "%{http_code}" \
+                -H "X-API-Key: ${API_KEY}" \
+                "${API_URL}/api/v1/org/${ORG}/capabilities/${CAP_NAME}/${LATEST_VERSION}" 2>/dev/null || echo "000")
+
+              if [[ "${HTTP_CODE_DETAIL}" == "200" ]]; then
+                REMOTE_SHA256=$(jq -r '.artifact_sha256 // empty' /tmp/cap-detail-response.json)
+                if [[ "${REMOTE_SHA256}" == "${LOCAL_SHA256}" ]]; then
+                  echo "Hash match -- skipping upload for ${CAP_NAME} (${LOCAL_SHA256})"
+                  echo "status=skipped" >> "$GITHUB_OUTPUT"
+                  exit 0
+                fi
+                echo "Hash mismatch (local: ${LOCAL_SHA256}, remote: ${REMOTE_SHA256}) -- uploading"
+              fi
+            fi
+          elif [[ "${HTTP_CODE}" == "404" ]]; then
+            echo "Capability ${CAP_NAME} not found on platform -- uploading new"
+          else
+            echo "::warning::GET versions returned HTTP ${HTTP_CODE} -- proceeding with upload"
+          fi
+        else
+          echo "Force flag set -- skipping hash comparison"
+        fi
+
+        # --- Upload (multipart form-data) ---
+        HTTP_CODE=$(curl -s -o /tmp/cap-upload-response.json -w "%{http_code}" \
+          -X POST \
+          -H "X-API-Key: ${API_KEY}" \
+          -F "bundle=@${ARCHIVE};type=application/zip" \
+          -F "origin_type=github" \
+          -F "origin_reference=https://github.com/${{ github.repository }}/tree/${{ github.sha }}/capabilities/${CAP_NAME}" \
+          -F "is_public=true" \
+          "${IMPORT_URL}")
+
+        if [[ "${HTTP_CODE}" -ge 200 && "${HTTP_CODE}" -lt 300 ]]; then
+          RESULT_NAME=$(jq -r '.name // empty' /tmp/cap-upload-response.json)
+          RESULT_VERSION=$(jq -r '.version // empty' /tmp/cap-upload-response.json)
+          echo "Uploaded ${CAP_NAME} as ${RESULT_NAME}@${RESULT_VERSION} (HTTP ${HTTP_CODE})"
+          echo "status=uploaded" >> "$GITHUB_OUTPUT"
+        else
+          BODY=$(cat /tmp/cap-upload-response.json 2>/dev/null || echo "no response body")
+          echo "::error::Failed to upload ${CAP_NAME}: HTTP ${HTTP_CODE} -- ${BODY}"
+          echo "status=failed" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+    - name: Clean up
+      if: always()
+      shell: bash
+      run: rm -f /tmp/${{ inputs.capability-name }}.zip /tmp/cap-get-response.json /tmp/cap-detail-response.json /tmp/cap-upload-response.json

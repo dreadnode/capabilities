@@ -1,0 +1,206 @@
+# Sync changed capabilities to the Dreadnode platform API.
+#
+# Promotion model:
+#   - Push to main          -> dev
+#   - Tag v1.2.3-rc.N       -> staging
+#   - Tag v1.2.3            -> production
+#   - workflow_dispatch      -> user-selected environment
+#
+# Auth: Uses scoped service-account API key (capabilities:write scope)
+# via X-API-Key header.
+#
+# Environments: dev / staging / production
+#   Each environment provides its own DREADNODE_API_KEY (secret),
+#   DREADNODE_API_URL (variable), and DREADNODE_ORG (variable).
+#   Configure these in Settings > Environments in the GitHub repo.
+
+name: Sync Capabilities to Dreadnode
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "capabilities/**"
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"           # v1.2.3       -> production
+      - "v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+" # v1.2.3-rc.0  -> staging
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: environment
+        default: dev
+      capability:
+        description: >
+          Single capability directory name to sync (e.g. dreadweb).
+          Leave empty to sync all capabilities.
+        required: false
+        type: string
+      force:
+        description: "Force upload even if SHA-256 matches (skip hash check)"
+        required: false
+        type: boolean
+        default: false
+
+# Only one sync at a time per environment to avoid race conditions.
+concurrency:
+  group: sync-capabilities-${{ inputs.environment || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  resolve-environment:
+    name: Resolve target environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.resolve.outputs.environment }}
+    steps:
+      - name: Determine environment from trigger
+        id: resolve
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG="${{ github.ref_name }}"
+            if [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
+              echo "environment=staging" >> "$GITHUB_OUTPUT"
+            elif [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "environment=production" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::Tag '${TAG}' does not match expected patterns (vX.Y.Z or vX.Y.Z-rc.N)"
+              exit 1
+            fi
+          else
+            # Push to main branch
+            echo "environment=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "### Target environment: $(grep environment "$GITHUB_OUTPUT" | cut -d= -f2)" >> "$GITHUB_STEP_SUMMARY"
+
+  detect-changes:
+    name: Detect changed capabilities
+    needs: resolve-environment
+    runs-on: ubuntu-latest
+    outputs:
+      capabilities: ${{ steps.resolve.outputs.capabilities }}
+      count: ${{ steps.resolve.outputs.count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve capability list
+        id: resolve
+        env:
+          INPUT_CAPABILITY: ${{ inputs.capability || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${INPUT_CAPABILITY}" ]]; then
+            # --- Manual: single capability specified ---
+            CAP_DIR="capabilities/${INPUT_CAPABILITY}"
+            if [[ ! -d "${CAP_DIR}" ]]; then
+              echo "::error::Capability directory not found: ${CAP_DIR}"
+              exit 1
+            fi
+            if [[ ! -f "${CAP_DIR}/capability.yaml" ]]; then
+              echo "::error::No capability.yaml in ${CAP_DIR}"
+              exit 1
+            fi
+            CAPS_JSON=$(jq -nc --arg n "${INPUT_CAPABILITY}" --arg p "${CAP_DIR}" \
+              '[{"name": $n, "path": $p}]')
+
+          elif [[ "${REF_TYPE}" == "tag" ]] || [[ "${EVENT_NAME}" == "workflow_dispatch" && -z "${INPUT_CAPABILITY}" ]]; then
+            # --- Tag push or manual without specific capability: sync ALL ---
+            CAPS_JSON=$(find capabilities -maxdepth 2 -name "capability.yaml" \
+              | while read -r f; do
+                  dir=$(dirname "$f")
+                  name=$(basename "$dir")
+                  echo "{\"name\": \"${name}\", \"path\": \"${dir}\"}"
+                done \
+              | jq -sc '.')
+
+          else
+            # --- Push to main: diff against previous commit ---
+            CHANGED_DIRS=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" \
+              | grep '^capabilities/' \
+              | cut -d/ -f1-2 \
+              | sort -u || true)
+
+            CAPS_JSON="[]"
+            for dir in ${CHANGED_DIRS}; do
+              if [[ -f "${dir}/capability.yaml" ]]; then
+                name=$(basename "${dir}")
+                CAPS_JSON=$(echo "${CAPS_JSON}" | jq -c --arg n "${name}" --arg p "${dir}" \
+                  '. + [{"name": $n, "path": $p}]')
+              fi
+            done
+
+            CAPS_JSON=$(echo "${CAPS_JSON}" | jq -c 'unique_by(.name)')
+          fi
+
+          COUNT=$(echo "${CAPS_JSON}" | jq 'length')
+          echo "capabilities=${CAPS_JSON}" >> "$GITHUB_OUTPUT"
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+          echo "### Detected ${COUNT} capability(ies) to sync" >> "$GITHUB_STEP_SUMMARY"
+          echo "${CAPS_JSON}" | jq -r '.[] | "- \(.name)"' >> "$GITHUB_STEP_SUMMARY"
+
+  sync:
+    name: "Upload capabilities (${{ needs.resolve-environment.outputs.environment }})"
+    needs: [resolve-environment, detect-changes]
+    if: needs.detect-changes.outputs.count != '0'
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-environment.outputs.environment }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        capability: ${{ fromJson(needs.detect-changes.outputs.capabilities) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload capability
+        uses: ./.github/actions/upload-capability
+        with:
+          capability-name: ${{ matrix.capability.name }}
+          capability-path: ${{ matrix.capability.path }}
+          api-url: ${{ vars.DREADNODE_API_URL }}
+          api-key: ${{ secrets.DREADNODE_API_KEY }}
+          org: ${{ vars.DREADNODE_ORG }}
+          force: ${{ inputs.force || false }}
+
+  summary:
+    name: Sync summary
+    needs: [resolve-environment, detect-changes, sync]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report results
+        env:
+          SYNC_RESULT: ${{ needs.sync.result }}
+          CAP_COUNT: ${{ needs.detect-changes.outputs.count }}
+          ENVIRONMENT: ${{ needs.resolve-environment.outputs.environment }}
+        run: |
+          {
+            echo "### Sync Summary"
+            echo "- **Environment:** ${ENVIRONMENT}"
+            echo "- **Capabilities detected:** ${CAP_COUNT}"
+            echo "- **Sync result:** ${SYNC_RESULT}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${CAP_COUNT}" == "0" ]]; then
+            echo "No capability changes detected. Nothing to sync." >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "${SYNC_RESULT}" == "failure" ]]; then
+            echo "::error::One or more capability uploads failed"
+            exit 1
+          fi
