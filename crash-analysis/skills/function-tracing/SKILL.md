@@ -98,5 +98,5 @@ endif()
 ## Source Files
 
 The `trace_instrument.c` and `trace_to_perfetto.cpp` source files should be
-located alongside this SKILL.md. If missing, they need to be copied from the
-raptor repository (`~/code/raptor/.claude/skills/crash-analysis/function-tracing/`).
+located alongside this SKILL.md. If missing, they can be found in the upstream
+raptor repository: https://github.com/gadievron/raptor

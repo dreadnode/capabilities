@@ -14,8 +14,7 @@ skills:
   - skills/
 # tools/ auto-discovered: CrashAnalysis toolset (gdb/lldb wrapper).
 # Requires: gdb or lldb, rr, gcc/g++, gcov, binutils.
-# Derived from: github.com/gadievron/raptor (packages/binary_analysis,
-#   .claude/agents/crash-*, .claude/skills/crash-analysis)
+# Derived from: https://github.com/gadievron/raptor
 
 author:
   name: Gadi Evron, Daniel Cuthbert, Thomas Dullien, Michael Bargury, John Cartwright

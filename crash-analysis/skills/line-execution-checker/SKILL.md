@@ -51,5 +51,5 @@ Coverage data must exist from prior test run with `--coverage` flag.
 ## Source File
 
 The `line_checker.cpp` source file should be located alongside this SKILL.md.
-If missing, it needs to be copied from the raptor repository
-(`~/code/raptor/.claude/skills/crash-analysis/line-execution-checker/`).
+If missing, it can be found in the upstream raptor repository:
+https://github.com/gadievron/raptor
