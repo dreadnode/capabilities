@@ -48,6 +48,67 @@ runs:
           exit 1
         fi
 
+    - name: Validate manifest (v1 contract)
+      shell: bash
+      env:
+        CAP_PATH: ${{ inputs.capability-path }}
+        CAP_NAME: ${{ inputs.capability-name }}
+      run: |
+        set -euo pipefail
+        MANIFEST="${CAP_PATH}/capability.yaml"
+
+        # Parse YAML with Python (available on ubuntu-latest)
+        python3 -c "
+        import yaml, sys, re
+
+        with open('${MANIFEST}') as f:
+            data = yaml.safe_load(f)
+
+        errors = []
+
+        # CAP-VALID-001: required fields
+        for field in ('schema', 'name', 'version', 'description'):
+            if field not in data:
+                errors.append(f\"Missing required field: {field}\")
+
+        if errors:
+            for e in errors:
+                print(f'::error::{e}', file=sys.stderr)
+            sys.exit(1)
+
+        # CAP-VALID-004: schema must be 1
+        if data['schema'] != 1:
+            errors.append(f\"schema must be 1, got {data['schema']}\")
+
+        # CAP-VALID-002: name format
+        name = str(data['name'])
+        if not re.match(r'^[a-z0-9][a-z0-9-]*$', name):
+            errors.append(f\"name '{name}' must match [a-z0-9][a-z0-9-]*\")
+
+        # CAP-VALID-003: version is semver-like
+        version = str(data['version'])
+        if not re.match(r'^\d+\.\d+\.\d+', version):
+            errors.append(f\"version '{version}' must be semver (MAJOR.MINOR.PATCH)\")
+
+        # CAP-VALID-001: description non-empty
+        desc = data.get('description', '')
+        if not isinstance(desc, str) or not desc.strip():
+            errors.append('description must be a non-empty string')
+
+        # CAP-VALID-006: export fields must be arrays if present
+        for field in ('agents', 'tools', 'skills'):
+            val = data.get(field)
+            if val is not None and not isinstance(val, list):
+                errors.append(f\"'{field}' must be an array (got {type(val).__name__})\")
+
+        if errors:
+            for e in errors:
+                print(f'::error::[${CAP_NAME}] {e}', file=sys.stderr)
+            sys.exit(1)
+
+        print(f'Manifest valid: {name}@{version}')
+        "
+
     - name: Create capability archive
       id: archive
       shell: bash

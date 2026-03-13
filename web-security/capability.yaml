@@ -1,0 +1,29 @@
+schema: 1
+name: web-security
+version: "1.0.0"
+description: >
+  Web application security testing capability. Provides autonomous
+  penetration testing with HTTP client, browser hooks, credential
+  management, and vulnerability verification tools.
+
+agents:
+  - agents/
+skills:
+  - skills/
+# tools/ auto-discovered: HttpTools, CredentialStore, CallbackClient,
+# ReportingTools, browser hooks. Requires httpx in runtime environment.
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: Apache-2.0
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - web-security
+  - penetration-testing
+  - pentest
+  - vulnerability
+  - owasp
+  - xss
+  - sqli
+  - ssrf

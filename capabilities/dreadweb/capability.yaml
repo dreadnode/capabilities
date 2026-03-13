@@ -1,7 +1,0 @@
-version: 1
-name: 'dreadweb'
-summary: 'Web application security testing capability (ported from existing dreadnode capability).'
-tools:
-  - 'tools/'
-skills:
-  - 'skills/'

@@ -1,0 +1,30 @@
+schema: 1
+name: ai-red-teaming
+version: "1.0.0"
+description: >
+  AI red team assessment capability. Orchestrates the Dreadnode AIRT SDK's
+  attack algorithms by generating and executing Python workflows. Supports
+  12+ attack types, 200+ transforms, multi-goal category sweeps, and
+  agentic API targeting.
+
+agents:
+  - agents/
+skills:
+  - skills/
+# tools/ auto-discovered: assessment tracking, goal categories, results
+# inspection, workflow management, attack generation (subprocess wrapper
+# around scripts/attack_runner.py). Requires dreadnode SDK in runtime.
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: Apache-2.0
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - ai-red-teaming
+  - airt
+  - llm-security
+  - jailbreak
+  - adversarial
+  - safety
+  - compliance

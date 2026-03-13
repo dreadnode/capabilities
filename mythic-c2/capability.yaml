@@ -1,0 +1,23 @@
+schema: 1
+name: mythic-c2
+version: "1.0.0"
+description: >
+  Mythic C2 framework integration capability. Provides server management
+  (callback listing, file upload/download) and Apollo implant post-exploitation
+  (command execution, token manipulation, registry operations, file operations,
+  lateral movement, and SharpView AD reconnaissance via implant).
+
+# tools/ auto-discovered: Mythic (server), Apollo (implant).
+# Requires: mythic Python package, running Mythic C2 server.
+# NOTE: fs module import needs migration from old SDK path.
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: Apache-2.0
+keywords:
+  - c2
+  - mythic
+  - apollo
+  - post-exploitation
+  - implant

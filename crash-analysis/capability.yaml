@@ -1,0 +1,30 @@
+schema: 1
+name: crash-analysis
+version: "1.0.0"
+description: >
+  Crash analysis capability for C/C++ security bugs. Provides a multi-agent
+  pipeline: orchestrator fetches bug reports and reproduces crashes, specialist
+  agents perform root-cause analysis using rr record-replay, function-level
+  execution traces, and gcov coverage data, and a checker agent validates
+  hypotheses with mechanical format verification and empirical cross-checking.
+
+agents:
+  - agents/
+skills:
+  - skills/
+# tools/ auto-discovered: CrashAnalysis toolset (gdb/lldb wrapper).
+# Requires: gdb or lldb, rr, gcc/g++, gcov, binutils.
+# Derived from: github.com/gadievron/raptor (packages/binary_analysis,
+#   .claude/agents/crash-*, .claude/skills/crash-analysis)
+
+author:
+  name: Gadi Evron, Daniel Cuthbert, Thomas Dullien, Michael Bargury, John Cartwright
+  url: https://github.com/gadievron/raptor
+license: MIT
+keywords:
+  - crash-analysis
+  - binary-analysis
+  - rr-debugger
+  - root-cause-analysis
+  - memory-safety
+  - debugging

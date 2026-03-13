@@ -1,9 +1,0 @@
-version: 1
-name: 'dreadairt'
-summary: 'AI red team assessment capability for the DreadAIRT agent.'
-agents:
-  - 'agents/'
-tools:
-  - 'tools.yaml'
-skills:
-  - 'skills/'

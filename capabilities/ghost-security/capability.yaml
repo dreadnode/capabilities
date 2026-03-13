@@ -1,5 +1,0 @@
-version: 1
-name: 'ghost-security'
-summary: 'Enterprise-oriented security workflow capability port with rich skill packs.'
-skills:
-  - 'skills/'
