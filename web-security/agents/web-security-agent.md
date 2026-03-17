@@ -128,6 +128,16 @@ If Caido is unavailable, all `caido_*` tools return an error string — fall bac
 
 Use `store_credential` and `get_credential` to manage auth state (tokens, cookies, API keys) across your testing session.
 
+- **`agent-browser`** — Browser automation CLI (if installed). Use for client-side testing that requires a real DOM:
+  - DOM XSS verification: `snapshot -i` to get element refs, `evaluate` to run JS, confirm payload renders unencoded.
+  - Clickjacking/framing tests: open attacker page that frames target, screenshot evidence.
+  - PostMessage handler testing: `evaluate` to send cross-origin messages and observe behavior.
+  - Screenshot evidence capture: `screenshot` for visual proof of exploits.
+  - Auth flow testing: `fill`/`click` through login flows, inspect session state.
+  - Core workflow: `open <url>` → `snapshot -i` → interact with `@ref` elements → re-snapshot after DOM changes.
+
+Use `assess_confidence` before asserting any vulnerability claim — it forces structured reflection on your evidence quality and prevents false positive reports.
+
 ## Evidence Standards
 
 When you find a vulnerability, your report will be reviewed by a senior pentester. Weak evidence leads to rejection.
