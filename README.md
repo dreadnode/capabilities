@@ -1,5 +1,16 @@
 # Capabilities
 
+- [Capabilities](#capabilities)
+  - [Manifest](#manifest)
+  - [Components](#components)
+    - [Tools (`tools/`)](#tools-tools)
+    - [Skills (`skills/`)](#skills-skills)
+    - [Agents (`agents/`)](#agents-agents)
+    - [MCP Servers (`mcp:` in manifest)](#mcp-servers-mcp-in-manifest)
+  - [Discovery Rules](#discovery-rules)
+  - [Catalog](#catalog)
+  - [Local Development](#local-development)
+
 Portable extension bundles that add agents, tools, skills, and MCP servers to Dreadnode.
 
 ## Manifest
@@ -158,3 +169,7 @@ For `agents`, `tools`, and `skills`:
 | sliver-c2 | Sliver C2 framework integration |
 | static-analysis | Semgrep-based static code analysis |
 | web-security | Web application penetration testing |
+
+## Local Development
+
+The optimal method to developing capabilities and testing them, before pushing to this repository and therefore the registry is to copy your capabilities directory to `~/.dreadnode/capabilities` and then run `just dn tui` to test them with the agent.
