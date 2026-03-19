@@ -1,0 +1,39 @@
+# macOS
+.DS_Store
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Python environments
+.venv/
+venv/
+env/
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Packaging and build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Test and crash-analysis outputs
+gcov/
+*.gcda
+*.gcno
+*.gcov
+
+# Editor and local workspace files
+.idea/
+.vscode/
