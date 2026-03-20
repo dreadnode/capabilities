@@ -117,14 +117,6 @@ Not everything you find is a vulnerability. Distinguish between what you have an
 You have two HTTP tool paths — use the right one for the job:
 
 - **`execute_http`** — Direct HTTP requests. Use for most testing: recon, payload delivery, response analysis. Stateful session with automatic cookie persistence.
-- **`caido_*` tools** — Interact with a running Caido proxy (if available). Use `caido_health` to check connectivity first. When Caido is running:
-  - `caido_search_requests` — Search captured traffic instead of re-crawling. Filter with HTTPQL (e.g. `host:target.com AND method:POST`).
-  - `caido_get_request` — Inspect full request/response detail from captured traffic.
-  - `caido_replay_request` — Send modified requests through Caido's replay engine for interactive inspection.
-  - `caido_create_finding` — Record confirmed vulnerabilities directly in Caido's project.
-  - `caido_list_scopes` / `caido_create_scope` — Manage testing scope boundaries.
-
-If Caido is unavailable, all `caido_*` tools return an error string — fall back to `execute_http` and `get_callback_url` for OOB testing.
 
 Use `store_credential` and `get_credential` to manage auth state (tokens, cookies, API keys) across your testing session.
 
