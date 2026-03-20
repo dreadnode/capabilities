@@ -1,0 +1,37 @@
+---
+name: unicode-normalization-bypass
+description: Bypass WAFs and input filters using Unicode normalization equivalents (NFKC/NFKD). Use when WAF blocks payloads but application normalizes Unicode before processing.
+---
+
+# Unicode Normalization Bypass
+
+## Pattern
+- WAF blocking standard payloads but backend normalizes Unicode post-filter
+- Application accepts internationalized/multi-script input
+- Fullwidth, mathematical, or decorative Unicode characters accepted
+- Length-based restrictions with case mapping (Turkish locale edge cases)
+
+## Probe
+**Substitutions** (WAF sees Unicode, app normalizes to ASCII):
+- `<` → `\uff1c` (fullwidth `<`) | `>` → `\uff1e` (fullwidth `>`)
+- `'` → `\uff07` (fullwidth) or `\u02bc` (modifier letter)
+- `/` → `\u2215` (division slash) or `\u2044` (fraction slash)
+- `"` → `\uff02` (fullwidth) | `.` → `\uff0e` (fullwidth)
+- `0-9` → `\uff10-\uff19` (fullwidth digits)
+- Script variants: `\U0001d4e2` (mathematical bold `s`), circled letters
+
+**Detection test**: submit `\U0001d543\u2147\U0001d664\U0001d4c3\u2148\U0001d530\U0001d525\U0001d4b6\U0001d65f` — if response reflects "Leonishan", normalization is active.
+
+**NFKC normalization** is most common (Kubernetes, Python `.casefold()`, Java `Normalizer`).
+
+## Indicators
+- Response reflects normalized (ASCII) version of Unicode input
+- Payload bypasses WAF but executes on backend (XSS, SSTI, SQLi, path traversal)
+- Character count changes after normalization (compatibility decomposition)
+
+## Chain With
+- ssti-error-based-detection (bypass WAF to reach template engine)
+- apache-confusion-attacks (combine encodings with path confusion)
+
+## Reference
+https://i.blackhat.com/BH-USA-25/Presentations/USA-25-Barnett-Lost-In-Translation-Exploiting-Unicode-compressed.pdf
