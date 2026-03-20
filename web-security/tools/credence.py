@@ -3,8 +3,6 @@
 Forces the agent to evaluate its confidence per-claim before asserting
 findings, reducing false positives. Tool-based reflection outperforms
 system-prompt hedging because it operates per-claim rather than globally.
-
-Ported from credence-mcp (project-obsidian-md) into the Toolset pattern.
 No external dependencies.
 """
 
