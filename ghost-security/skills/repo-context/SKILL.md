@@ -1,5 +1,5 @@
 ---
-name: "ghost-repo-context"
+name: "repo-context"
 description: "Scans directory structure, detects projects, maps dependencies, and documents code organization into a repo.md file. Use when the user needs a codebase overview, project structure map, or repository context before security analysis."
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 license: apache-2.0

@@ -1,5 +1,5 @@
 ---
-name: "ghost-validate"
+name: "validate"
 description: This skill should be used when the user asks to "validate a finding", "check if a vulnerability is real", "triage a security finding", "confirm a vulnerability", "determine if a finding is a true positive or false positive", or provides a security finding for review. It validates security vulnerability findings by tracing data flows, verifying exploit conditions, analyzing security controls, and optionally testing attack vectors against a live application.
 license: apache-2.0
 metadata:

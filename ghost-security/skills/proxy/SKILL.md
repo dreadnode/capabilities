@@ -1,5 +1,5 @@
 ---
-name: "ghost-proxy"
+name: "proxy"
 description: Starts and controls the reaper MITM proxy to capture, inspect, search, and replay HTTP/HTTPS traffic between clients and servers. Capabilities include starting/stopping the proxy scoped to specific domains, viewing captured request/response logs, searching traffic by method/path/status/host, and inspecting full raw HTTP entries for security analysis. Use when the user asks to "start the proxy", "capture traffic", "intercept requests", "inspect HTTP traffic", "search captured requests", or "view request/response".
 license: apache-2.0
 metadata:
