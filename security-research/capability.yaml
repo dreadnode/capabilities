@@ -1,0 +1,19 @@
+schema: 1
+name: security-research
+version: "1.0.0"
+description: >
+  Cross-domain security research and review skills for smart contracts, mobile
+  apps, static analysis workflows, exploit verification, secure API design, and
+  low-level secret handling audits.
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: Apache-2.0
+keywords:
+  - security-research
+  - code-review
+  - mobile-security
+  - smart-contracts
+  - static-analysis
+  - exploit-verification

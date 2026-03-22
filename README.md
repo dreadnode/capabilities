@@ -166,6 +166,7 @@ For `agents`, `tools`, and `skills`:
 | ghost-security | AI-native application security (SAST, SCA, secrets, DAST) |
 | mythic-c2 | Mythic C2 framework integration |
 | network-ops | Network operations and Active Directory exploitation |
+| security-research | Cross-domain security research and review skills |
 | sliver-c2 | Sliver C2 framework integration |
 | static-analysis | Semgrep-based static code analysis |
 | web-security | Web application penetration testing |
