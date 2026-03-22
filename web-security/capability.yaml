@@ -13,6 +13,15 @@ skills:
 # tools/ auto-discovered: HttpTools, CredentialStore, CallbackClient,
 # ReportingTools, browser hooks. Requires httpx in runtime environment.
 
+mcp:
+  servers:
+    caido:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/server.py"
+      init_timeout: 60
+
 author:
   name: Dreadnode
   url: https://dreadnode.io

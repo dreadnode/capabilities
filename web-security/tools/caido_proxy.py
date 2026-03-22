@@ -1,8 +1,7 @@
-"""Compatibility stub for temporarily disabled Caido integration.
+"""Caido integration is provided via MCP server (mcp/server.py).
 
-Caido is intentionally removed from this capability for now. This module is
-kept importable so the capability continues to load cleanly while the
-replacement integration is developed separately.
+Caido tools run in an isolated venv via `uv run` to keep the caido-sdk-client
+dependency out of the SDK. See mcp/tools/caido.py for the implementation.
 """
 
 from __future__ import annotations
