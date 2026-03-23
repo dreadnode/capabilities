@@ -341,17 +341,17 @@ Summary:
 Next steps:
 - Review findings in detail
 - Address CRITICAL/HIGH issues before merge
-- Consider chaining with report-writer for a polished stakeholder report
+- Consider chaining with issue-writer for stakeholder report
 ```
 
 ---
 
-## Integration with report-writer
+## Integration with issue-writer
 
 After generating differential review, transform into audit report:
 
 ```bash
-Use the generated review report as source material for a follow-up report-writing pass.
+issue-writer --input DIFFERENTIAL_REVIEW_REPORT.md --format audit-report
 ```
 
 This creates polished documentation for non-technical stakeholders.

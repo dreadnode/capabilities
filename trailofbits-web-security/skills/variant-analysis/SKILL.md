@@ -21,7 +21,7 @@ Use this skill when:
 Do NOT use this skill for:
 - Initial vulnerability discovery (use audit-context-building or domain-specific audits instead)
 - General code review without a known pattern to search for
-- Writing fix recommendations or final remediation plans
+- Writing fix recommendations (use issue-writer instead)
 - Understanding unfamiliar code (use audit-context-building for deep comprehension first)
 
 ## The Five-Step Process

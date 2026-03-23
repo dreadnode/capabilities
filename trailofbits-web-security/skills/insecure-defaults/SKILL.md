@@ -1,18 +1,6 @@
 ---
 name: insecure-defaults
 description: "Detects fail-open insecure defaults (hardcoded secrets, weak auth, permissive security) that allow apps to run insecurely in production. Use when auditing security, reviewing config management, or analyzing environment variable handling."
-triggers:
-  - insecure defaults
-  - hardcoded secrets
-  - default credentials
-  - fail open
-  - environment variable fallbacks
-  - weak crypto defaults
-  - JWT secret fallback
-  - debug mode enabled
-  - CORS allow all
-  - permissive access control
-  - production configuration audit
 allowed-tools:
   - Read
   - Grep
@@ -126,4 +114,4 @@ Exploitation: Attacker forges JWTs using 'default', gains unauthorized access
 → Verify: Enabled by default? Exposed in responses?
 → Skip: Logging-only, not user-facing
 
-For detailed examples and counter-examples, see [references/examples.md](references/examples.md).
+For detailed examples and counter-examples, see [examples.md](references/examples.md).

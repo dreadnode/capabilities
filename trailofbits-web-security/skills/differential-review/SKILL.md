@@ -118,8 +118,9 @@ Before delivering:
 - Pre-Analysis: Build baseline context
 - Phase 4: Deep context on HIGH RISK changes
 
-**report-writer skill:**
-- Transform findings into a polished audit-style report when needed
+**issue-writer skill:**
+- Transform findings into formal audit reports
+- Command: `issue-writer --input DIFFERENTIAL_REVIEW_REPORT.md --format audit-report`
 
 ---
 

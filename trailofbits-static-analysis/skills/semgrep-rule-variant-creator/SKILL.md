@@ -121,7 +121,7 @@ Before porting, determine if the pattern applies to the target language.
 - `APPLICABLE_WITH_ADAPTATION` → Proceed but significant changes needed
 - `NOT_APPLICABLE` → Skip this language, document why
 
-See [references/applicability-analysis.md](references/applicability-analysis.md) for detailed guidance.
+See [applicability-analysis.md]({baseDir}/references/applicability-analysis.md) for detailed guidance.
 
 ### Phase 2: Test Creation (Test-First)
 
@@ -147,7 +147,7 @@ db.Query("SELECT * FROM users WHERE id = ?", userInput)
 3. **Update metadata**: language key, message, rule ID
 4. **Adapt for idioms**: Handle language-specific constructs
 
-See [references/language-syntax-guide.md](references/language-syntax-guide.md) for translation guidance.
+See [language-syntax-guide.md]({baseDir}/references/language-syntax-guide.md) for translation guidance.
 
 ### Phase 4: Validation
 
@@ -166,7 +166,7 @@ For taint rule debugging:
 semgrep --dataflow-traces -f rule.yaml test-file
 ```
 
-See [references/workflow.md](references/workflow.md) for detailed workflow and troubleshooting.
+See [workflow.md]({baseDir}/references/workflow.md) for detailed workflow and troubleshooting.
 
 ## Quick Reference
 
@@ -200,6 +200,6 @@ See [references/workflow.md](references/workflow.md) for detailed workflow and t
 
 ## Next Steps
 
-- For applicability analysis guidance, see [references/applicability-analysis.md](references/applicability-analysis.md)
-- For language translation guidance, see [references/language-syntax-guide.md](references/language-syntax-guide.md)
-- For detailed workflow and examples, see [references/workflow.md](references/workflow.md)
+- For applicability analysis guidance, see [applicability-analysis.md]({baseDir}/references/applicability-analysis.md)
+- For language translation guidance, see [language-syntax-guide.md]({baseDir}/references/language-syntax-guide.md)
+- For detailed workflow and examples, see [workflow.md]({baseDir}/references/workflow.md)

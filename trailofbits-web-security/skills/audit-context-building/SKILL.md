@@ -7,9 +7,9 @@ description: Enables ultra-granular, line-by-line code analysis to build deep ar
 
 ## 1. Purpose
 
-This skill governs **how the agent thinks** during the context-building phase of an audit.
+This skill governs **how Claude thinks** during the context-building phase of an audit.
 
-When active, the agent will:
+When active, Claude will:
 - Perform **line-by-line / block-by-block** code analysis by default.
 - Apply **First Principles**, **5 Whys**, and **5 Hows** at micro scale.
 - Continuously link insights → functions → modules → entire system.
@@ -38,7 +38,7 @@ Do **not** use for:
 
 ## 3. How This Skill Behaves
 
-When active, the agent will:
+When active, Claude will:
 - Default to **ultra-granular analysis** of each block and line.
 - Apply micro-level First Principles, 5 Whys, and 5 Hows.
 - Build and refine a persistent global mental model.
@@ -65,7 +65,7 @@ Goal: **deep, accurate understanding**, not conclusions.
 
 ## 4. Phase 1 — Initial Orientation (Bottom-Up Scan)
 
-Before deep analysis, the agent performs a minimal mapping:
+Before deep analysis, Claude performs a minimal mapping:
 
 1. Identify major modules/files/contracts.
 2. Note obvious public/external entrypoints.
@@ -167,7 +167,7 @@ This example demonstrates the level of depth and structure required for all anal
 
 ### 5.4 Output Requirements
 
-When performing ultra-granular analysis, the agent MUST structure output following the format defined in [OUTPUT_REQUIREMENTS.md](resources/OUTPUT_REQUIREMENTS.md).
+When performing ultra-granular analysis, Claude MUST structure output following the format defined in [OUTPUT_REQUIREMENTS.md](resources/OUTPUT_REQUIREMENTS.md).
 
 Key requirements:
 - **Purpose** (2-3 sentences minimum)
@@ -229,7 +229,7 @@ These clusters help guide the vulnerability-hunting phase.
 ## 7. Stability & Consistency Rules
 *(Anti-Hallucination, Anti-Contradiction)*
 
-The agent must:
+Claude must:
 
 - **Never reshape evidence to fit earlier assumptions.**
   When contradicted:
@@ -256,7 +256,7 @@ The agent must:
 
 ## 8. Subagent Usage
 
-The agent may delegate focused analysis for:
+Claude may spawn subagents for:
 - Dense or complex functions.
 - Long data-flow or control-flow chains.
 - Cryptographic / mathematical logic.
@@ -268,9 +268,9 @@ It follows the full microstructure checklist, cross-function flow
 rules, and quality thresholds defined in this skill, and enforces
 the pure-context-building constraint.
 
-Delegated analysis must:
+Subagents must:
 - Follow the same micro-first rules.
-- Return summaries that the agent integrates into its global model.
+- Return summaries that Claude integrates into its global model.
 
 ---
 
@@ -292,7 +292,7 @@ It exists solely to build:
 
 ## 10. Non-Goals
 
-While active, the agent should NOT:
+While active, Claude should NOT:
 - Identify vulnerabilities
 - Propose fixes
 - Generate proofs-of-concept

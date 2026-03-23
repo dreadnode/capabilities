@@ -1,6 +1,6 @@
 # Output Requirements
 
-When performing ultra-granular analysis, the agent MUST structure output following the Per-Function Microstructure Checklist format demonstrated in [FUNCTION_MICRO_ANALYSIS_EXAMPLE.md](FUNCTION_MICRO_ANALYSIS_EXAMPLE.md).
+When performing ultra-granular analysis, Claude MUST structure output following the Per-Function Microstructure Checklist format demonstrated in [FUNCTION_MICRO_ANALYSIS_EXAMPLE.md](FUNCTION_MICRO_ANALYSIS_EXAMPLE.md).
 
 ---
 

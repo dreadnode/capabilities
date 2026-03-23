@@ -34,7 +34,7 @@ This skill **delegates parsing to Burp Suite Professional** - it does not parse 
 
 Use the wrapper script:
 ```bash
-scripts/burp-search.sh /path/to/project.burp [FLAGS]
+{baseDir}/scripts/burp-search.sh /path/to/project.burp [FLAGS]
 ```
 
 The script uses environment variables for platform compatibility:
@@ -66,22 +66,22 @@ See [Platform Configuration](#platform-configuration) for setup instructions.
 
 ```bash
 # GOOD - headers only, safe to retrieve
-scripts/burp-search.sh project.burp proxyHistory.request.headers | head -c 50000
-scripts/burp-search.sh project.burp proxyHistory.response.headers | head -c 50000
+{baseDir}/scripts/burp-search.sh project.burp proxyHistory.request.headers | head -c 50000
+{baseDir}/scripts/burp-search.sh project.burp proxyHistory.response.headers | head -c 50000
 
 # BAD - full records include bodies, can be gigabytes
-scripts/burp-search.sh project.burp proxyHistory  # NEVER DO THIS
+{baseDir}/scripts/burp-search.sh project.burp proxyHistory  # NEVER DO THIS
 ```
 
 **Only fetch bodies for specific URLs after reviewing headers, and ALWAYS truncate:**
 
 ```bash
 # 1. First, find interesting URLs from headers
-scripts/burp-search.sh project.burp proxyHistory.response.headers | \
+{baseDir}/scripts/burp-search.sh project.burp proxyHistory.response.headers | \
   jq -r 'select(.headers | test("text/html")) | .url' | head -n 20
 
 # 2. Then search bodies with targeted regex - MUST truncate body to 1000 chars
-scripts/burp-search.sh project.burp "responseBody='.*specific-pattern.*'" | \
+{baseDir}/scripts/burp-search.sh project.burp "responseBody='.*specific-pattern.*'" | \
   head -n 10 | jq -c '.body = (.body[:1000] + "...[TRUNCATED]")'
 ```
 
@@ -108,7 +108,7 @@ responseBody='.*regex.*'
 
 ```bash
 # REQUIRED format - always truncate .body field
-scripts/burp-search.sh project.burp "responseBody='.*<form.*action.*'" | \
+{baseDir}/scripts/burp-search.sh project.burp "responseBody='.*<form.*action.*'" | \
   head -n 10 | jq -c '.body = (.body[:1000] + "...[TRUNCATED]")'
 ```
 
@@ -148,9 +148,9 @@ Before any search, check BOTH record count AND byte size:
 
 ```bash
 # Check record count AND total bytes - never skip this step
-scripts/burp-search.sh project.burp proxyHistory | wc -cl
-scripts/burp-search.sh project.burp "responseHeader='.*Server.*'" | wc -cl
-scripts/burp-search.sh project.burp auditItems | wc -cl
+{baseDir}/scripts/burp-search.sh project.burp proxyHistory | wc -cl
+{baseDir}/scripts/burp-search.sh project.burp "responseHeader='.*Server.*'" | wc -cl
+{baseDir}/scripts/burp-search.sh project.burp auditItems | wc -cl
 ```
 
 The `wc -cl` output shows: `<bytes> <lines>` (e.g., `524288 42` means 512KB across 42 records).
@@ -187,7 +187,7 @@ If count/size is too high:
 3. **Filter with jq before retrieving:**
    ```bash
    # Get only specific content types
-   scripts/burp-search.sh project.burp proxyHistory.response.headers | \
+   {baseDir}/scripts/burp-search.sh project.burp proxyHistory.response.headers | \
      jq -c 'select(.url | test("/api/"))' | head -n 50
    ```
 
@@ -197,14 +197,14 @@ Even after narrowing, always pipe through truncation:
 
 ```bash
 # ALWAYS use head -c to limit total bytes (max 50KB)
-scripts/burp-search.sh project.burp proxyHistory.request.headers | head -c 50000
+{baseDir}/scripts/burp-search.sh project.burp proxyHistory.request.headers | head -c 50000
 
 # For body searches, truncate each JSON object's body field:
-scripts/burp-search.sh project.burp "responseBody='pattern'" | \
+{baseDir}/scripts/burp-search.sh project.burp "responseBody='pattern'" | \
   head -n 20 | jq -c '.body = (.body | if length > 1000 then .[:1000] + "...[TRUNCATED]" else . end)'
 
 # Limit both record count AND byte size:
-scripts/burp-search.sh project.burp auditItems | head -n 50 | head -c 50000
+{baseDir}/scripts/burp-search.sh project.burp auditItems | head -n 50 | head -c 50000
 ```
 
 **Hard limits to enforce:**
@@ -225,7 +225,7 @@ scripts/burp-search.sh project.burp auditItems | head -n 50 | head -c 50000
 
 2. **Search audit items first** - Start with Burp's findings:
    ```bash
-   scripts/burp-search.sh project.burp auditItems | jq 'select(.severity == "High")'
+   {baseDir}/scripts/burp-search.sh project.burp auditItems | jq 'select(.severity == "High")'
    ```
 
 3. **Check confidence scores** - Filter for actionable findings:
@@ -240,7 +240,7 @@ scripts/burp-search.sh project.burp auditItems | head -n 50 | head -c 50000
 
 5. **Search raw traffic for context** - Examine actual requests/responses:
    ```bash
-   scripts/burp-search.sh project.burp "responseBody='pattern'"
+   {baseDir}/scripts/burp-search.sh project.burp "responseBody='pattern'"
    ```
 
 6. **Validate manually** - Burp findings are indicators, not proof. Verify each one.
@@ -291,34 +291,34 @@ Common shortcuts that lead to missed vulnerabilities or false reports:
 
 All output is JSON, one object per line. Pipe to `jq` for formatting:
 ```bash
-scripts/burp-search.sh project.burp auditItems | jq .
+{baseDir}/scripts/burp-search.sh project.burp auditItems | jq .
 ```
 
 Filter with grep:
 ```bash
-scripts/burp-search.sh project.burp auditItems | grep -i "sql injection"
+{baseDir}/scripts/burp-search.sh project.burp auditItems | grep -i "sql injection"
 ```
 
 ## Examples
 
 Search for CORS headers (with byte limit):
 ```bash
-scripts/burp-search.sh project.burp "responseHeader='.*Access-Control.*'" | head -c 50000
+{baseDir}/scripts/burp-search.sh project.burp "responseHeader='.*Access-Control.*'" | head -c 50000
 ```
 
 Get all high-severity findings (audit items are small, but still limit):
 ```bash
-scripts/burp-search.sh project.burp auditItems | jq -c 'select(.severity == "High")' | head -n 100
+{baseDir}/scripts/burp-search.sh project.burp auditItems | jq -c 'select(.severity == "High")' | head -n 100
 ```
 
 Extract just request URLs from proxy history:
 ```bash
-scripts/burp-search.sh project.burp proxyHistory.request.headers | jq -r '.request.url' | head -n 200
+{baseDir}/scripts/burp-search.sh project.burp proxyHistory.request.headers | jq -r '.request.url' | head -n 200
 ```
 
 Search response bodies (MUST truncate body to 1000 chars):
 ```bash
-scripts/burp-search.sh project.burp "responseBody='.*password.*'" | \
+{baseDir}/scripts/burp-search.sh project.burp "responseBody='.*password.*'" | \
   head -n 10 | jq -c '.body = (.body[:1000] + "...[TRUNCATED]")'
 ```
 
