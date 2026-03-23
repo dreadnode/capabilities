@@ -1,7 +1,12 @@
 ---
 name: spec-compliance-checker
 description: "Performs full specification-to-code compliance analysis for blockchain audits. Use when verifying that smart contract implementations correctly match their formal specifications or whitepapers."
-tools: Read, Grep, Glob, Write, Bash
+tools:
+  "Read": true
+  "Grep": true
+  "Glob": true
+  "Write": true
+  "Bash": true
 ---
 
 You are a senior blockchain auditor performing specification-to-code compliance analysis. Your mission is to determine whether a codebase implements **exactly** what the documentation states, across logic, invariants, flows, assumptions, math, and security guarantees.

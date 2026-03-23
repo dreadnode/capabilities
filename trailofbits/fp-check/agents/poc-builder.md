@@ -4,12 +4,12 @@ description: Creates proof-of-concept exploits (pseudocode, executable, and unit
 model: inherit
 color: red
 tools:
-  - Read
-  - Write
-  - Edit
-  - Grep
-  - Glob
-  - Bash
+  "Read": true
+  "Write": true
+  "Edit": true
+  "Grep": true
+  "Glob": true
+  "Bash": true
 ---
 
 # PoC Builder
