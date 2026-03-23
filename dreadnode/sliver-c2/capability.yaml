@@ -7,6 +7,13 @@ description: >
   post-exploitation (command execution, file operations, token
   manipulation, registry operations, process injection).
 
+mcp:
+  servers:
+    sliver:
+      command: "uv"
+      args: ["run", "${CAPABILITY_ROOT}/mcp/server.py"]
+      init_timeout: 30
+
 author:
   name: Dreadnode
   url: https://dreadnode.io
