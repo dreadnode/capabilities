@@ -1,5 +1,5 @@
 schema: 1
-name: trailofbits-web-security
+name: web-security
 version: "1.0.0"
 description: >
   Web application security skills for code auditing, security review, and

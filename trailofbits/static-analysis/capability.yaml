@@ -1,5 +1,5 @@
 schema: 1
-name: trailofbits-static-analysis
+name: static-analysis
 version: "1.0.0"
 description: >
   Static analysis skills for security vulnerability detection using CodeQL

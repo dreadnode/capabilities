@@ -1,5 +1,8 @@
 # Sync changed capabilities to the Dreadnode platform API.
 #
+# Repo layout: {org}/{capability}/capability.yaml
+# The org directory name determines which platform org receives the upload.
+#
 # Promotion model:
 #   - Push to main          -> dev
 #   - Tag v1.2.3-rc.N       -> staging
@@ -10,8 +13,8 @@
 # via X-API-Key header.
 #
 # Environments: dev / staging / production
-#   Each environment provides its own DREADNODE_API_KEY (secret),
-#   DREADNODE_API_URL (variable), and DREADNODE_ORG (variable).
+#   Each environment provides its own DREADNODE_API_KEY (secret) and
+#   DREADNODE_API_URL (variable).
 #   Configure these in Settings > Environments in the GitHub repo.
 
 name: Sync Capabilities to Dreadnode
@@ -20,7 +23,9 @@ on:
   push:
     branches: [main]
     paths:
-      - "capabilities/**"
+      - "dreadnode/**"
+      - "trailofbits/**"
+      - "ghostsecurity/**"
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"           # v1.2.3       -> production
       - "v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+" # v1.2.3-rc.0  -> staging
@@ -34,7 +39,7 @@ on:
         default: dev
       capability:
         description: >
-          Single capability directory name to sync (e.g. dreadweb).
+          Capability to sync as org/name (e.g. dreadnode/web-security).
           Leave empty to sync all capabilities.
         required: false
         type: string
@@ -106,8 +111,8 @@ jobs:
           set -euo pipefail
 
           if [[ -n "${INPUT_CAPABILITY}" ]]; then
-            # --- Manual: single capability specified ---
-            CAP_DIR="capabilities/${INPUT_CAPABILITY}"
+            # --- Manual: single capability specified (org/name format) ---
+            CAP_DIR="${INPUT_CAPABILITY}"
             if [[ ! -d "${CAP_DIR}" ]]; then
               echo "::error::Capability directory not found: ${CAP_DIR}"
               exit 1
@@ -116,23 +121,27 @@ jobs:
               echo "::error::No capability.yaml in ${CAP_DIR}"
               exit 1
             fi
-            CAPS_JSON=$(jq -nc --arg n "${INPUT_CAPABILITY}" --arg p "${CAP_DIR}" \
-              '[{"name": $n, "path": $p}]')
+            ORG=$(echo "${CAP_DIR}" | cut -d/ -f1)
+            NAME=$(basename "${CAP_DIR}")
+            CAPS_JSON=$(jq -nc --arg n "${NAME}" --arg p "${CAP_DIR}" --arg o "${ORG}" \
+              '[{"name": $n, "path": $p, "org": $o}]')
 
           elif [[ "${REF_TYPE}" == "tag" ]] || [[ "${EVENT_NAME}" == "workflow_dispatch" && -z "${INPUT_CAPABILITY}" ]]; then
             # --- Tag push or manual without specific capability: sync ALL ---
-            CAPS_JSON=$(find capabilities -maxdepth 2 -name "capability.yaml" \
+            CAPS_JSON=$(find . -mindepth 3 -maxdepth 3 -name "capability.yaml" \
+              | sed 's|^\./||' \
               | while read -r f; do
                   dir=$(dirname "$f")
                   name=$(basename "$dir")
-                  echo "{\"name\": \"${name}\", \"path\": \"${dir}\"}"
+                  org=$(echo "$dir" | cut -d/ -f1)
+                  echo "{\"name\": \"${name}\", \"path\": \"${dir}\", \"org\": \"${org}\"}"
                 done \
               | jq -sc '.')
 
           else
             # --- Push to main: diff against previous commit ---
             CHANGED_DIRS=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" \
-              | grep '^capabilities/' \
+              | grep -E '^(dreadnode|trailofbits|ghostsecurity)/' \
               | cut -d/ -f1-2 \
               | sort -u || true)
 
@@ -140,19 +149,21 @@ jobs:
             for dir in ${CHANGED_DIRS}; do
               if [[ -f "${dir}/capability.yaml" ]]; then
                 name=$(basename "${dir}")
-                CAPS_JSON=$(echo "${CAPS_JSON}" | jq -c --arg n "${name}" --arg p "${dir}" \
-                  '. + [{"name": $n, "path": $p}]')
+                org=$(echo "${dir}" | cut -d/ -f1)
+                CAPS_JSON=$(echo "${CAPS_JSON}" | jq -c \
+                  --arg n "${name}" --arg p "${dir}" --arg o "${org}" \
+                  '. + [{"name": $n, "path": $p, "org": $o}]')
               fi
             done
 
-            CAPS_JSON=$(echo "${CAPS_JSON}" | jq -c 'unique_by(.name)')
+            CAPS_JSON=$(echo "${CAPS_JSON}" | jq -c 'unique_by(.path)')
           fi
 
           COUNT=$(echo "${CAPS_JSON}" | jq 'length')
           echo "capabilities=${CAPS_JSON}" >> "$GITHUB_OUTPUT"
           echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
           echo "### Detected ${COUNT} capability(ies) to sync" >> "$GITHUB_STEP_SUMMARY"
-          echo "${CAPS_JSON}" | jq -r '.[] | "- \(.name)"' >> "$GITHUB_STEP_SUMMARY"
+          echo "${CAPS_JSON}" | jq -r '.[] | "- \(.org)/\(.name)"' >> "$GITHUB_STEP_SUMMARY"
 
   sync:
     name: "Upload capabilities (${{ needs.resolve-environment.outputs.environment }})"
@@ -176,7 +187,7 @@ jobs:
           capability-path: ${{ matrix.capability.path }}
           api-url: ${{ vars.DREADNODE_API_URL }}
           api-key: ${{ secrets.DREADNODE_API_KEY }}
-          org: ${{ vars.DREADNODE_ORG }}
+          org: ${{ matrix.capability.org }}
           force: ${{ inputs.force || false }}
 
   summary:
