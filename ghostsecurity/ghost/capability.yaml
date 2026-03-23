@@ -1,0 +1,20 @@
+schema: 1
+name: ghost
+version: "1.1.0"
+description: >
+  Enterprise application security scanning, validation, and remediation.
+  Includes SAST (scan-code), SCA (scan-deps), secrets detection
+  (scan-secrets), DAST validation, proxy integration, and aggregated
+  reporting.
+
+author:
+  name: Ghost Security
+  url: https://ghost.security
+license: Apache-2.0
+repository: https://github.com/ghostsecurity/skills
+keywords:
+  - appsec
+  - sast
+  - sca
+  - dast
+  - secrets

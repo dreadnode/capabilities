@@ -1,0 +1,10 @@
+schema: 1
+name: semgrep-rule-creator
+version: "1.2.0"
+description: >
+  Create custom Semgrep rules for detecting bug patterns and security vulnerabilities
+
+author:
+  name: Maciej Domanski
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0

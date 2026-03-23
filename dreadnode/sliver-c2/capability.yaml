@@ -1,0 +1,19 @@
+schema: 1
+name: sliver-c2
+version: "1.0.0"
+description: >
+  Sliver C2 framework integration. Provides server management (session
+  and beacon listing, listener creation, implant generation) and implant
+  post-exploitation (command execution, file operations, token
+  manipulation, registry operations, process injection).
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: Apache-2.0
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - c2
+  - sliver
+  - post-exploitation
+  - implant

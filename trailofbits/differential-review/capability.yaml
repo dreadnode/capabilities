@@ -1,0 +1,10 @@
+schema: 1
+name: differential-review
+version: "1.0.0"
+description: >
+  Security-focused differential review of code changes with git history analysis and blast radius estimation
+
+author:
+  name: Omar Inuwa
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0

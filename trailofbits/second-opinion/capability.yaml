@@ -1,0 +1,16 @@
+schema: 1
+name: second-opinion
+version: "1.6.0"
+description: >
+  Runs code reviews using external LLM CLIs (OpenAI Codex, Google Gemini) on uncommitted changes, branch diffs, or specific commits. Bundles Codex's built-in MCP server for direct tool access.
+
+mcp:
+  servers:
+    codex:
+      command: "codex"
+      args: ["mcp-server"]
+
+author:
+  name: Dan Guido
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0

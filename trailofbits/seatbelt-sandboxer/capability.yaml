@@ -1,0 +1,10 @@
+schema: 1
+name: seatbelt-sandboxer
+version: "1.0.0"
+description: >
+  Generate minimal macOS Seatbelt sandbox configurations for applications
+
+author:
+  name: Spencer Michaels
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0

@@ -1,0 +1,10 @@
+schema: 1
+name: firebase-apk-scanner
+version: "2.1.0"
+description: >
+  Scan Android APKs for Firebase security misconfigurations including open databases, storage buckets, authentication issues, and exposed cloud functions. For authorized security research only.
+
+author:
+  name: Nick Sellier
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0

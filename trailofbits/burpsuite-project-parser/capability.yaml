@@ -1,0 +1,10 @@
+schema: 1
+name: burpsuite-project-parser
+version: "1.0.0"
+description: >
+  Search and extract data from Burp Suite project files (.burp) for security analysis
+
+author:
+  name: Will Vandevanter
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0
