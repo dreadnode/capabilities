@@ -2,7 +2,7 @@
 name: semgrep-scanner
 description: "Executes Semgrep CLI scans for a specific language category and produces SARIF output. Spawned by the semgrep skill as a parallel worker — one agent per detected language."
 tools:
-  "Bash": true
+  "bash": true
 ---
 
 # Semgrep Scanner Agent

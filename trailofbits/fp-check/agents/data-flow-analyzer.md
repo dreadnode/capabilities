@@ -4,9 +4,9 @@ description: Analyzes data flow from source to vulnerability sink, mapping trust
 model: inherit
 color: cyan
 tools:
-  "Read": true
-  "Grep": true
-  "Glob": true
+  "read": true
+  "grep": true
+  "glob": true
 ---
 
 # Data Flow Analyzer

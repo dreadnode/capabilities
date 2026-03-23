@@ -2,9 +2,9 @@
 name: function-analyzer
 description: "Performs ultra-granular per-function deep analysis for security audit context building. Use when analyzing dense functions, data-flow chains, cryptographic implementations, or state machines."
 tools:
-  "Read": true
-  "Grep": true
-  "Glob": true
+  "read": true
+  "grep": true
+  "glob": true
 ---
 
 # Function Analyzer Agent
