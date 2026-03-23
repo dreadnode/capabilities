@@ -9,6 +9,11 @@ allowed-tools:
   - fetch
   - web_search
   - todo
+license: CC-BY-NC-SA-4.0
+metadata:
+  source: https://github.com/tanweai/wooyun-legacy
+  author: tanweai
+  origin: ported from wooyun-legacy knowledge files
 ---
 
 # WooYun 漏洞分析专家系统

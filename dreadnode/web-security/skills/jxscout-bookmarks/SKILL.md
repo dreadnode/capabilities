@@ -1,6 +1,11 @@
 ---
 name: jxscout-bookmarks
 description: Create jxscout bookmarks and bookmark groups via the CLI to document interesting code during security research. Use when analyzing JS/HTML files, reviewing findings, documenting client-side flows, or when the user asks to bookmark security-relevant code patterns, gadgets, or sinks.
+license: proprietary
+metadata:
+  source: jxscout-pro-v2
+  author: francisconeves97
+  origin: ported from jxscout-pro-v2 agent skills
 ---
 
 # jxscout Bookmarks

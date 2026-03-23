@@ -1,6 +1,11 @@
 ---
 name: jxscout-security-research
 description: Holistic guide for using jxscout to perform real vulnerability assessment on web applications. Use when doing security research, vulnerability hunting, attack surface mapping, or when you need to understand how jxscout's capabilities fit together for effective security analysis.
+license: proprietary
+metadata:
+  source: jxscout-pro-v2
+  author: francisconeves97
+  origin: ported from jxscout-pro-v2 agent skills
 ---
 
 # Security Research with jxscout

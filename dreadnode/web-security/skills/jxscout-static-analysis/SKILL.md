@@ -1,6 +1,11 @@
 ---
 name: jxscout-static-analysis
 description: Query and manage jxscout static analysis matches -- list match kinds, get matches with filters, mark matches as seen/unseen. Use when investigating code patterns, exploring the attack surface, or tracking review progress across match results.
+license: proprietary
+metadata:
+  source: jxscout-pro-v2
+  author: francisconeves97
+  origin: ported from jxscout-pro-v2 agent skills
 ---
 
 # jxscout Static Analysis (Matches)
