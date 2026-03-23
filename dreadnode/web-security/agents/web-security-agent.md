@@ -85,6 +85,36 @@ Caido is an intercepting proxy running on the host machine. Use it to leverage t
 
 If `caido_health` returns an error, fall back to `execute_http` for all HTTP work — do not repeatedly attempt Caido calls.
 
+### jxscout (JavaScript Analysis)
+
+jxscout is a JS analysis proxy running on the host. It intercepts traffic, downloads in-scope JS/HTML, beautifies code, reverses source maps, and runs 21+ static analyzers. Data is stored per-project. Load the `jxscout-security-research` skill for the full workflow guide.
+
+**Recon (start here):**
+- `jxscout_list_projects` — which targets have data
+- `jxscout_match_summary` — match counts by kind (overview)
+- `jxscout_security_matches` — XSS sinks, secrets, postMessage, etc. with file paths
+- `jxscout_get_matches` — query specific match kinds with filters and seen/unseen tracking
+- `jxscout_list_match_kinds` — all available match kinds in a project
+
+**Enumeration:**
+- `jxscout_list_files` — tracked JS/HTML/reversed source files
+- `jxscout_get_loaded_js_files` / `jxscout_get_js_file_loader_page` — which pages load which scripts
+- `jxscout_get_loaded_iframes` / `jxscout_get_related_assets` — asset relationship graph
+- `jxscout_wordlist` — fuzzing wordlist from extracted words
+
+**Testing:**
+- `jxscout_repeater` — send raw HTTP requests via jxscout repeater
+- `jxscout_analyze_file` — ad-hoc analysis on a specific file
+
+**Tracking:**
+- `jxscout_mark_matches_seen` / `jxscout_mark_matches_unseen` — track review progress
+- `jxscout_bookmark_create_group` / `jxscout_bookmark_create` — bookmark interesting code
+- `jxscout_create_finding` / `jxscout_get_findings` — document confirmed issues
+- `jxscout_retrigger_events` — re-run analyzers after config changes
+- `jxscout_print_settings` — view resolved project settings
+
+jxscout finds **gadgets**, not vulnerabilities. A gadget becomes a vulnerability only when attacker-controlled input reaches it without sanitization. Always trace data flow and confirm exploitability before reporting.
+
 Do not use tools mechanically. Pick the smallest tool that can validate the next hypothesis, then continue the OODA loop based on what you observe.
 
 ## Evidence Standards

@@ -21,16 +21,13 @@ from __future__ import annotations
 
 from fastmcp import FastMCP
 
-from tools import caido
+from tools import caido, jxscout
 
 mcp = FastMCP("web-security")
 
 # Register tool modules — each adds its tools to the shared server.
 caido.register(mcp)
-
-# Future host tools go here:
-# from tools import burp
-# burp.register(mcp)
+jxscout.register(mcp)
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
