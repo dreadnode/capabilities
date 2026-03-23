@@ -7,19 +7,13 @@ description: >-
   suite) and "important only" (high-precision security findings) scan modes. Also handles
   creating data extension models and processing CodeQL SARIF output.
 allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-  - AskUserQuestion
-  - TaskCreate
-  - TaskList
-  - TaskUpdate
-  - TaskGet
-  - TodoRead
-  - TodoWrite
+  - bash
+  - read
+  - write
+  - edit_file
+  - glob
+  - grep
+  - ask_user
 ---
 
 # CodeQL Analysis

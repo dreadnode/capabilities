@@ -3,11 +3,11 @@ name: diff-review
 description: Performs security-focused differential review of code changes
 argument-hint: "<pr-url|commit-sha|diff-path> [--baseline <ref>]"
 allowed-tools:
-  - Read
-  - Write
-  - Grep
-  - Glob
-  - Bash
+  - read
+  - write
+  - grep
+  - glob
+  - bash
 ---
 
 # Differential Security Review

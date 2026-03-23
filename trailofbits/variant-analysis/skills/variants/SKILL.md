@@ -3,11 +3,11 @@ name: variants
 description: Finds similar vulnerabilities using pattern-based analysis
 argument-hint: "(uses conversation context for bug pattern)"
 allowed-tools:
-  - Read
-  - Grep
-  - Glob
-  - Bash
-  - Task
+  - read
+  - grep
+  - glob
+  - bash
+  - todo
 ---
 
 # Find Vulnerability Variants

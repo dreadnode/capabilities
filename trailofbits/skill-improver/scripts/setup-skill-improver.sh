@@ -80,7 +80,7 @@ fi
 # Best-effort — the stop hook also detects missing skill-reviewer at runtime.
 PLUGIN_DEV_FOUND=false
 for search_dir in \
-  "${CLAUDE_PLUGIN_ROOT:-}/../plugin-dev" \
+  "${CAPABILITY_ROOT:-}/../plugin-dev" \
   "$HOME/.claude/plugins/plugin-dev" \
   "$HOME/.claude-code/plugins/plugin-dev" \
   "$HOME/.claude/plugins/cache"/*/plugin-dev/* \

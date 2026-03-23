@@ -2,7 +2,7 @@
 name: "scan-deps"
 description: |
   Ghost Security - Software Composition Analysis (SCA) scanner. Scans dependency lockfiles for known vulnerabilities, identifies CVEs, and generates findings with severity levels and remediation guidance. Use when the user asks about dependency vulnerabilities, vulnerable packages, CVE checks, security audits of dependencies, or wants to scan lockfiles like package-lock.json, yarn.lock, go.sum, or Gemfile.lock.
-allowed-tools: Read, Glob, Grep, Bash, Task, TodoRead, TodoWrite
+allowed-tools: read, glob, grep, bash, todo
 argument-hint: "[path-to-scan]"
 license: apache-2.0
 metadata:

@@ -3,10 +3,10 @@ name: ct-check
 description: Detects timing side-channels in cryptographic code
 argument-hint: "<source-file> [--warnings] [--json] [--arch <arch>]"
 allowed-tools:
-  - Bash
-  - Read
-  - Grep
-  - Glob
+  - bash
+  - read
+  - grep
+  - glob
 ---
 
 # Check Constant-Time Properties

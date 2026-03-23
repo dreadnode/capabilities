@@ -6,11 +6,11 @@ description: >
   blast radius, checks test coverage, and generates comprehensive markdown reports.
   Automatically detects and prevents security regressions.
 allowed-tools:
-  - Read
-  - Write
-  - Grep
-  - Glob
-  - Bash
+  - read
+  - write
+  - grep
+  - glob
+  - bash
 ---
 
 # Differential Security Review

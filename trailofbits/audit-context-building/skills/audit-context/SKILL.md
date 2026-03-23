@@ -3,11 +3,11 @@ name: audit-context
 description: Builds deep architectural context before vulnerability hunting
 argument-hint: "<codebase-path> [--focus <module>]"
 allowed-tools:
-  - Read
-  - Grep
-  - Glob
-  - Bash
-  - Task
+  - read
+  - grep
+  - glob
+  - bash
+  - todo
 ---
 
 # Build Audit Context

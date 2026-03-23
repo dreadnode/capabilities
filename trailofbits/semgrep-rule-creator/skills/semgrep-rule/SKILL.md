@@ -3,13 +3,13 @@ name: semgrep-rule
 description: Creates Semgrep rules with test-first methodology
 argument-hint: "(uses conversation context for detection pattern)"
 allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-  - WebFetch
+  - bash
+  - read
+  - write
+  - edit_file
+  - glob
+  - grep
+  - fetch
 ---
 
 # Create Semgrep Rule

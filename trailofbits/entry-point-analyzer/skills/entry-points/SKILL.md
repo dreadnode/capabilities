@@ -3,10 +3,10 @@ name: entry-points
 description: Identifies state-changing entry points in smart contracts
 argument-hint: "[directory-path]"
 allowed-tools:
-  - Read
-  - Grep
-  - Glob
-  - Bash
+  - read
+  - grep
+  - glob
+  - bash
 ---
 
 # Analyze Smart Contract Entry Points

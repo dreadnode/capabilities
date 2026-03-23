@@ -3,8 +3,8 @@ name: burp-search
 description: Searches Burp Suite project files for security analysis
 argument-hint: "<burp-file> [operation]"
 allowed-tools:
-  - Bash
-  - Read
+  - bash
+  - read
 ---
 
 # Search Burp Suite Project Files

@@ -3,10 +3,10 @@ name: scan-apk
 description: Scans Android APKs for Firebase security misconfigurations
 argument-hint: "<apk-file-or-directory>"
 allowed-tools:
-  - Bash
-  - Read
-  - Grep
-  - Glob
+  - bash
+  - read
+  - grep
+  - glob
 ---
 
 # Scan APK for Firebase Misconfigurations

@@ -1,7 +1,7 @@
 ---
 name: "scan-code"
 description: "Ghost Security - SAST code scanner. Finds security vulnerabilities in source code by planning and executing targeted scans for issues like SQL injection, XSS, BOLA, BFLA, SSRF, and other OWASP categories. Use when the user asks for a code security audit, SAST scan, vulnerability scan of source code, or wants to find security flaws in a codebase."
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: read, write, edit_file, glob, grep, bash
 argument-hint: "[depth=quick]"
 license: apache-2.0
 metadata:

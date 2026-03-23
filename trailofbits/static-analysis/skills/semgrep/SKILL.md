@@ -9,14 +9,11 @@ description: >-
   bugs, or perform static analysis. Spawns parallel workers for multi-language
   codebases.
 allowed-tools:
-  - Bash
-  - Read
-  - Glob
-  - Task
-  - AskUserQuestion
-  - TaskCreate
-  - TaskList
-  - TaskUpdate
+  - bash
+  - read
+  - glob
+  - todo
+  - ask_user
 ---
 
 # Semgrep Security Scan

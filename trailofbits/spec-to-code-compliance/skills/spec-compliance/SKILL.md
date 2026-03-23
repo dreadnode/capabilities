@@ -3,12 +3,12 @@ name: spec-compliance
 description: Verifies code implements specification requirements
 argument-hint: "<spec-document> <codebase-path>"
 allowed-tools:
-  - Read
-  - Write
-  - Grep
-  - Glob
-  - Bash
-  - WebFetch
+  - read
+  - write
+  - grep
+  - glob
+  - bash
+  - fetch
 ---
 
 # Verify Spec-to-Code Compliance

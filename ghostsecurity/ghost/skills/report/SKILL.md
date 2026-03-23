@@ -1,7 +1,7 @@
 ---
 name: "report"
 description: "Ghost Security — combined security report. Aggregates findings from all scan skills (scan-deps, scan-secrets, scan-code) into a single prioritized report focused on the highest risk, highest confidence issues. Use when the user requests a security overview, vulnerability summary, full security audit, or combined scan results."
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: read, write, edit_file, glob, grep, bash
 license: apache-2.0
 metadata:
   version: 1.1.0

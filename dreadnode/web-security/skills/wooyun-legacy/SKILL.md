@@ -2,14 +2,13 @@
 name: wooyun-legacy
 description: WooYun vulnerability analysis methodology. Distilled from 88,636 real vulnerability cases into meta-thinking frameworks, testing procedures, bypass techniques, and exploitation patterns. Covers SQL injection, XSS, command execution, logic flaws, file upload, unauthorized access, and more. Use when conducting penetration testing, vulnerability research, security auditing, or code review.
 allowed-tools:
-  - Read
-  - Grep
-  - Glob
-  - Bash
-  - WebFetch
-  - WebSearch
-  - Task
-user-invocable: true
+  - read
+  - grep
+  - glob
+  - bash
+  - fetch
+  - web_search
+  - todo
 ---
 
 # WooYun 漏洞分析专家系统

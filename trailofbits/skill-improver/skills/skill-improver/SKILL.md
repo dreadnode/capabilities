@@ -2,12 +2,12 @@
 name: skill-improver
 description: "Iteratively reviews and fixes Claude Code skill quality issues until they meet standards. Runs automated fix-review cycles using the skill-reviewer agent. Use to fix skill quality issues, improve skill descriptions, run automated skill review loops, or iteratively refine a skill. Triggers on 'fix my skill', 'improve skill quality', 'skill improvement loop'. NOT for one-time reviews—use /skill-reviewer directly."
 allowed-tools:
-  - Task
-  - Read
-  - Edit
-  - Write
-  - Glob
-  - Grep
+  - todo
+  - read
+  - edit_file
+  - write
+  - glob
+  - grep
 ---
 
 # Skill Improvement Methodology

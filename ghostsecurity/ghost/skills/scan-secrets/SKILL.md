@@ -2,7 +2,7 @@
 name: "scan-secrets"
 description: |
   Ghost Security - Secrets and credentials scanner. Scans codebase for leaked API keys, tokens, passwords, and sensitive data. Detects hardcoded secrets and generates findings with severity and remediation guidance. Use when the user asks to check for leaked secrets, scan for credentials, find hardcoded API keys or passwords, detect exposed .env values, or audit code for sensitive data exposure.
-allowed-tools: Read, Glob, Grep, Bash, Task, TodoRead, TodoWrite
+allowed-tools: read, glob, grep, bash, todo
 argument-hint: "[path-to-scan]"
 license: apache-2.0
 metadata:
