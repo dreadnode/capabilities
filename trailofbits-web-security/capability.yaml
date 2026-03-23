@@ -1,0 +1,20 @@
+schema: 1
+name: trailofbits-web-security
+version: "1.0.0"
+description: >
+  Web application security skills for code auditing, security review, and
+  vulnerability analysis. Includes deep audit context building, security-focused
+  differential review, Burp Suite project parsing, insecure default detection,
+  supply chain risk auditing, and variant analysis.
+
+author:
+  name: Trail of Bits
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0
+keywords:
+  - web-security
+  - code-auditing
+  - differential-review
+  - supply-chain
+  - burpsuite
+  - variant-analysis

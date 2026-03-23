@@ -1,0 +1,20 @@
+schema: 1
+name: cicd-security
+version: "1.0.0"
+description: >
+  CI/CD pipeline security auditing for AI agent integrations. Detects attack
+  vectors in GitHub Actions workflows where attacker-controlled input reaches
+  AI agents (Claude Code Action, Gemini CLI, OpenAI Codex), including prompt
+  injection via environment variables, expression injection, and dangerous
+  sandbox configurations.
+
+author:
+  name: Trail of Bits
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0
+keywords:
+  - cicd-security
+  - github-actions
+  - prompt-injection
+  - ai-agents
+  - supply-chain

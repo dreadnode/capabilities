@@ -1,0 +1,27 @@
+schema: 1
+name: smart-contract-security
+version: "1.0.0"
+description: >
+  Smart contract security skills for auditing across Solidity, Vyper, Cairo,
+  Cosmos, Solana, Substrate, Algorand, TON, and Move. Includes vulnerability
+  scanners per chain, audit preparation, code maturity assessment, token
+  integration analysis, secure development workflows, and property-based
+  testing for blockchain projects.
+
+author:
+  name: Trail of Bits
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0
+keywords:
+  - smart-contracts
+  - blockchain-security
+  - solidity
+  - defi
+  - vulnerability-scanning
+  - property-based-testing
+  - cairo
+  - cosmos
+  - solana
+  - substrate
+  - algorand
+  - ton

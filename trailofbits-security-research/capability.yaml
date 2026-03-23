@@ -1,0 +1,20 @@
+schema: 1
+name: trailofbits-security-research
+version: "1.0.0"
+description: >
+  Cross-domain security research and review skills for smart contracts, mobile
+  apps, exploit verification, secure API design, false positive verification,
+  and low-level secret handling audits.
+
+author:
+  name: Trail of Bits
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0
+keywords:
+  - security-research
+  - code-review
+  - mobile-security
+  - smart-contracts
+  - exploit-verification
+  - false-positive-analysis
+  - zeroization
