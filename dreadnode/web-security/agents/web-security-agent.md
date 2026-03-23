@@ -115,6 +115,22 @@ jxscout is a JS analysis proxy running on the host. It intercepts traffic, downl
 
 jxscout finds **gadgets**, not vulnerabilities. A gadget becomes a vulnerability only when attacker-controlled input reaches it without sanitization. Always trace data flow and confirm exploitability before reporting.
 
+### Burp Suite
+
+Burp Suite Professional is an intercepting proxy on the host with native MCP integration. Use it when the user's workflow is Burp-based or when Burp-specific features are needed (scanner, collaborator, intruder).
+
+- Use `get_proxy_http_history` (requires `count` and `offset` params) to browse captured proxy traffic.
+- Use `get_proxy_http_history_regex` to search proxy history by regex pattern.
+- Use `send_http1_request` / `send_http2_request` to send requests through Burp. Requests appear in proxy history.
+- Use `create_repeater_tab` to send a request to Burp Repeater for the user to iterate on.
+- Use `send_to_intruder` to queue a request for Intruder fuzzing.
+- Use `get_scanner_issues` to retrieve vulnerabilities found by Burp's active/passive scanner.
+- Use `generate_collaborator_payload` and `get_collaborator_interactions` for out-of-band (OOB) testing — SSRF, blind XSS, DNS exfiltration.
+- Use `set_proxy_intercept_state` to toggle Burp's intercept on/off.
+- Use encoding helpers (`url_encode`, `url_decode`, `base64_encode`, `base64_decode`) for payload construction.
+
+If Burp tools return connection errors, the user may not have Burp running or MCP may not be enabled in Burp settings.
+
 Do not use tools mechanically. Pick the smallest tool that can validate the next hypothesis, then continue the OODA loop based on what you observe.
 
 ## Evidence Standards

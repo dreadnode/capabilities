@@ -17,6 +17,10 @@ mcp:
         - "run"
         - "${CAPABILITY_ROOT}/mcp/server.py"
       init_timeout: 60
+    burp:
+      url: "http://127.0.0.1:9876/"
+      init_timeout: 15
+      timeout: 3600
 
 author:
   name: Dreadnode
