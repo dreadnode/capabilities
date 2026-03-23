@@ -1,6 +1,11 @@
 ---
 name: jxscout-repeater
 description: Send and iterate on raw HTTP requests using jxscout's repeater. Use when the user asks to analyze, test, try out, send, resend, or replay an HTTP request; when testing an endpoint or API call for security issues; when modifying parameters/headers/body to test for vulnerabilities; or when the user mentions repeater, .req/.res, or raw HTTP testing.
+license: proprietary
+metadata:
+  source: jxscout-pro-v2
+  author: francisconeves97
+  origin: ported from jxscout-pro-v2 agent skills
 ---
 
 # jxscout Repeater

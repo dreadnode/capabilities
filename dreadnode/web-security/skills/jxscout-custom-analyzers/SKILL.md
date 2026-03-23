@@ -1,6 +1,11 @@
 ---
 name: jxscout-custom-analyzers
 description: Create custom jxscout analyzers (regex, derived, or script-based) and retrigger analysis. Use when the user wants to find specific code patterns across all project files, add new match kinds, or extend jxscout's static analysis capabilities.
+license: proprietary
+metadata:
+  source: jxscout-pro-v2
+  author: francisconeves97
+  origin: ported from jxscout-pro-v2 agent skills
 ---
 
 # jxscout Custom Analyzers

@@ -1,6 +1,11 @@
 ---
 name: jxscout-findings
 description: Create, retrieve, and list jxscout findings to document security-relevant discoveries. Use when you've identified a vulnerability, interesting gadget, security-relevant primitive, or anything a bug bounty hunter would want to track. Also use when the user wants to review, list, filter, or summarize existing findings.
+license: proprietary
+metadata:
+  source: jxscout-pro-v2
+  author: francisconeves97
+  origin: ported from jxscout-pro-v2 agent skills
 ---
 
 # jxscout Findings

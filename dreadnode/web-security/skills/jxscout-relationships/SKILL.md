@@ -1,6 +1,11 @@
 ---
 name: jxscout-relationships
 description: Query jxscout for asset relationships -- which JS files and iframes a page loads, lazy-loaded chunks, reversed source maps, and how assets relate to each other. Use when mapping the attack surface of a specific page or understanding how assets are connected.
+license: proprietary
+metadata:
+  source: jxscout-pro-v2
+  author: francisconeves97
+  origin: ported from jxscout-pro-v2 agent skills
 ---
 
 # jxscout Asset Relationships
