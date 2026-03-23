@@ -1,0 +1,10 @@
+schema: 1
+name: dwarf-expert
+version: "1.0.0"
+description: >
+  Interact with and understand the DWARF debugging format
+
+author:
+  name: Evan Hellman
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0

@@ -1,0 +1,10 @@
+schema: 1
+name: fp-check
+version: "1.0.0"
+description: >
+  Systematic false positive verification for security bug analysis with mandatory gate reviews
+
+author:
+  name: Maciej Domanski
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0

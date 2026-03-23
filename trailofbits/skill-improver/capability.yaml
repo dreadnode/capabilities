@@ -1,0 +1,10 @@
+schema: 1
+name: skill-improver
+version: "1.0.1"
+description: >
+  Automatically reviews and fixes Claude Code skills through iterative refinement until they meet quality standards. Requires plugin-dev plugin.
+
+author:
+  name: Paweł Płatek
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0

@@ -1,0 +1,10 @@
+schema: 1
+name: sharp-edges
+version: "1.0.0"
+description: >
+  Identify error-prone APIs, dangerous configurations, and footgun designs that enable security mistakes
+
+author:
+  name: Scott Arciszewski
+  url: https://github.com/trailofbits
+license: CC-BY-SA-4.0
