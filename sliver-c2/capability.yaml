@@ -2,22 +2,18 @@ schema: 1
 name: sliver-c2
 version: "1.0.0"
 description: >
-  Sliver C2 framework integration capability. Provides server management
-  (session/beacon listing, listener creation, implant generation) and
-  implant post-exploitation (command execution, file operations, token
+  Sliver C2 framework integration. Provides server management (session
+  and beacon listing, listener creation, implant generation) and implant
+  post-exploitation (command execution, file operations, token
   manipulation, registry operations, process injection).
-
-# tools/ auto-discovered: Sliver (server), SliverImplant (session/beacon).
-# Requires: sliver-py Python package, running Sliver C2 server.
-# NOTE: fs module import needs migration from old SDK path.
 
 author:
   name: Dreadnode
   url: https://dreadnode.io
 license: Apache-2.0
+repository: https://github.com/dreadnode/capabilities
 keywords:
   - c2
   - sliver
   - post-exploitation
   - implant
-  - beacon

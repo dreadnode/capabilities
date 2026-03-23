@@ -2,16 +2,12 @@ schema: 1
 name: web-security
 version: "1.0.0"
 description: >
-  Web application security testing capability. Provides autonomous
-  penetration testing with HTTP client, browser hooks, credential
-  management, and vulnerability verification tools.
-
-agents:
-  - agents/
-skills:
-  - skills/
-# tools/ auto-discovered: HttpTools, CredentialStore, CallbackClient,
-# ReportingTools, browser hooks. Requires httpx in runtime environment.
+  Web application penetration testing with 30+ attack technique playbooks
+  covering request smuggling, cache poisoning, SSRF, SSTI, DOM
+  vulnerabilities, authentication bypasses, parser differentials, and
+  client-side attacks. Includes HTTP client tooling, Caido proxy
+  integration via MCP, credential management, and vulnerability
+  verification.
 
 mcp:
   servers:
@@ -30,9 +26,6 @@ repository: https://github.com/dreadnode/capabilities
 keywords:
   - web-security
   - penetration-testing
-  - pentest
-  - vulnerability
-  - owasp
-  - xss
-  - sqli
-  - ssrf
+  - request-smuggling
+  - cache-poisoning
+  - dom-security

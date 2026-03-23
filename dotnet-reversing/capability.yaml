@@ -2,16 +2,9 @@ schema: 1
 name: dotnet-reversing
 version: "1.0.0"
 description: >
-  .NET reverse engineering capability for decompiling and analyzing
-  .NET assemblies (.dll, .exe). Provides binary scanning, namespace
-  exploration, type decompilation, reference search, and call flow
-  tracing for vulnerability analysis.
-
-agents:
-  - agents/
-# tools/ auto-discovered: @tool wrappers around dotnet_agent.reversing
-# (pythonnet + ILSpy). CLR loaded lazily on first tool call.
-# Requires pythonnet>=3.0.5 and .NET 8.0 runtime in environment.
+  .NET reverse engineering for decompiling and analyzing assemblies
+  (.dll, .exe). Provides binary scanning, namespace exploration, type
+  decompilation, reference search, and call flow tracing via ILSpy.
 
 author:
   name: Dreadnode
@@ -22,6 +15,4 @@ keywords:
   - dotnet
   - reversing
   - decompilation
-  - binary-analysis
-  - security
-  - vulnerability
+  - ilspy
