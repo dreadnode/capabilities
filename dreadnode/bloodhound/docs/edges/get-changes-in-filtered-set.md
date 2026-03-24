@@ -1,0 +1,25 @@
+---
+title: GetChangesInFilteredSet
+description: The principal is allowed to synchronize (DCSync) the Filtered Attribute Set (FAS), which are the attributes not replicated to RODCs.
+---
+
+<img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
+
+## Abuse Info
+
+This edge is not abuseable by itself. When combined with [GetChanges](/resources/edges/get-changes), BloodHound will create the abuseable edge [SyncLAPSPassword](/resources/edges/sync-laps-password).
+
+## Opsec considerations
+
+This edge has no opsec considerations.
+
+## Edge Schema
+
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
+Destination: [Domain](/resources/nodes/domain)  
+Traversable: **No**  
+
+## References
+
+* [https://simondotsh.com/infosec/2022/07/11/dirsync.html](https://simondotsh.com/infosec/2022/07/11/dirsync.html)
+

@@ -119,6 +119,20 @@ async def _execute(
     return text
 
 
+# ── Generic execute (for Apollo commands without a dedicated tool) ────
+
+
+@mcp.tool
+async def execute(
+    callback_id: Annotated[int, "Apollo callback display ID"],
+    command: Annotated[str, "Apollo command name (e.g. shell, dcsync, socks, link, ppid, blockdlls, inject, screenshot)"],
+    arguments: Annotated[str | dict, "Command arguments (string or dict depending on command)"] = "",
+    timeout: Annotated[int | None, "Command timeout in seconds"] = None,
+) -> str:
+    """Execute any Apollo command by name. Use this for commands that don't have a dedicated tool (e.g. shell, dcsync, socks, link, ppid, blockdlls). For commands with dedicated tools, prefer those instead."""
+    return await _execute(callback_id, command, arguments, timeout)
+
+
 # ── Connection tools ─────────────────────────────────────────────────
 
 

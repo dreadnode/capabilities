@@ -5,14 +5,7 @@ description: >
   Network operations and Active Directory exploitation. Autonomous red
   teaming with Nmap scanning, Netexec enumeration, Impacket Kerberos
   attacks, Certipy AD CS abuse, BloodyAD privilege escalation, Krbrelayx
-  relay attacks, BloodHound path analysis, and password cracking.
-
-mcp:
-  servers:
-    bloodhound:
-      command: "uv"
-      args: ["run", "${CAPABILITY_ROOT}/mcp/bloodhound.py"]
-      init_timeout: 30
+  relay attacks, and password cracking.
 
 author:
   name: Dreadnode

