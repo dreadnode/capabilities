@@ -99,9 +99,24 @@ class TestToolRegistration:
         import asyncio
         tools = asyncio.run(server.mcp.list_tools())
         tool_names = {t.name for t in tools}
-        expected = {"connect", "get_callbacks", "upload_file", "check_file",
-                    "download_file", "execute", "download_to_local"}
-        assert expected.issubset(tool_names), f"Missing: {expected - tool_names}"
+        # Server tools
+        server_tools = {"connect", "get_callbacks", "upload_file", "check_file", "download_file"}
+        assert server_tools.issubset(tool_names), f"Missing server tools: {server_tools - tool_names}"
+        # Core Apollo implant tools (spot-check)
+        apollo_tools = {
+            "cat", "cd", "cp", "ls", "pwd", "ps", "download", "download_to_local_file",
+            "upload", "whoami", "mimikatz", "powershell", "powerview", "pth",
+            "rubeus_kerberoast", "rubeus_asreproast", "sharphound_and_download",
+            "shinject", "wmiexecute", "make_token", "steal_token", "rev2self",
+        }
+        assert apollo_tools.issubset(tool_names), f"Missing Apollo tools: {apollo_tools - tool_names}"
+        # Generic execute should NOT be a tool (it's now _execute private helper)
+        assert "execute" not in tool_names, "execute should not be exposed as MCP tool"
+
+    def test_tool_count(self):
+        import asyncio
+        tools = asyncio.run(server.mcp.list_tools())
+        assert len(tools) >= 47, f"Expected at least 47 tools, got {len(tools)}"
 
 
 if __name__ == "__main__":
