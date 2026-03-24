@@ -8,7 +8,6 @@
     - [Agents (`agents/`)](#agents-agents)
     - [MCP Servers (`mcp:` in manifest)](#mcp-servers-mcp-in-manifest)
   - [Discovery Rules](#discovery-rules)
-  - [Catalog](#catalog)
   - [Local Development](#local-development)
 
 Portable extension bundles that add agents, tools, skills, and MCP servers to Dreadnode.
@@ -154,22 +153,6 @@ For `agents`, `tools`, and `skills`:
 | Field omitted | Auto-discover from conventional directory |
 | `[]` | Disabled — nothing exported |
 | `[path/to/extra/]` | Auto-discover conventional directory AND listed paths |
-
-## Catalog
-
-| Capability | Description |
-|---|---|
-| ai-red-teaming | AI red team assessment via Dreadnode AIRT SDK |
-| crash-analysis | C/C++ crash analysis with rr, gcov, and multi-agent pipeline |
-| dotnet-reversing | .NET assembly decompilation and analysis via ILSpy |
-| exploit-feasibility | Binary exploit viability assessment |
-| ghost-security | AI-native application security (SAST, SCA, secrets, DAST) |
-| mythic-c2 | Mythic C2 framework integration |
-| network-ops | Network operations and Active Directory exploitation |
-| security-research | Cross-domain security research and review skills |
-| sliver-c2 | Sliver C2 framework integration |
-| static-analysis | Semgrep-based static code analysis |
-| web-security | Web application penetration testing |
 
 ## Local Development
 
