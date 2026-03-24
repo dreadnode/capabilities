@@ -1,0 +1,33 @@
+---
+title: DelegatedEnrollmentAgent
+description: "The source principal node is delegated the privilege to enroll certificates of the destination certificate template node as an enrollment agent."
+---
+
+<img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
+
+
+The certificate template is published to an enterprise CA where the enrollment agent restrictions are configured to allow this principal to enroll certificates against this template as an enrollment agent. BloodHound does not assess what principals the enrollment agent is allowed to enroll on behalf of.
+
+## Abuse Info
+
+An attacker may perform an ADCS ESC3 attack that relies on this DelegatedEnrollmentAgent relationship. This relationship alone is not enough to escalate rights or impersonate other principals.
+
+## Opsec Considerations
+
+When an attacker abuses a privilege escalation or impersonation primitive that relies on this relationship, it will necessarily result in the issuance of a certificate. A copy of the issued certificate will be saved on the host that issued the certificate.
+
+## Edge Schema
+
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [CertTemplate](/resources/nodes/cert-template)   
+Traversable: **No**   
+
+## References
+This edge is related to the following MITRE ATT&CK tactic and techniques:
+
+* https://attack.mitre.org/techniques/T1649/
+
+### Abuse and Opsec references
+
+* [https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf](https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf)
+

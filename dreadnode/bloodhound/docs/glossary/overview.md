@@ -1,0 +1,190 @@
+---
+title: BloodHound Glossary
+description: Learn the terminology used in BloodHound software and documentation.
+---
+
+<img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
+
+## Attack Path
+
+A chain of abusable privileges and user behaviors that create direct and indirect connections between principals. In BloodHound, Attack Paths are visualized in the [graph](#graph) by [nodes](#node) and [edges](#edge). Learn more in [What is Attack Path Management](https://bloodhoundenterprise.io/what-is-attack-path-management/).
+
+- **Identity-based Attack Path**—An Attack Path is based on identity or an already authenticated [principal](#principal). BloodHound's main goal is to help visualize and manage Attack Paths.
+
+## Attack Path Management (APM)
+
+The process of identifying, analyzing, and managing the [Attack Paths](#attack-path) that an adversary might exploit to reach high-value objects or compromise the network's security. BloodHound helps visualize and manage Attack Paths through Attack Path Management.
+
+## Automatic Certification
+
+A rule setting that determines how objects matching the rule criteria are certified. Can be configured as:
+
+- **Direct Objects** (only directly matched objects are certified automatically, excluding [expansion](#expansion) results)
+- **All Objects** (all objects including those from expansion are certified automatically)
+- **Off** (all certification is manual). See also [Certification](#certification).
+
+## Certification
+
+An optional process in BloodHound Enterprise that interrupts automatic inclusion of objects in a zone by requiring manual approval before objects are fully recognized within the zone. Can be configured as [automatic](#automatic-certification) to allow certain objects to be certified without manual review.
+
+## Choke Point
+
+A [privilege](#privilege) or user behavior (called [edges](#edge)) that, like the driveway to a house, connects the rest of the environment through an object or collection of objects (called [nodes](#node)). For example, any Edge into the collection of [Tier Zero](#tier-zero%2Fhigh-value) nodes is a Tier Zero Choke Point. This is a privilege or user behavior the adversary must abuse to compromise a Tier Zero object.
+
+Choke points are significant points of control and defense in the network security architecture. They represent the optimal location to block the largest number of [Attack Paths](#attack-path). BloodHound Enterprise calculates [exposure](#exposure) for all choke points.
+
+## Collector
+
+A collector, collector client, or data collector is software that collects [Attack Path](#attack-path)-related data from a [directory](#directory). For example, SharpHound and AzureHound.
+
+## Custom Glyph
+
+A visual indicator that can be applied to zones to distinguish objects within that zone on the Explore page.
+
+## Cypher
+
+[Cypher](https://opencypher.org/) is a [graph](#graph) query language used to interact with BloodHound's database. It's similar to SQL for traditional databases. To use it, see [Searching with Cypher](/analyze-data/explore/cypher-search).
+
+## Directory
+
+A service that stores identities and their attributes, such as Active Directory (AD) and Entra ID (formerly Azure Active Directory). BloodHound collects data from these directories to build its [graph](#graph) of [nodes](#node) and [edges](#edge).
+
+## Edge
+
+An edge is part of the [graph](#graph) construct and represents a relationship between two [nodes](#node), indicating some form of interaction. See [About BloodHound Edges](/resources/edges/overview).
+
+## Enterprise Access Model (EAM)
+
+A security framework developed by Microsoft that defines a privileged access strategy\[[1](https://learn.microsoft.com/en-us/security/privileged-access-workstations/privileged-access-access-model)\] with the ultimate goal of preventing privilege escalation through [identity-based Attack Paths](#attack-path). In most cases, EAM supersedes and replaces [tiering](#tiering%2Ftier-model).
+
+## Escalation (ESC)
+
+The process of exploiting vulnerabilities or misconfigurations to gain higher privileges or access levels than initially granted. In BloodHound, escalation encompasses various techniques an attacker can use to move from lower-privileged [principals](#principal) to higher-privileged ones or sensitive [objects](#object).
+
+BloodHound detects and visualizes escalations as [Attack Paths](#attack-path) to help organizations identify and remediate privilege escalation risks.
+
+## Expansion
+
+The automatic process by which BloodHound includes additional objects in a zone based on rule criteria. For example, unrolling group memberships to identify nested objects and tag them as zone members.
+
+## Exposure
+
+A risk measurement that quantifies the extent to which [principals](#principal) in a [directory](#directory) have [Attack Paths](#attack-path) to [Tier Zero](#tier-zero%2Fhigh-value) [objects](#object). It encompasses both principals with one-step paths (`UserA -[ForceChangePassword]-> TierZero`), and multi-step paths (`UserA -[ForceChangePassword]-> UserB -[GenericAll]-> TierZero`). Exposure is measured in two ways:
+
+- **Exposure count**—The number of principals with a Tier Zero Attack Path.
+
+- **Exposure percentage**—The percentage of principals in the directory with a Tier Zero Attack Path.
+
+BloodHound Enterprise calculates exposure for all [choke points](#choke-point).
+
+## Finding
+
+A specific instance of a vulnerability that an attacker could abuse to gain access to, and eventually take control of, a network. Each finding can be categorized as a specific [Attack Path](#attack-path) type.
+
+There are two types of findings in BloodHound:
+
+- **List-based finding**—A finding for a specific [principal](#principal) where the vulnerability is related to the principal itself, such as a misconfiguration. Because of this nature, list-based findings do not necessarily have an [exposure](#exposure) metric, but they will have an [impact](#impact) metric.
+
+- **Relationship-based finding**—A finding for a pair of [principals](#principal)—a target that is privileged (such as belonging to Tier Zero) and a source/origin that is not—that can be compromised by one or more connections between said principals. Each relationship-based finding may be composed of one or many individual [Attack Paths](#attack-path).
+
+  A relationship-based finding can have an [exposure](#exposure) metric (the exposure risk of the source/origin principal being compromised) and an [impact](#impact) metric (the impact risk of the target principal being compromised).
+
+## FOSS
+
+Stands for Free and Open Source Software. For example, "BloodHound CE is a FOSS project."
+
+## Graph
+
+The graph database used by BloodHound. It stores the relationships between [nodes](#node) and [edges](#edge) and feeds BloodHound functionality like visualizing and understanding complex [Attack Paths](#attack-path) and environment risks.
+
+## History Log
+
+An audit log in Zone Builder that tracks changes made to zones and labels over time, including who made the change and when.
+
+## Impact
+
+A risk measurement that quantifies how much control of your environment an affected asset has. Specifically:
+
+- **Impact count**—The number of principals/objects that could be compromised through an Attack Path.
+
+- **Impact percentage**—The percentage of the environment that could be impacted by a specific identity vulnerability.
+
+Impact is closely related to [exposure](#exposure), which measures the percentage of principals with a *Tier Zero* Attack Path. Together, these metrics help organizations prioritize remediation by understanding which Attack Paths pose the greatest risk.
+
+## Kind
+
+The schema-level classification or label applied to [nodes](#node) in the [graph](#graph), analogous to an entity type, not an individual node instance. Examples of node kinds include users, computers, groups, and domains. See [About BloodHound Nodes](/resources/nodes/overview).
+
+## Label
+
+A flexible way to categorize objects for easier searching and filtering. Unlike [zones](#zone), labels are not used in risk analysis and do not represent hierarchical privilege levels, making them useful for organizational purposes without affecting attack path calculations.
+
+## Node
+
+A node is part of the [graph](#graph) construct and represents an entity in the environment as stored in the BloodHound graph. Nodes typically correspond to [objects](#object) and can represent a wide variety of entities from different data sources, including directory objects (users, computers, groups, domains, trusts) and other assets discovered through integrations like OpenGraph. Two nodes can be connected by an [edge](#edge). See [About BloodHound Nodes](/resources/nodes/overview).
+
+## Object
+
+An entity encompassing both directory-level entities from Active Directory and Entra ID [directories](#directory) and other assets discovered through data integrations like OpenGraph. Examples include users, groups, computers, organizational units (OUs), domains, trusts, and cloud resources.
+
+Objects are synonymous with [nodes](#node) and represent distinct elements contributing to the network's overall structure and security posture. An object can also be referred to as an "asset".
+
+## Principal
+
+A type of [object](#object) that can authenticate and be assigned permissions within the environment, also known as a security principal.
+
+Examples of principals include users and computers in Active Directory and users, virtual machines, and service principal objects in Entra ID and Azure. Principals are typically represented as [nodes](#node) in the graph and play a central role in identity Attack Path mechanisms.
+
+## Privilege
+
+A level of access or permission a principal has on a specific object within the infrastructure.
+
+Privileges are generally more granular permissions that define how or to what extent a user or system can interact with specific resources, like reading, writing, or executing a file. While similar to rights, privileges focus on resource-specific actions and are a subset of broader [rights](#right).
+
+## Privilege Zone
+
+A group of objects representing the hierarchy of control across identity providers and services in a network environment based on access level. Zones organize objects into a strict hierarchy that BloodHound uses to measure risk and detect violations.
+
+## Privilege Zone Analysis
+
+A BloodHound Enterprise feature that analyzes additional Privilege Zones beyond Tier Zero to detect violations and measure risk.
+
+## Remediation
+
+The process of fixing or mitigating security risks identified during the analysis of Attack Paths with BloodHound.
+
+## Right
+
+Rights are broad permissions granted to a user, group, or system to perform specific actions at a system or role level, such as logging in or accessing a network. They are sometimes used interchangeably with privileges but typically encompass higher-level abilities that define what someone can do across the system.
+
+## Rule
+
+A configuration that defines which objects belong to a zone or label. Rules can be defined using object IDs or Cypher queries and support [expansion](#expansion) behavior to automatically include related objects. See also [Selector](#selector), the legacy term for this concept.
+
+## Selector
+
+(Legacy term) A rule that defines zone or label membership. Now referred to as "[Rule](#rule)" in the Zone Builder interface as of BloodHound v8.4.0.
+
+## Tenant
+
+Refers to a dedicated instance of BloodHound that contains its own data, configurations, and user access controls.
+
+## Tier Zero/High Value
+
+The most critical and sensitive objects in the network, typically including domain controllers and other core infrastructure components. The term stems from [tiering](#tiering%2Ftier-model).
+
+## Tiering/Tier Model
+
+The process of categorizing objects and privileges based on their criticality and importance to the organization. The term stems from Microsoft's Active Directory tier model, which in most cases is superseded and replaced by the Enterprise Access Model. See [Enterprise Access Model (EAM)](#enterprise-access-model).
+
+## Zone
+
+A hierarchical grouping of objects based on privilege level, used in BloodHound's tiered administration model. Zones and [Privilege Zones](#privilege-zone) are synonymous terms. The default zone is Tier Zero. Zones differ from [labels](#label) in that they are used for risk analysis and represent a strict hierarchy of control.
+
+## Zone Builder
+
+The BloodHound interface for configuring and managing Privilege Zones, Labels, and Certifications, and viewing change History. Formerly called "Privilege Zone Management."
+
+## Zone Order
+
+The hierarchical position of zones, defined by privilege level with the highest-privileged zone (Tier Zero) at the top.

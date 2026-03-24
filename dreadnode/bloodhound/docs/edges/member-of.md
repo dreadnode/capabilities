@@ -1,0 +1,28 @@
+---
+title: MemberOf
+description: Groups in active directory grant their members any privileges the group itself has. 
+---
+
+<img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
+
+If a group has rights to another principal, users/computers in the group, as well as other groups inside the group inherit those permissions.
+
+## Abuse Info[](#heading-1)
+
+No abuse is necessary. This edge simply indicates that a principal belongs to a security group.
+
+## Opsec Considerations[](#heading-2)
+
+No opsec considerations apply to this edge.
+
+## Edge Schema
+
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
+Destination: [Group](/resources/nodes/group)   
+Traversable: **Yes**  
+
+
+## References[](#heading-3)
+
+* [https://adsecurity.org/?tag=ad-delegation](https://adsecurity.org/?tag=ad-delegation)
+* [https://www.itprotoday.com/management-mobility/view-or-remove-active-directory-delegated-permissions](https://www.itprotoday.com/management-mobility/view-or-remove-active-directory-delegated-permissions)

