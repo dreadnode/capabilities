@@ -1,0 +1,263 @@
+# Sync capabilities to the Dreadnode platform using the SDK CLI.
+#
+# Layout: {org}/{capability}/capability.yaml
+# The org directory determines which platform organization receives the upload.
+#
+# Promotion:
+#   push to main        -> dev (auto) + staging (auto) + prod (approval gate)
+#   workflow_dispatch    -> selected environment(s)
+
+name: Sync Capabilities
+
+on:
+  push:
+    branches: [main]
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment (or 'all')"
+        required: true
+        type: choice
+        options: [dev, staging, prod, all]
+        default: dev
+      force:
+        description: "Force upload even if SHA matches"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: sync-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Resolved from org directories in the repo
+  ORG_DIRS: "dreadnode trailofbits ghostsecurity"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Detect which capabilities changed
+  # ---------------------------------------------------------------------------
+
+  detect-changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      org_dirs: ${{ steps.resolve.outputs.org_dirs }}
+      count: ${{ steps.resolve.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve changed capabilities
+        id: resolve
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Manual: sync all orgs
+            DIRS=()
+            for org_dir in ${ORG_DIRS}; do
+              if [[ -d "${org_dir}" ]]; then
+                DIRS+=("${org_dir}")
+              fi
+            done
+          else
+            # Push to main: detect changed org dirs
+            CHANGED=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" \
+              | grep -oP '^[^/]+' | sort -u || true)
+            DIRS=()
+            for dir in ${CHANGED}; do
+              if [[ -d "${dir}" ]] && find "${dir}" -maxdepth 2 -name "capability.yaml" -quit 2>/dev/null | grep -q .; then
+                DIRS+=("${dir}")
+              fi
+            done
+          fi
+
+          COUNT=0
+          for dir in "${DIRS[@]:-}"; do
+            if [[ -n "${dir}" ]]; then
+              n=$(find "${dir}" -maxdepth 2 -name "capability.yaml" | wc -l)
+              COUNT=$((COUNT + n))
+            fi
+          done
+
+          # Output as JSON array
+          JSON=$(printf '%s\n' "${DIRS[@]:-}" | jq -Rc . | jq -sc .)
+          echo "org_dirs=${JSON}" >> "$GITHUB_OUTPUT"
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+          echo "### Detected ${COUNT} capability(ies) across ${#DIRS[@]} org(s)" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Validate all capabilities before syncing
+  # ---------------------------------------------------------------------------
+
+  validate:
+    name: Validate capabilities
+    needs: detect-changes
+    if: needs.detect-changes.outputs.count != '0'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Validate all org directories
+        run: |
+          set -euo pipefail
+          failed=0
+          for org_dir in ${ORG_DIRS}; do
+            if [[ -d "${org_dir}" ]]; then
+              echo "==> Validating ${org_dir}/"
+              uv run --with dreadnode dreadnode capability validate "${org_dir}" --strict || failed=1
+              echo ""
+            fi
+          done
+          if [[ "${failed}" -eq 1 ]]; then
+            echo "::error::Validation failed"
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Sync jobs — one per environment
+  # ---------------------------------------------------------------------------
+
+  sync-dev:
+    name: "Sync to dev"
+    needs: [detect-changes, validate]
+    if: >-
+      needs.detect-changes.outputs.count != '0' &&
+      (github.event.inputs.environment == 'all' ||
+       github.event.inputs.environment == 'dev' ||
+       github.event_name == 'push')
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync capabilities
+        env:
+          API_URL: ${{ vars.DREADNODE_API_URL }}
+          API_KEY: ${{ secrets.DREADNODE_API_KEY }}
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          set -euo pipefail
+          ORG_DIRS_JSON='${{ needs.detect-changes.outputs.org_dirs }}'
+          for org_dir in $(echo "${ORG_DIRS_JSON}" | jq -r '.[]'); do
+            echo "==> Syncing ${org_dir}/ to dev"
+            cmd=(uv run --with dreadnode dreadnode capability sync "${org_dir}")
+            cmd+=(--server "${API_URL}" --api-key "${API_KEY}" --organization "${org_dir}")
+            cmd+=(--public)
+            [[ "${FORCE}" == "true" ]] && cmd+=(--force)
+            "${cmd[@]}"
+            echo ""
+          done
+
+  sync-staging:
+    name: "Sync to staging"
+    needs: [detect-changes, validate]
+    if: >-
+      needs.detect-changes.outputs.count != '0' &&
+      (github.event.inputs.environment == 'all' ||
+       github.event.inputs.environment == 'staging' ||
+       github.event_name == 'push')
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync capabilities
+        env:
+          API_URL: ${{ vars.DREADNODE_API_URL }}
+          API_KEY: ${{ secrets.DREADNODE_API_KEY }}
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          set -euo pipefail
+          ORG_DIRS_JSON='${{ needs.detect-changes.outputs.org_dirs }}'
+          for org_dir in $(echo "${ORG_DIRS_JSON}" | jq -r '.[]'); do
+            echo "==> Syncing ${org_dir}/ to staging"
+            cmd=(uv run --with dreadnode dreadnode capability sync "${org_dir}")
+            cmd+=(--server "${API_URL}" --api-key "${API_KEY}" --organization "${org_dir}")
+            cmd+=(--public)
+            [[ "${FORCE}" == "true" ]] && cmd+=(--force)
+            "${cmd[@]}"
+            echo ""
+          done
+
+  sync-prod:
+    name: "Sync to prod"
+    needs: [detect-changes, validate]
+    if: >-
+      needs.detect-changes.outputs.count != '0' &&
+      (github.event.inputs.environment == 'all' ||
+       github.event.inputs.environment == 'prod' ||
+       github.event_name == 'push')
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync capabilities
+        env:
+          API_URL: ${{ vars.DREADNODE_API_URL }}
+          API_KEY: ${{ secrets.DREADNODE_API_KEY }}
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          set -euo pipefail
+          ORG_DIRS_JSON='${{ needs.detect-changes.outputs.org_dirs }}'
+          for org_dir in $(echo "${ORG_DIRS_JSON}" | jq -r '.[]'); do
+            echo "==> Syncing ${org_dir}/ to prod"
+            cmd=(uv run --with dreadnode dreadnode capability sync "${org_dir}")
+            cmd+=(--server "${API_URL}" --api-key "${API_KEY}" --organization "${org_dir}")
+            cmd+=(--public)
+            [[ "${FORCE}" == "true" ]] && cmd+=(--force)
+            "${cmd[@]}"
+            echo ""
+          done
+
+  # ---------------------------------------------------------------------------
+  # Summary
+  # ---------------------------------------------------------------------------
+
+  summary:
+    name: Sync summary
+    needs: [detect-changes, validate, sync-dev, sync-staging, sync-prod]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        env:
+          VALIDATE: ${{ needs.validate.result }}
+          DEV: ${{ needs.sync-dev.result }}
+          STAGING: ${{ needs.sync-staging.result }}
+          PROD: ${{ needs.sync-prod.result }}
+          COUNT: ${{ needs.detect-changes.outputs.count }}
+        run: |
+          {
+            echo "### Sync Summary"
+            echo "- **Capabilities:** ${COUNT}"
+            echo "- **Validate:** ${VALIDATE}"
+            echo "- **Dev:** ${DEV}"
+            echo "- **Staging:** ${STAGING}"
+            echo "- **Prod:** ${PROD}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${VALIDATE}" == "failure" || "${DEV}" == "failure" || "${STAGING}" == "failure" || "${PROD}" == "failure" ]]; then
+            echo "::error::One or more jobs failed"
+            exit 1
+          fi
