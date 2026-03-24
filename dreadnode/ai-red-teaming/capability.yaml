@@ -10,7 +10,7 @@ description: >
 author:
   name: Dreadnode
   url: https://dreadnode.io
-license: Apache-2.0
+license: MIT
 repository: https://github.com/dreadnode/capabilities
 keywords:
   - ai-red-teaming
