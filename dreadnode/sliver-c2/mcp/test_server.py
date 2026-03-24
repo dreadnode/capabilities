@@ -103,10 +103,12 @@ class TestListenerTools:
     """Individual listener tools require a connected client."""
 
     @pytest.mark.asyncio
-    async def test_start_mtls_listener_requires_client(self):
+    async def test_start_mtls_listener_requires_client(self, monkeypatch, tmp_path):
         server._client = None
+        monkeypatch.delenv("SLIVER_CONFIG_FILE", raising=False)
+        monkeypatch.setattr(server, "DEFAULT_CONFIG_DIR", str(tmp_path / "empty"))
         # Without config, _get_client raises
-        with pytest.raises(RuntimeError):
+        with pytest.raises(RuntimeError, match="No Sliver config"):
             await server.start_mtls_listener()
 
     @pytest.mark.asyncio
