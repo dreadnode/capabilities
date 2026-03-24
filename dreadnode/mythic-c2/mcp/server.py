@@ -286,9 +286,23 @@ async def download_to_local_file(
     if "does not exist." in download_result:
         return f"Error running 'download_to_local_file' command.\n\n Command response:\n{download_result}"
 
-    # 2. download file from Mythic server
+    # 2. download file from Mythic server (look up file UUID by name first)
     client = await _get_client()
-    fbytes = await mythic_sdk.download_file(mythic=client, file_uuid=path)
+    file_uuid = None
+    async for batch in mythic_sdk.get_all_downloaded_files(
+        mythic=client,
+        custom_return_attributes="agent_file_id,filename_utf8,is_download_from_agent",
+        batch_size=50,
+    ):
+        for f in batch:
+            if f["filename_utf8"] == path:
+                file_uuid = f["agent_file_id"]
+                break
+        if file_uuid:
+            break
+    if file_uuid is None:
+        return f"File '{path}' could not be downloaded from Mythic server to local file system. Is the filename correct?"
+    fbytes = await mythic_sdk.download_file(mythic=client, file_uuid=file_uuid)
     if fbytes is None:
         return f"File '{path}' could not be downloaded from Mythic server to local file system. Is the filename correct?"
 
