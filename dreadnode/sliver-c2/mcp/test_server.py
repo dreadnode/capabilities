@@ -78,19 +78,44 @@ class TestImplantStateGating:
         with pytest.raises(RuntimeError, match="No active implant"):
             await server.ps()
 
-
-class TestListenerValidation:
     @pytest.mark.asyncio
-    async def test_unknown_listener_type(self):
-        server._client = MagicMock()  # fake connected state
-        result = await server.start_listener(listener_type="invalid")
-        assert "unknown listener type" in result.lower()
+    async def test_mkdir_requires_interact(self):
+        with pytest.raises(RuntimeError, match="No active implant"):
+            await server.mkdir(path="/tmp/test")
 
     @pytest.mark.asyncio
-    async def test_dns_requires_domains(self):
-        server._client = MagicMock()
-        result = await server.start_listener(listener_type="dns")
-        assert "domains required" in result.lower()
+    async def test_rm_requires_interact(self):
+        with pytest.raises(RuntimeError, match="No active implant"):
+            await server.rm(path="/tmp/test")
+
+    @pytest.mark.asyncio
+    async def test_whoami_requires_interact(self):
+        with pytest.raises(RuntimeError, match="No active implant"):
+            await server.whoami()
+
+    @pytest.mark.asyncio
+    async def test_get_env_requires_interact(self):
+        with pytest.raises(RuntimeError, match="No active implant"):
+            await server.get_env()
+
+
+class TestListenerTools:
+    """Individual listener tools require a connected client."""
+
+    @pytest.mark.asyncio
+    async def test_start_mtls_listener_requires_client(self):
+        server._client = None
+        # Without config, _get_client raises
+        with pytest.raises(RuntimeError):
+            await server.start_mtls_listener()
+
+    @pytest.mark.asyncio
+    async def test_start_dns_listener_requires_domains(self):
+        """DNS listener requires a domains parameter (non-optional)."""
+        import inspect
+        sig = inspect.signature(server.start_dns_listener)
+        # domains has no default — it is required
+        assert sig.parameters["domains"].default is inspect.Parameter.empty
 
 
 class TestTruncation:
@@ -108,10 +133,35 @@ class TestToolRegistration:
         import asyncio
         tools = asyncio.run(server.mcp.list_tools())
         tool_names = {t.name for t in tools}
-        expected = {"connect", "interact", "get_sessions", "get_beacons",
-                    "get_jobs", "start_listener", "execute", "ls", "cd",
-                    "pwd", "upload", "download", "ps", "screenshot"}
-        assert expected.issubset(tool_names), f"Missing: {expected - tool_names}"
+        # Core connection tools
+        expected_connection = {"connect", "interact"}
+        # Server tools
+        expected_server = {
+            "get_sessions", "get_beacons", "get_jobs", "kill_job",
+            "start_mtls_listener", "start_https_listener",
+            "start_http_listener", "start_dns_listener",
+            "kill_session", "kill_beacon",
+            "get_implant_builds", "regenerate_implant",
+        }
+        # Implant tools
+        expected_implant = {
+            "execute", "ls", "cd", "pwd", "mkdir", "rm",
+            "upload", "download", "download_to_local_file",
+            "ps", "terminate_process", "ifconfig", "netstat",
+            "screenshot", "execute_assembly", "execute_shellcode",
+            "sideload", "get_env", "whoami",
+            "impersonate", "make_token", "revert_to_self", "run_as",
+            "get_system", "process_dump",
+            "registry_read", "registry_write",
+        }
+        all_expected = expected_connection | expected_server | expected_implant
+        assert all_expected.issubset(tool_names), f"Missing: {all_expected - tool_names}"
+
+    def test_tool_count(self):
+        import asyncio
+        tools = asyncio.run(server.mcp.list_tools())
+        # Should have 40+ tools total
+        assert len(tools) >= 40, f"Expected >=40 tools, got {len(tools)}"
 
 
 if __name__ == "__main__":
