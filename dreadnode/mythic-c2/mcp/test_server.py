@@ -110,13 +110,13 @@ class TestToolRegistration:
             "shinject", "wmiexecute", "make_token", "steal_token", "rev2self",
         }
         assert apollo_tools.issubset(tool_names), f"Missing Apollo tools: {apollo_tools - tool_names}"
-        # Generic execute should NOT be a tool (it's now _execute private helper)
-        assert "execute" not in tool_names, "execute should not be exposed as MCP tool"
+        # Generic execute is also exposed for commands without dedicated tools
+        assert "execute" in tool_names, "execute should be exposed as fallback MCP tool"
 
     def test_tool_count(self):
         import asyncio
         tools = asyncio.run(server.mcp.list_tools())
-        assert len(tools) >= 47, f"Expected at least 47 tools, got {len(tools)}"
+        assert len(tools) >= 48, f"Expected at least 48 tools, got {len(tools)}"
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 ---
 name: bloodhound
-description: BloodHound CE attack path analysis — AD graph queries, Cypher, and domain assessment methodology. Use when analyzing Active Directory, finding attack paths, or querying the BloodHound graph.
+description: Use when analyzing Active Directory attack paths, querying the BloodHound graph, or assessing domain security posture.
 ---
 
 # BloodHound Attack Path Analysis
@@ -24,57 +24,47 @@ Or set env vars: `BLOODHOUND_PASSWORD`, `BLOODHOUND_URL`, `NEO4J_URL`, `NEO4J_US
 
 ## Query Catalog
 
-Use `list_queries()` to see all available queries. Filter by category:
+Use `list_queries()` to see all. Filter by category:
 
 | Category | What it finds |
 |----------|--------------|
-| `domain-admins` | Domain Admin members, trust relationships |
+| `domain-admins` | DA members, trust relationships |
 | `tier-zero` | Paths to high-value targets, logged-in locations |
 | `kerberos` | Kerberoastable users, AS-REP roastable, paths to DA |
 | `delegation` | Unconstrained delegation paths |
 | `privileges` | DCSync rights, Domain Users with local admin |
 | `pki` | CA hierarchy, ESC1/ESC8 vulnerable templates |
-| `network` | NTLM relay opportunities, SMB signing, WebClient |
+| `network` | NTLM relay, SMB signing, WebClient |
 | `hygiene` | Unsupported OS, stale passwords |
 | `azure` | Global Admins, Entra-to-on-prem paths |
 
 ## Domain Assessment Workflow
 
 ### Phase 1: Orientation
-
 ```
 standard_query(name="find_all_domain_admins")
 standard_query(name="map_domain_trusts")
 ```
+How many DAs? Trust relationships to other domains?
 
-Establish the domain structure. How many DAs? Are there trust relationships to other domains?
-
-### Phase 2: Tier Zero Analysis
-
+### Phase 2: Tier Zero
 ```
 standard_query(name="find_shortest_paths_to_tier_zero")
 standard_query(name="find_tier_zero_locations")
 standard_query(name="find_paths_from_domain_users_to_tier_zero")
-```
-
-If you have owned principals, mark them and check:
-```
 standard_query(name="find_paths_from_owned_objects")
 ```
 
 ### Phase 3: Quick Wins
-
 ```
 standard_query(name="find_all_kerberoastable_users")
 standard_query(name="find_kerberoastable_tier_zero")
 standard_query(name="find_asreproast_users")
 standard_query(name="find_paths_from_kerberoastable_to_da")
 ```
+Kerberoastable tier-zero users = offline crackable path to DA.
 
-Kerberoastable tier-zero users are critical findings — offline crackable path to DA.
-
-### Phase 4: Delegation & Privilege Abuse
-
+### Phase 4: Delegation & Privileges
 ```
 standard_query(name="find_shortest_paths_unconstrained_delegation")
 standard_query(name="find_dcsync_privileges")
@@ -82,73 +72,62 @@ standard_query(name="find_domain_users_local_admins")
 ```
 
 ### Phase 5: PKI/ADCS
-
 ```
 standard_query(name="find_pki_hierarchy")
 standard_query(name="find_esc1_vulnerable_templates")
 standard_query(name="find_esc8_vulnerable_cas")
 ```
 
-ESC1 = enrollee supplies subject + auth-enabled + no approval. ESC8 = NTLM relay to HTTP enrollment.
-
-### Phase 6: Network-Level
-
+### Phase 6: Network
 ```
 standard_query(name="find_ntlm_relay_edges")
 standard_query(name="find_computers_no_smb_signing")
 standard_query(name="find_computers_webclient_running")
 ```
-
 WebClient + no SMB signing = NTLM relay chain.
 
 ### Phase 7: Azure/Hybrid
-
 ```
 standard_query(name="find_global_administrators")
 standard_query(name="find_paths_from_entra_to_tier_zero")
 ```
 
-## Custom Cypher Queries
+## Custom Cypher
 
 When the catalog doesn't cover your case, use `query(cypher=...)`. Read `docs/analysis/explore/cypher-search.md` for syntax.
 
-**Find paths from a specific user to DA:**
 ```
+# Paths from specific user to DA
 query(cypher="MATCH p=shortestPath((u:User {name:'USER@DOMAIN.LOCAL'})-[r*1..]->(g:Group)) WHERE g.objectid ENDS WITH '-512' RETURN p")
-```
 
-**Find all computers a user has admin rights on:**
-```
+# Computers a user has admin on
 query(cypher="MATCH p=(u:User {name:'USER@DOMAIN.LOCAL'})-[:AdminTo|MemberOf*1..]->(c:Computer) RETURN p")
+
+# Mark a principal as owned
+query(cypher="MATCH (n {name:'COMPROMISED@DOMAIN.LOCAL'}) SET n.owned=true RETURN n")
 ```
 
-**Find users with paths to a specific computer:**
-```
-query(cypher="MATCH p=shortestPath((u:User)-[r*1..]->(c:Computer {name:'TARGET$'})) RETURN p LIMIT 50")
-```
+## Key Edge Types
 
-**Mark a principal as owned** (then use `find_paths_from_owned_objects`):
-```
-query(cypher="MATCH (n {name:'COMPROMISED_USER@DOMAIN.LOCAL'}) SET n.owned=true RETURN n")
-```
+Read `docs/edges/<edge-name>.md` for abuse steps and OPSEC notes per edge. 132 total.
 
-## Edge Reference
-
-The `docs/edges/` directory contains 132 edge type docs — each describes an AD relationship, how to abuse it, and OPSEC considerations. Key edges:
-
-- **AdminTo** — local admin rights → RCE via PsExec/WMI/WinRM
-- **MemberOf** — group membership chains
-- **HasSession** — where users are logged in
-- **GenericAll/GenericWrite/WriteDacl/WriteOwner** — ACL abuse paths
-- **ForceChangePassword** — reset another user's password
-- **AddMember** — add yourself to a group
-- **DCSync** (GetChanges + GetChangesAll) — replicate credentials
-- **AllowedToDelegate/AllowedToAct** — constrained/RBCD delegation
-- **Enroll/AutoEnroll** — ADCS certificate abuse
-- **CoerceAndRelayNTLM*** — NTLM relay attack chains
-
-Read `docs/edges/<edge-name>.md` for abuse steps and OPSEC notes.
+| Edge | Source → Target | Abuse |
+|------|----------------|-------|
+| AdminTo | User/Group → Computer | RCE via PsExec/WMI/WinRM |
+| MemberOf | Any → Group | Group membership chains |
+| HasSession | Computer → User | Where users are logged in |
+| GenericAll | Any → Any | Full control — reset password, modify object |
+| GenericWrite | Any → Any | Write arbitrary attributes |
+| WriteDacl | Any → Any | Modify ACL to grant yourself access |
+| WriteOwner | Any → Any | Take ownership, then WriteDacl |
+| ForceChangePassword | User → User | Reset another user's password |
+| AddMember | Any → Group | Add yourself to a group |
+| GetChanges + GetChangesAll | Any → Domain | DCSync — replicate all credentials |
+| AllowedToDelegate | Computer → Computer | Constrained delegation abuse |
+| AllowedToAct | Any → Computer | RBCD (resource-based constrained delegation) |
+| Enroll | Any → CertTemplate | ADCS certificate enrollment |
+| CoerceAndRelayNTLM* | Computer → Any | NTLM relay attack chains |
 
 ## Node Reference
 
-The `docs/nodes/` directory covers all entity types in the graph (User, Computer, Group, Domain, GPO, OU, CertTemplate, EnterpriseCA, etc.) with their properties and relationships.
+`docs/nodes/` covers all entity types (User, Computer, Group, Domain, GPO, OU, CertTemplate, EnterpriseCA, etc.) with properties and relationships.
