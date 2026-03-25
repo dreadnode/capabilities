@@ -1,0 +1,163 @@
+# Security scan skills using cisco-ai-skill-scanner.
+#
+# Triggers on all pushes to main and PRs. The detect-changes job
+# auto-discovers org directories (any dir containing capability.yaml)
+# and filters to only those with changed files. No hardcoded org list.
+
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Detect which orgs have changed capabilities
+  # ---------------------------------------------------------------------------
+  detect-changes:
+    name: Detect changed orgs
+    runs-on: ubuntu-latest
+    outputs:
+      orgs: ${{ steps.resolve.outputs.orgs }}
+      any_changed: ${{ steps.resolve.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve changed orgs
+        id: resolve
+        run: |
+          set -euo pipefail
+
+          # Auto-discover all org directories (any top-level dir containing capability.yaml)
+          ALL_ORGS=()
+          for dir in */; do
+            dir="${dir%/}"
+            if find "${dir}" -maxdepth 2 -name "capability.yaml" -quit 2>/dev/null | grep -q .; then
+              ALL_ORGS+=("${dir}")
+            fi
+          done
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Manual: scan all orgs
+            ORGS=("${ALL_ORGS[@]}")
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}" HEAD \
+              | grep -oP '^[^/]+' | sort -u || true)
+            ORGS=()
+            for dir in ${CHANGED}; do
+              # Include if it's a known org dir with skills
+              for org in "${ALL_ORGS[@]}"; do
+                if [[ "${dir}" == "${org}" ]]; then
+                  ORGS+=("${dir}")
+                  break
+                fi
+              done
+            done
+          else
+            CHANGED=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" \
+              | grep -oP '^[^/]+' | sort -u || true)
+            ORGS=()
+            for dir in ${CHANGED}; do
+              for org in "${ALL_ORGS[@]}"; do
+                if [[ "${dir}" == "${org}" ]]; then
+                  ORGS+=("${dir}")
+                  break
+                fi
+              done
+            done
+          fi
+
+          # If scan-policy.yaml changed, scan everything
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            DIFF_BASE="origin/${{ github.base_ref }}"
+          else
+            DIFF_BASE="${{ github.event.before }}"
+          fi
+          if git diff --name-only "${DIFF_BASE}" HEAD 2>/dev/null | grep -q '^scan-policy\.yaml$'; then
+            ORGS=("${ALL_ORGS[@]}")
+          fi
+
+          JSON=$(printf '%s\n' "${ORGS[@]:-}" | jq -Rc . | jq -sc .)
+          ANY="false"
+          [[ ${#ORGS[@]} -gt 0 ]] && ANY="true"
+
+          echo "orgs=${JSON}" >> "$GITHUB_OUTPUT"
+          echo "any_changed=${ANY}" >> "$GITHUB_OUTPUT"
+          echo "### Security scan: ${#ORGS[@]} org(s) to scan" >> "$GITHUB_STEP_SUMMARY"
+          echo "Orgs: ${ORGS[*]:-none}" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Scan changed orgs
+  # ---------------------------------------------------------------------------
+  scan:
+    name: Skill security scan
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Scan changed orgs
+        run: |
+          set -euo pipefail
+          failed=0
+          mkdir -p .sarif
+
+          ORGS_JSON='${{ needs.detect-changes.outputs.orgs }}'
+          for org_dir in $(echo "${ORGS_JSON}" | jq -r '.[]'); do
+            if [[ ! -d "${org_dir}" ]]; then
+              continue
+            fi
+
+            skill_count=$(find "${org_dir}" -name "SKILL.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+            if [[ "${skill_count}" -eq 0 ]]; then
+              echo "==> ${org_dir}/ — no skills, skipping"
+              continue
+            fi
+
+            echo "==> Scanning ${org_dir}/ (${skill_count} skills)"
+            uvx --from cisco-ai-skill-scanner skill-scanner scan-all "${org_dir}" \
+              --recursive \
+              --lenient \
+              --use-behavioral \
+              --policy scan-policy.yaml \
+              --format summary \
+              --format sarif \
+              --output-sarif ".sarif/${org_dir}.sarif" \
+              --fail-on-severity high \
+            || failed=1
+            echo ""
+          done
+
+          if compgen -G ".sarif/*.sarif" > /dev/null; then
+            echo "SARIF reports generated:"
+            ls -la .sarif/
+          fi
+
+          if [[ "${failed}" -eq 1 ]]; then
+            echo "::error::Security scan found HIGH+ severity findings"
+            exit 1
+          fi
+
+      - name: Upload SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .sarif/
+        continue-on-error: true

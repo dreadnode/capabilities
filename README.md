@@ -8,6 +8,7 @@
     - [Agents (`agents/`)](#agents-agents)
     - [MCP Servers (`mcp:` in manifest)](#mcp-servers-mcp-in-manifest)
   - [Discovery Rules](#discovery-rules)
+  - [Security Scanning](#security-scanning)
   - [Local Development](#local-development)
 
 Portable extension bundles that add agents, tools, skills, and MCP servers to Dreadnode.
@@ -153,6 +154,19 @@ For `agents`, `tools`, and `skills`:
 | Field omitted | Auto-discover from conventional directory |
 | `[]` | Disabled — nothing exported |
 | `[path/to/extra/]` | Auto-discover conventional directory AND listed paths |
+
+## Security Scanning
+
+All skills are scanned for security issues using [cisco-ai-skill-scanner](https://github.com/cisco-ai-defense/skill-scanner). CI runs automatically on PRs and pushes that touch capability files, failing on HIGH+ severity findings. SARIF reports are uploaded to GitHub Code Scanning.
+
+The scanner checks for prompt injection, data exfiltration, tool chaining abuse, supply chain attacks, and more using static, bytecode, pipeline, and behavioral analysis. The repo-specific policy (`scan-policy.yaml`) tunes for our security-focused content to reduce false positives.
+
+```bash
+just security-scan                        # scan all orgs
+just security-scan dreadnode              # scan one org
+just security-scan behavioral="true"      # deep dataflow analysis
+just test-security-scan                   # run scanner test suite
+```
 
 ## Local Development
 
