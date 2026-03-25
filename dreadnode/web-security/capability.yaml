@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.0.0"
+version: "1.0.1"
 description: >
   Web application penetration testing with 30+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
@@ -15,7 +15,13 @@ mcp:
       command: "uv"
       args:
         - "run"
-        - "${CAPABILITY_ROOT}/mcp/server.py"
+        - "${CAPABILITY_ROOT}/mcp/caido.py"
+      init_timeout: 60
+    jxscout:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/jxscout.py"
       init_timeout: 60
     burp:
       url: "http://127.0.0.1:9876/"
