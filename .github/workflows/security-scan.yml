@@ -1,0 +1,84 @@
+# Security scan all skills using cisco-ai-skill-scanner.
+#
+# Runs on every PR and push to main. Produces SARIF reports uploaded
+# to GitHub Code Scanning (if the repo has Advanced Security enabled)
+# and fails the check on HIGH+ severity findings.
+
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  ORG_DIRS: "dreadnode trailofbits ghostsecurity"
+
+jobs:
+  scan:
+    name: Skill security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Scan all orgs
+        run: |
+          set -euo pipefail
+          failed=0
+          mkdir -p .sarif
+
+          for org_dir in ${ORG_DIRS}; do
+            if [[ ! -d "${org_dir}" ]]; then
+              continue
+            fi
+
+            skill_count=$(find "${org_dir}" -name "SKILL.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+            if [[ "${skill_count}" -eq 0 ]]; then
+              echo "==> ${org_dir}/ — no skills, skipping"
+              continue
+            fi
+
+            echo "==> Scanning ${org_dir}/ (${skill_count} skills)"
+            uvx --from cisco-ai-skill-scanner skill-scanner scan-all "${org_dir}" \
+              --recursive \
+              --lenient \
+              --use-behavioral \
+              --policy scan-policy.yaml \
+              --format summary \
+              --format sarif \
+              --output-sarif ".sarif/${org_dir}.sarif" \
+              --fail-on-severity high \
+            || failed=1
+            echo ""
+          done
+
+          # Merge SARIF files for upload
+          if compgen -G ".sarif/*.sarif" > /dev/null; then
+            echo "SARIF reports generated:"
+            ls -la .sarif/
+          fi
+
+          if [[ "${failed}" -eq 1 ]]; then
+            echo "::error::Security scan found HIGH+ severity findings"
+            exit 1
+          fi
+
+      - name: Upload SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .sarif/
+        continue-on-error: true

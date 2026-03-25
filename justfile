@@ -22,6 +22,19 @@ validate strict="false":
     done
     [[ "${failed}" -eq 0 ]] || exit 1
 
+# Security scan all skills (pass org to scan one, behavioral="true" for deep analysis)
+security-scan org="" behavioral="false":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cmd=(./scripts/security-scan.sh)
+    [[ "{{ behavioral }}" == "true" ]] && cmd+=(--behavioral)
+    [[ -n "{{ org }}" ]] && cmd+=("{{ org }}")
+    "${cmd[@]}"
+
+# Run security scan tests
+test-security-scan:
+    ./tests/test_security_scan.sh -v
+
 # Sync all capabilities to local platform (requires running API + SDK profile)
 sync-local org="" force="false":
     #!/usr/bin/env bash
