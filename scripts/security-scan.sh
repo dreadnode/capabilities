@@ -16,7 +16,15 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 POLICY="${REPO_ROOT}/scan-policy.yaml"
 SCANNER="uvx --from cisco-ai-skill-scanner skill-scanner"
-ORG_DIRS=(dreadnode trailofbits ghostsecurity)
+
+# Auto-discover org directories (any top-level dir containing capability.yaml)
+ORG_DIRS=()
+for dir in "${REPO_ROOT}"/*/; do
+    dir="$(basename "${dir}")"
+    if find "${REPO_ROOT}/${dir}" -maxdepth 2 -name "capability.yaml" -quit 2>/dev/null | grep -q .; then
+        ORG_DIRS+=("${dir}")
+    fi
+done
 
 # Defaults
 FORMAT="summary"

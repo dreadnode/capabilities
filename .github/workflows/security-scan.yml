@@ -1,54 +1,15 @@
 # Security scan skills using cisco-ai-skill-scanner.
 #
-# Triggers:
-#   - Push to main that touches skill/capability files
-#   - PR that touches skill/capability files
-#   - Manual dispatch (scans all orgs)
-#
-# Only scans orgs that have changed files, unless manually dispatched.
+# Triggers on all pushes to main and PRs. The detect-changes job
+# auto-discovers org directories (any dir containing capability.yaml)
+# and filters to only those with changed files. No hardcoded org list.
 
 name: Security Scan
 
 on:
   push:
     branches: [main]
-    paths:
-      - "dreadnode/**/skills/**"
-      - "dreadnode/**/tools/**"
-      - "dreadnode/**/agents/**"
-      - "dreadnode/**/mcp/**"
-      - "dreadnode/**/capability.yaml"
-      - "trailofbits/**/skills/**"
-      - "trailofbits/**/tools/**"
-      - "trailofbits/**/agents/**"
-      - "trailofbits/**/mcp/**"
-      - "trailofbits/**/capability.yaml"
-      - "ghostsecurity/**/skills/**"
-      - "ghostsecurity/**/tools/**"
-      - "ghostsecurity/**/agents/**"
-      - "ghostsecurity/**/mcp/**"
-      - "ghostsecurity/**/capability.yaml"
-      - "scan-policy.yaml"
-
   pull_request:
-    paths:
-      - "dreadnode/**/skills/**"
-      - "dreadnode/**/tools/**"
-      - "dreadnode/**/agents/**"
-      - "dreadnode/**/mcp/**"
-      - "dreadnode/**/capability.yaml"
-      - "trailofbits/**/skills/**"
-      - "trailofbits/**/tools/**"
-      - "trailofbits/**/agents/**"
-      - "trailofbits/**/mcp/**"
-      - "trailofbits/**/capability.yaml"
-      - "ghostsecurity/**/skills/**"
-      - "ghostsecurity/**/tools/**"
-      - "ghostsecurity/**/agents/**"
-      - "ghostsecurity/**/mcp/**"
-      - "ghostsecurity/**/capability.yaml"
-      - "scan-policy.yaml"
-
   workflow_dispatch:
 
 concurrency:
@@ -58,9 +19,6 @@ concurrency:
 permissions:
   contents: read
   security-events: write
-
-env:
-  ORG_DIRS: "dreadnode trailofbits ghostsecurity"
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -82,40 +40,53 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Auto-discover all org directories (any top-level dir containing capability.yaml)
+          ALL_ORGS=()
+          for dir in */; do
+            dir="${dir%/}"
+            if find "${dir}" -maxdepth 2 -name "capability.yaml" -quit 2>/dev/null | grep -q .; then
+              ALL_ORGS+=("${dir}")
+            fi
+          done
+
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             # Manual: scan all orgs
-            ORGS=()
-            for org_dir in ${ORG_DIRS}; do
-              [[ -d "${org_dir}" ]] && ORGS+=("${org_dir}")
-            done
+            ORGS=("${ALL_ORGS[@]}")
           elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # PR: diff against base
             CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}" HEAD \
               | grep -oP '^[^/]+' | sort -u || true)
             ORGS=()
             for dir in ${CHANGED}; do
-              if [[ -d "${dir}" ]] && find "${dir}" -maxdepth 3 -name "SKILL.md" -quit 2>/dev/null | grep -q .; then
-                ORGS+=("${dir}")
-              fi
+              # Include if it's a known org dir with skills
+              for org in "${ALL_ORGS[@]}"; do
+                if [[ "${dir}" == "${org}" ]]; then
+                  ORGS+=("${dir}")
+                  break
+                fi
+              done
             done
           else
-            # Push to main: diff against previous commit
             CHANGED=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" \
               | grep -oP '^[^/]+' | sort -u || true)
             ORGS=()
             for dir in ${CHANGED}; do
-              if [[ -d "${dir}" ]] && find "${dir}" -maxdepth 3 -name "SKILL.md" -quit 2>/dev/null | grep -q .; then
-                ORGS+=("${dir}")
-              fi
+              for org in "${ALL_ORGS[@]}"; do
+                if [[ "${dir}" == "${org}" ]]; then
+                  ORGS+=("${dir}")
+                  break
+                fi
+              done
             done
           fi
 
           # If scan-policy.yaml changed, scan everything
-          if git diff --name-only "${{ github.event.before || format('origin/{0}', github.base_ref) }}" HEAD 2>/dev/null | grep -q '^scan-policy\.yaml$'; then
-            ORGS=()
-            for org_dir in ${ORG_DIRS}; do
-              [[ -d "${org_dir}" ]] && ORGS+=("${org_dir}")
-            done
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            DIFF_BASE="origin/${{ github.base_ref }}"
+          else
+            DIFF_BASE="${{ github.event.before }}"
+          fi
+          if git diff --name-only "${DIFF_BASE}" HEAD 2>/dev/null | grep -q '^scan-policy\.yaml$'; then
+            ORGS=("${ALL_ORGS[@]}")
           fi
 
           JSON=$(printf '%s\n' "${ORGS[@]:-}" | jq -Rc . | jq -sc .)
