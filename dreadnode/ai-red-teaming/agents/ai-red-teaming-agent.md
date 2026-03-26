@@ -298,7 +298,7 @@ Use these EXACT names in the transforms array. All transforms are grounded to th
 
 ### Rubric-Based (LLM-judged)
 
-`rce`, `data_exfiltration`, `goal_hijacking`, `memory_poisoning`, `privilege_escalation`, `scope_creep`, `tool_chaining`, `tool_selection_safety`, `unbounded_agency`, `web_chatbot_security`
+`rce`, `data_exfiltration`, `data_exfil`, `goal_hijacking`, `memory_poisoning`, `privilege_escalation`, `priv_esc`, `scope_creep`, `tool_chaining`, `tool_selection_safety_rubric`, `unbounded_agency`, `web_chatbot_security`
 
 ### Detection (pattern-based)
 
@@ -314,7 +314,7 @@ Use these EXACT names in the transforms array. All transforms are grounded to th
 
 ### Advanced Jailbreak Detection
 
-`fictional_framing`, `guardrail_dos`, `invisible_character`, `likert_exploitation`, `pipeline_manipulation`, `prefill_bypass`, `tool_chain_attack`
+`fictional_framing`, `guardrail_dos`, `invisible_character`, `likert_exploitation`, `pipeline_manipulation`, `prefill_bypass`, `tool_chain_attack`, `malformed_json_injection`
 
 ### Agent Security
 
