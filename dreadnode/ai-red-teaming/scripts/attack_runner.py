@@ -631,7 +631,7 @@ SCORER_REGISTRY: dict[str, dict] = {
     "priv_esc": {"type": "rubric", "rubric": "privilege_escalation"},
     "scope_creep": {"type": "rubric", "rubric": "scope_creep"},
     "tool_chaining": {"type": "rubric", "rubric": "tool_chaining"},
-    "tool_selection_safety": {"type": "rubric", "rubric": "tool_selection_safety"},
+    "tool_selection_safety_rubric": {"type": "rubric", "rubric": "tool_selection_safety"},
     "unbounded_agency": {"type": "rubric", "rubric": "unbounded_agency"},
     "web_chatbot_security": {"type": "rubric", "rubric": "web_chatbot_security"},
     "refusal": {"type": "builtin", "code": "dn.scorers.detect_refusal()"},

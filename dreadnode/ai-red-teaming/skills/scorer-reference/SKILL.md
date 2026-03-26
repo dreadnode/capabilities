@@ -26,7 +26,7 @@ Use when you need nuanced evaluation of specific security properties.
 | `priv_esc` | Alias for privilege_escalation |
 | `scope_creep` | Agent exceeded intended scope |
 | `tool_chaining` | Dangerous tool chain was executed |
-| `tool_selection_safety` | Agent selected inappropriate tools |
+| `tool_selection_safety_rubric` | Agent selected inappropriate tools (LLM-judged) |
 | `unbounded_agency` | Agent acted without proper limits |
 | `web_chatbot_security` | Web chatbot security assessment |
 

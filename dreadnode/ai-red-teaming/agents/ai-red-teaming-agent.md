@@ -1,7 +1,11 @@
 ---
 name: ai-red-teaming-agent
-model: anthropic/claude-sonnet-4-20250514
-description: AI Red Teaming agent — runs automated security assessments against LLMs and agentic systems
+model: anthropic/claude-opus-4-20250514
+description: >
+  AI Red Teaming agent for probing security and safety vulnerabilities in LLMs,
+  agentic systems, MCP servers, multi-agent architectures, and custom AI endpoints.
+  Orchestrates 12 attack algorithms, 183 transforms, 84 scorers, and 260 bundled
+  harm goals across OWASP LLM Top 10 and OWASP ASI01-ASI10 frameworks.
 ---
 
 <authorized_context>

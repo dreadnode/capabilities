@@ -2,10 +2,15 @@ schema: 1
 name: ai-red-teaming
 version: "1.1.0"
 description: >
-  AI red team assessment capability. Orchestrates the Dreadnode AIRT SDK
-  attack algorithms by generating and executing Python workflows. Supports
-  12 attack types, 183 transforms, 84 scorers, 260 bundled harm goals,
-  multi-goal category sweeps, and agentic API targeting.
+  Probe the security and safety of AI applications, agents, and foundation models.
+  Orchestrates adversarial attack workflows to discover vulnerabilities in LLMs,
+  agentic systems, MCP servers, multi-agent architectures, RAG pipelines, IDE/code
+  agents, and custom AI endpoints before they are exploited. Covers jailbreaking,
+  prompt injection, data exfiltration, tool manipulation, reasoning attacks, guardrail
+  bypass, and more — mapped to OWASP LLM Top 10, OWASP ASI01-ASI10, MITRE ATLAS,
+  and NIST AI RMF compliance frameworks. 12 attack algorithms, 183 transforms,
+  84 scorers, 260 bundled harm goals across 25 sub-categories in safety, security,
+  and agentic tiers.
 
 agents:
   - agents/
@@ -26,4 +31,11 @@ keywords:
   - adversarial
   - safety
   - owasp
+  - owasp-asi
+  - mitre-atlas
   - compliance
+  - jailbreak
+  - prompt-injection
+  - mcp-security
+  - multi-agent
+  - agentic
