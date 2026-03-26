@@ -23,6 +23,12 @@ mcp:
         - "run"
         - "${CAPABILITY_ROOT}/mcp/jxscout.py"
       init_timeout: 60
+    thermoptic:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/thermoptic.py"
+      init_timeout: 60
     burp:
       url: "http://127.0.0.1:9876/"
       init_timeout: 15
