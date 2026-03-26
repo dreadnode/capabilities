@@ -15,7 +15,7 @@ from pathlib import Path
 from dreadnode.agents.tools import tool
 
 ASSESSMENT_PATH = Path(
-    os.environ.get("DREADAIRT_ASSESSMENT_PATH", "/tmp/dreadairt_assessment.json")
+    os.environ.get("AIRT_ASSESSMENT_PATH", "/tmp/airt_assessment.json")
 )
 
 

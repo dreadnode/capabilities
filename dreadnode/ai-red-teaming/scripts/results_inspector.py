@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Results inspector for DreadAIRT output files.
+"""Results inspector for AI Red Teaming output files.
 
 Reads analytics JSON, result files, and reports from ~/workspace/airt/
 to provide summaries and detailed inspection of attack outputs.
@@ -14,7 +14,7 @@ from pathlib import Path
 
 AIRT_DIR = Path(
     os.environ.get(
-        "DREADAIRT_OUTPUT_DIR",
+        "AIRT_OUTPUT_DIR",
         os.path.expanduser("~/workspace/airt"),
     )
 )
