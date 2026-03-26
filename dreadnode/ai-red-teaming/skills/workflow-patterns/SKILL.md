@@ -363,7 +363,7 @@ Use `generate_agentic_attack` to test an agent's HTTP API directly.
 #     agent_preset="custom",
 #     attacker_model="anthropic/claude-sonnet-4-20250514",
 #     transforms=["tool_restriction_bypass", "agent_memory_injection"],
-#     scorers=["tool_invoked", "memory_injection_detected"],
+#     scorers=["tool_invoked", "memory_injection"],
 #     n_iterations=10,
 #     auth_header="Bearer YOUR_TOKEN",
 # )

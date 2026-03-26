@@ -1,11 +1,18 @@
 schema: 1
 name: ai-red-teaming
-version: "1.0.0"
+version: "1.1.0"
 description: >
   AI red team assessment capability. Orchestrates the Dreadnode AIRT SDK
   attack algorithms by generating and executing Python workflows. Supports
-  12+ attack types, 200+ transforms, multi-goal category sweeps, and
-  agentic API targeting.
+  12 attack types, 183 transforms, 84 scorers, 260 bundled harm goals,
+  multi-goal category sweeps, and agentic API targeting.
+
+agents:
+  - agents/
+skills:
+  - skills/
+tools:
+  - tools/
 
 author:
   name: Dreadnode
@@ -18,3 +25,5 @@ keywords:
   - llm-security
   - adversarial
   - safety
+  - owasp
+  - compliance
