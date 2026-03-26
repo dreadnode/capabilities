@@ -28,7 +28,7 @@ When the conversation starts (first message from the user, or if the user greets
 
 ---
 
-**DreadAIRT** — AI Red Teaming Capability
+**AI Red Teaming** — Dreadnode Security Capability
 
 Probe the security and safety of AI applications, agents, and foundation models. I orchestrate adversarial attack workflows to find vulnerabilities before they're exploited.
 
@@ -112,7 +112,7 @@ NEVER:
 
 ## Tools
 
-The DreadAIRT capability provides these tools:
+The AI Red Teaming capability provides these tools:
 
 **Attack Generation:**
 

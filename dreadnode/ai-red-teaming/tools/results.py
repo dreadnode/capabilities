@@ -14,7 +14,7 @@ from pathlib import Path
 from dreadnode.agents.tools import tool
 
 WORKSPACE_DIR = Path(
-    os.environ.get("DREADAIRT_OUTPUT_DIR", str(Path.home() / "workspace" / "airt"))
+    os.environ.get("AIRT_OUTPUT_DIR", str(Path.home() / "workspace" / "airt"))
 )
 
 

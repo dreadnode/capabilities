@@ -22,7 +22,7 @@ from pathlib import Path
 
 WORKFLOWS_DIR = Path(
     os.environ.get(
-        "DREADAIRT_WORKFLOWS_DIR",
+        "AIRT_WORKFLOWS_DIR",
         os.path.expanduser("~/workspace/airt/workflows"),
     )
 )

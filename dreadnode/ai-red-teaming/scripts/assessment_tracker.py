@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assessment tracker for DreadAIRT agent sessions.
+"""Assessment tracker for AI Red Teaming agent sessions.
 
 Tracks planned and completed attacks against a target, including
 ASR scores, risk levels, and notes. State is persisted to a JSON
@@ -14,7 +14,7 @@ import sys
 import time
 from pathlib import Path
 
-STATE_FILE = Path(os.environ.get("DREADAIRT_ASSESSMENT_PATH", "/tmp/dreadairt_assessment.json"))
+STATE_FILE = Path(os.environ.get("AIRT_ASSESSMENT_PATH", "/tmp/airt_assessment.json"))
 
 
 def load_state() -> dict:

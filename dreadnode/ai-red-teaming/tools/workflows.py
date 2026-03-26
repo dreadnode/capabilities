@@ -17,7 +17,7 @@ from dreadnode.agents.tools import tool
 
 WORKFLOWS_DIR = Path(
     os.environ.get(
-        "DREADAIRT_WORKFLOWS_DIR",
+        "AIRT_WORKFLOWS_DIR",
         str(Path.home() / "workspace" / "airt" / "workflows"),
     )
 )
