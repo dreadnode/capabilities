@@ -33,9 +33,18 @@ def _auto_execute_workflow(filename: str, timeout: int = 540) -> str:
     filepath = WORKFLOWS_DIR / filename
     if not filepath.exists():
         return "\n[AUTO-EXECUTE] Workflow file not found: {}".format(filename)
+
+    # Syntax check — catch template formatting bugs before execution
+    try:
+        with open(filepath) as f:
+            source = f.read()
+        compile(source, str(filepath), "exec")
+    except SyntaxError as e:
+        return "\n[AUTO-EXECUTE] Syntax error in generated script: {} (line {})".format(e.msg, e.lineno)
+
     try:
         result = subprocess.run(
-            ["python3", str(filepath)],
+            [sys.executable, str(filepath)],
             cwd=str(WORKFLOWS_DIR.parent),
             capture_output=True,
             text=True,
@@ -1020,9 +1029,15 @@ def _build_imports(attacks: list[dict], transforms: list[dict], has_scorers: boo
     return "\n".join(lines)
 
 def _build_configure() -> str:
-    """Build the dn.configure() block."""
+    """Build the dn.configure() block with env var validation."""
     return '''
 # -- MANDATORY: Connect SDK to platform --
+_required_env = ["DREADNODE_SERVER", "DREADNODE_API_KEY", "DREADNODE_ORGANIZATION", "DREADNODE_WORKSPACE", "DREADNODE_PROJECT"]
+_missing = [v for v in _required_env if not os.environ.get(v)]
+if _missing:
+    print(f"FATAL: Missing required environment variables: {_missing}")
+    print("  Ensure the sandbox is configured correctly.")
+    sys.exit(1)
 dn.configure(
     server=os.environ.get("DREADNODE_SERVER"),
     api_key=os.environ.get("DREADNODE_API_KEY"),
@@ -1030,6 +1045,8 @@ dn.configure(
     workspace=os.environ.get("DREADNODE_WORKSPACE"),
     project=os.environ.get("DREADNODE_PROJECT"),
 )
+print(f"SDK configured: server={os.environ.get('DREADNODE_SERVER')}")
+sys.stdout.flush()
 '''
 
 def _build_proxy_routing() -> str:
@@ -1057,7 +1074,10 @@ if _proxy_key and _proxy_base:
     if not JUDGE_MODEL.startswith("openai/"):
         JUDGE_MODEL = f"openai/{JUDGE_MODEL}"
     print(f"  [proxy] Routing via {_proxy_base}")
-    print(f"  [proxy] {_orig_target} -> {TARGET_MODEL}")
+    print(f"  [proxy] target:   {_orig_target} -> {TARGET_MODEL}")
+    print(f"  [proxy] attacker: {_orig_attacker} -> {ATTACKER_MODEL}")
+    print(f"  [proxy] judge:    {_orig_judge} -> {JUDGE_MODEL}")
+    sys.stdout.flush()
 '''
 
 def _build_assessment_kwargs(config: dict, assessment_name: str, filename: str) -> str:
@@ -1135,7 +1155,7 @@ async def target(prompt: str) -> str:
     return results[0].message.content
 '''
 
-def _build_attack_params(atk: dict, transforms_expr: str | None = None, goal_expr: str = "GOAL", goal_category_expr: str = "GOAL_CATEGORY.value") -> str:
+def _build_attack_params(atk: dict, transforms_expr: str | None = None, goal_expr: str = "GOAL", goal_category_expr: str = "GOAL_CATEGORY.value", transform_names: list[str] | None = None) -> str:
     """Build the parameter string for an attack function call."""
     params = ["goal={}".format(goal_expr), "target=target"]
     if atk["has_attacker"]:
@@ -1288,6 +1308,13 @@ async def main():
 
     async with assessment.trace():
         try:
+            _transforms_applied = {transforms_applied}
+            print(f"Attack: {attack_canon}")
+            print(f"Goal: {{GOAL}}")
+            print(f"Target: {{TARGET_MODEL}}")
+            print(f"Transforms: {{_transforms_applied or 'none'}}")
+            sys.stdout.flush()
+
             study = {attack_func}(
                 {attack_params},
             )
@@ -1299,7 +1326,7 @@ async def main():
                 goal=GOAL,
                 goal_category=GOAL_CATEGORY,
                 compliance_tags={tag_alias},
-                transforms_applied={transforms_applied},
+                transforms_applied=_transforms_applied,
             )
             assessment.record_attack(ar)
 
