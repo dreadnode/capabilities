@@ -2121,7 +2121,8 @@ def generate_attack(params: dict) -> dict:
 
     # Determine mode and generate script
     is_campaign = len(attacks_resolved) > 1
-    is_study = compare_transforms and bool(transforms_resolved) and not is_campaign
+    # Auto-enable transform study when transforms are provided (creates 1 assessment with N+1 attacks)
+    is_study = bool(transforms_resolved) and not is_campaign
 
     if is_campaign:
         script = _generate_campaign(config)
