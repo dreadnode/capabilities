@@ -61,6 +61,20 @@ GET /admin;jsessionid=x/../secret HTTP/1.1
 - Nginx strips `../` before forwarding, Tomcat processes it after routing
 - Test: Path traversal variants through proxy to access restricted endpoints
 
+### URL Normalization Desync (Bun, WHATWG-compliant runtimes)
+WHATWG URL spec preserves multiple leading slashes; POSIX `path.join()` collapses them:
+```
+Guard:      if (path.startsWith("/admin")) return 403;
+Bypass:     //admin       → fails startsWith("/admin") check
+Filesystem: path.join(ROOT, "//admin") → resolves to /admin (POSIX normalization)
+```
+Also applies to prefix collisions without segment awareness:
+```
+Guard:      if (path.startsWith("/public")) allow;
+Bypass:     /public_backup/config.txt → passes check (string prefix match, not directory boundary)
+```
+Test: `startsWith()`-based ACLs in Node/Bun apps. Use `//path`, `///path`, and sibling directory names sharing a prefix.
+
 ## Detection Checklist
 1. Identify all processing layers (CDN, WAF, reverse proxy, app framework, ORM)
 2. Determine parser behavior for each layer (first-wins vs last-wins, encoding handling)
@@ -70,3 +84,6 @@ GET /admin;jsessionid=x/../secret HTTP/1.1
 
 ## Key Insight
 The bug is not in any single parser — it's in the assumption that all parsers agree. The vulnerability exists in the gap between interpretations.
+
+## Reference
+- https://lab.ctbb.show/research/slacker-slash-bypassing-bun-security-middleware (Bun normalization desync)
