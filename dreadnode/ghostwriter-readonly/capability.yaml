@@ -1,0 +1,20 @@
+schema: 1
+name: ghostwriter-readonly
+version: "1.0.0"
+description: >
+  Read-only GhostWriter integration. Query clients, projects, findings,
+  objectives, targets, scope, deconflictions, evidence, observations,
+  reports, infrastructure (servers and domains), activity logs, white
+  cards, and notes without modifying any GhostWriter state.
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - ghostwriter
+  - reporting
+  - read-only
+  - findings
+  - pentest
