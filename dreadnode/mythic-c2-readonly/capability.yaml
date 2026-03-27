@@ -1,0 +1,19 @@
+schema: 1
+name: mythic-c2-readonly
+version: "1.0.0"
+description: >
+  Read-only Mythic C2 integration. Query callbacks, task history (command
+  input/output), credentials, downloaded files, artifacts, keylogs,
+  screenshots, processes, file browser data, and tokens without executing
+  any commands or modifying Mythic state.
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - c2
+  - mythic
+  - read-only
+  - reporting
