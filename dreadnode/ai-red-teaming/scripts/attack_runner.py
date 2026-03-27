@@ -121,39 +121,133 @@ SUB_CATEGORY_TO_SDK_SCORER: dict[str, str] = {
 # Model alias shortcuts — provider-agnostic convenience names.
 # Users can always pass a full litellm model path (e.g. "azure/gpt-4o") directly.
 MODEL_ALIASES: dict[str, str] = {
-    # OpenAI
+    # ── OpenAI ──
     "gpt-4o": "openai/gpt-4o",
     "gpt-4o-mini": "openai/gpt-4o-mini",
     "gpt-4.1": "openai/gpt-4.1",
+    "gpt-4.1-mini": "openai/gpt-4.1-mini",
+    "gpt-4.1-nano": "openai/gpt-4.1-nano",
+    "o3": "openai/o3",
     "o3-mini": "openai/o3-mini",
+    "o4-mini": "openai/o4-mini",
     "openai": "openai/gpt-4o",
-    # Anthropic
+    # ── Anthropic ──
     "claude": "anthropic/claude-sonnet-4-20250514",
     "claude-sonnet": "anthropic/claude-sonnet-4-20250514",
+    "claude sonnet": "anthropic/claude-sonnet-4-20250514",
     "claude-haiku": "anthropic/claude-haiku-4-5-20251001",
+    "claude haiku": "anthropic/claude-haiku-4-5-20251001",
     "claude-opus": "anthropic/claude-opus-4-20250514",
+    "claude opus": "anthropic/claude-opus-4-20250514",
     "anthropic": "anthropic/claude-sonnet-4-20250514",
-    # Groq
+    # ── Groq ──
     "groq": "groq/meta-llama/llama-4-maverick-17b-128e-instruct",
     "groq maverick": "groq/meta-llama/llama-4-maverick-17b-128e-instruct",
+    "groq maverick 17b": "groq/meta-llama/llama-4-maverick-17b-128e-instruct",
     "groq scout": "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+    "groq scout 17b": "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+    "groq llama scout": "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+    "groq llama scout 17b": "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+    "groq llama": "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+    "groq llama maverick": "groq/meta-llama/llama-4-maverick-17b-128e-instruct",
     "groq 70b": "groq/llama-3.3-70b-versatile",
-    # Google
+    "groq llama 70b": "groq/llama-3.3-70b-versatile",
+    "groq mixtral": "groq/mixtral-8x7b-32768",
+    "groq gemma": "groq/gemma2-9b-it",
+    # ── Google (Gemini / Vertex AI) ──
     "gemini": "gemini/gemini-2.5-flash",
+    "gemini flash": "gemini/gemini-2.5-flash",
+    "gemini-flash": "gemini/gemini-2.5-flash",
     "gemini-pro": "gemini/gemini-2.5-pro",
-    # Mistral
+    "gemini pro": "gemini/gemini-2.5-pro",
+    "vertex gemini": "vertex_ai/gemini-2.5-flash",
+    "vertex gemini pro": "vertex_ai/gemini-2.5-pro",
+    "vertex": "vertex_ai/gemini-2.5-flash",
+    # ── Mistral ──
     "mistral": "mistral/mistral-large-latest",
+    "mistral-large": "mistral/mistral-large-latest",
+    "mistral large": "mistral/mistral-large-latest",
     "mistral-small": "mistral/mistral-small-latest",
-    # Together
+    "mistral small": "mistral/mistral-small-latest",
+    "mistral-medium": "mistral/mistral-medium-latest",
+    "mistral medium": "mistral/mistral-medium-latest",
+    "codestral": "mistral/codestral-latest",
+    "pixtral": "mistral/pixtral-large-latest",
+    # ── Together AI ──
+    "together": "together_ai/meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
     "together llama": "together_ai/meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-    # AWS Bedrock
+    "together llama scout": "together_ai/meta-llama/Llama-4-Scout-17B-16E-Instruct",
+    "together llama 70b": "together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    "together qwen": "together_ai/Qwen/Qwen2.5-72B-Instruct-Turbo",
+    "together deepseek": "together_ai/deepseek-ai/DeepSeek-R1",
+    "together mixtral": "together_ai/mistralai/Mixtral-8x22B-Instruct-v0.1",
+    # ── AWS Bedrock ──
+    "bedrock": "bedrock/anthropic.claude-sonnet-4-20250514-v1:0",
     "bedrock claude": "bedrock/anthropic.claude-sonnet-4-20250514-v1:0",
+    "bedrock claude sonnet": "bedrock/anthropic.claude-sonnet-4-20250514-v1:0",
     "bedrock haiku": "bedrock/anthropic.claude-haiku-4-5-20251001-v1:0",
-    # Azure OpenAI
+    "bedrock claude haiku": "bedrock/anthropic.claude-haiku-4-5-20251001-v1:0",
+    "bedrock opus": "bedrock/anthropic.claude-opus-4-20250514-v1:0",
+    "bedrock claude opus": "bedrock/anthropic.claude-opus-4-20250514-v1:0",
+    "bedrock llama": "bedrock/meta.llama4-scout-17b-instruct-v1:0",
+    "bedrock mistral": "bedrock/mistral.mistral-large-2407-v1:0",
+    "bedrock titan": "bedrock/amazon.titan-text-premier-v1:0",
+    "bedrock nova": "bedrock/amazon.nova-pro-v1:0",
+    "bedrock nova pro": "bedrock/amazon.nova-pro-v1:0",
+    "bedrock nova lite": "bedrock/amazon.nova-lite-v1:0",
+    "bedrock cohere": "bedrock/cohere.command-r-plus-v1:0",
+    # ── AWS SageMaker ──
+    "sagemaker": "sagemaker/jumpstart-dft-meta-textgeneration-llama-3-3-70b-instruct",
+    "sagemaker llama": "sagemaker/jumpstart-dft-meta-textgeneration-llama-3-3-70b-instruct",
+    # ── Azure OpenAI ──
+    "azure": "azure/gpt-4o",
     "azure gpt-4o": "azure/gpt-4o",
-    # Ollama (local)
-    "ollama llama": "ollama/llama3.3",
+    "azure gpt-4o-mini": "azure/gpt-4o-mini",
+    "azure gpt-4.1": "azure/gpt-4.1",
+    "azure gpt-4.1-mini": "azure/gpt-4.1-mini",
+    "azure o3-mini": "azure/o3-mini",
+    # ── Azure ML ──
+    "azure ml": "azure_ai/Meta-Llama-3.3-70B-Instruct",
+    "azure ml llama": "azure_ai/Meta-Llama-3.3-70B-Instruct",
+    "azure ml mistral": "azure_ai/Mistral-large",
+    "azure ml cohere": "azure_ai/Cohere-command-r-plus",
+    # ── Cohere ──
+    "cohere": "cohere_chat/command-r-plus",
+    "cohere command": "cohere_chat/command-r-plus",
+    "cohere command-r": "cohere_chat/command-r",
+    "cohere command-r-plus": "cohere_chat/command-r-plus",
+    # ── DeepSeek ──
+    "deepseek": "deepseek/deepseek-chat",
+    "deepseek chat": "deepseek/deepseek-chat",
+    "deepseek coder": "deepseek/deepseek-coder",
+    "deepseek r1": "deepseek/deepseek-reasoner",
+    # ── Fireworks AI ──
+    "fireworks": "fireworks_ai/accounts/fireworks/models/llama-v3p3-70b-instruct",
+    "fireworks llama": "fireworks_ai/accounts/fireworks/models/llama-v3p3-70b-instruct",
+    "fireworks mixtral": "fireworks_ai/accounts/fireworks/models/mixtral-8x22b-instruct",
+    # ── Perplexity ──
+    "perplexity": "perplexity/llama-3.1-sonar-large-128k-online",
+    "perplexity sonar": "perplexity/llama-3.1-sonar-large-128k-online",
+    # ── xAI (Grok) ──
+    "grok": "xai/grok-2-latest",
+    "grok-2": "xai/grok-2-latest",
+    "xai": "xai/grok-2-latest",
+    # ── Replicate ──
+    "replicate llama": "replicate/meta/meta-llama-3-70b-instruct",
+    "replicate": "replicate/meta/meta-llama-3-70b-instruct",
+    # ── Ollama (local) ──
     "ollama": "ollama/llama3.3",
+    "ollama llama": "ollama/llama3.3",
+    "ollama mistral": "ollama/mistral",
+    "ollama phi": "ollama/phi3",
+    "ollama gemma": "ollama/gemma2",
+    "ollama qwen": "ollama/qwen2.5",
+    # ── AI21 ──
+    "ai21": "ai21/jamba-1.5-large",
+    "ai21 jamba": "ai21/jamba-1.5-large",
+    # ── Databricks ──
+    "databricks": "databricks/databricks-meta-llama-3-1-70b-instruct",
+    "databricks llama": "databricks/databricks-meta-llama-3-1-70b-instruct",
 }
 
 _ATTACK_DEFS: dict[str, dict] = {
