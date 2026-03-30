@@ -73,7 +73,7 @@ jobs:
               | grep -oP '^[^/]+' | sort -u || true)
             DIRS=()
             for dir in ${CHANGED}; do
-              if [[ -d "${dir}" ]] && find "${dir}" -maxdepth 2 -name "capability.yaml" -quit 2>/dev/null | grep -q .; then
+              if [[ -d "${dir}" ]] && find "${dir}" -maxdepth 2 -name "capability.yaml" -print -quit 2>/dev/null | grep -q .; then
                 DIRS+=("${dir}")
               fi
             done
