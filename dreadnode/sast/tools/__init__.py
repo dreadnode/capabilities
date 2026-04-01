@@ -5,11 +5,9 @@ This module exports tools specific to the SAST capability:
 - FileMap: Structural code overview (classes, functions with line numbers)
 - CodeSearch: Natural language code exploration sub-agent
 - Git tools: diff, log, blame
-- Editing tools: str_replace, insert_at_line, create_file, undo_edit
 - Diff tool: snapshot-based diffing for non-git repos
 - Vulnerability reporter: report confirmed vulnerabilities
 - Review highlight: flag lower-confidence findings for human review
-- Think: record reasoning during analysis
 - Dangerous function scanners: Python, Java, Go, C/C++, C#
 - CodeQL: static analysis using GitHub CodeQL
 - ASN.1 builder: construct DER-encoded structures for PoC inputs
@@ -29,7 +27,6 @@ from .dangerous_functions import (
     DangerousFunctionsPythonTool,
 )
 from .diff import DiffTool
-from .editing import EditTool
 from .exploration import FileMapTool
 from .file_construction import ASN1BuilderTool
 from .git_tools import GitTool
@@ -39,7 +36,6 @@ from .review_highlight import (
     ReviewHighlightTool,
     ReviewPriority,
 )
-from .think import think
 from .vulnerability_reporter import (
     Vulnerability,
     VulnerabilityReport,
@@ -54,8 +50,6 @@ __all__ = [
     "CodeSearchTool",
     # Git
     "GitTool",
-    # Editing
-    "EditTool",
     # Diff (non-git repos)
     "DiffTool",
     # Reporting
@@ -68,8 +62,6 @@ __all__ = [
     "ReviewHighlight",
     "ReviewHighlightReport",
     "ReviewPriority",
-    # Reasoning
-    "think",
     # Dangerous Functions
     "DangerousFunctionsBase",
     "DangerousFunctionsPythonTool",
