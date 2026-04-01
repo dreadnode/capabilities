@@ -286,11 +286,17 @@ class ASN1BuilderTool(Toolset):
         """
         Build an ASN.1 DER-encoded binary file from a JSON tree description.
 
-        Use this tool to construct ASN.1/DER files for PoC inputs targeting
-        parsers of PKCS#15, X.509, CMS, PKCS#7, LDAP, SNMP, or any
-        ASN.1-based format. Handles all TLV encoding automatically — you
-        describe the logical structure, the tool handles tag bytes, length
-        encoding (including multi-byte lengths), and value serialization.
+        When to use:
+        - You found a vulnerability in a parser that handles certificates
+          (X.509), cryptographic data (PKCS#7, CMS, PKCS#12), smart card
+          data (PKCS#15), or network protocols (LDAP, SNMP)
+        - You need to craft a malformed input file to trigger the bug
+        - The target parses ASN.1/DER/BER encoded binary data
+
+        This tool handles the low-level TLV (Tag-Length-Value) encoding
+        automatically — you describe the logical structure, the tool handles
+        tag bytes, length encoding (including multi-byte lengths), and value
+        serialization. Use raw_hex or raw_bytes to inject malformed data.
 
         Args:
             structure: List of ASN.1 node objects. Each node is a JSON object

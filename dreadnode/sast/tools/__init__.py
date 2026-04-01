@@ -28,7 +28,7 @@ from .dangerous_functions import (
 )
 from .diff import DiffTool
 from .exploration import FileMapTool
-from .file_construction import ASN1BuilderTool
+from .asn1_builder import ASN1BuilderTool
 from .git_tools import GitTool
 from .review_highlight import (
     ReviewHighlight,
