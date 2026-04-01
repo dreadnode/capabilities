@@ -1,31 +1,39 @@
 # SAST Agent Skills
 
-This directory contains security analysis skills adapted from [Trail of Bits Skills Marketplace](https://github.com/trailofbits/skills).
+This directory contains security analysis skills for the SAST capability.
+
+Note: Several skills are available in the trailofbits capability and not duplicated here:
+audit-context-building, differential-review, entry-point-analyzer, semgrep-rule-creator, sharp-edges, variant-analysis
 
 ## Overview
 
-Skills provide specialized knowledge and workflows that the SAST agent can reference during analysis. When the Dreadnode SDK includes skills support (feat/skills branch, expected in v1.18.0+), these skills will be automatically loaded and made available to the agent.
+Skills provide specialized knowledge and workflows that the SAST agent can reference during analysis.
 
 ## Available Skills
 
 ### Code Auditing
 
-- **audit-context-building** - Ultra-granular, line-by-line code analysis for building deep architectural context
-- **differential-review** - Security-focused review of code changes with git history analysis
 - **fix-review** - Verify fix commits address audit findings without introducing bugs
-- **variant-analysis** - Find similar vulnerabilities across codebases using pattern-based analysis
+- **triage-priority** - Prioritize vulnerability findings by exploitability and impact
+- **false-positive-filters** - Filters to avoid reporting false positives during security analysis
 
 ### Static Analysis Tools
 
 - **codeql** - CodeQL query writing and analysis guidance
 - **semgrep** - Semgrep rule usage and pattern matching
-- **semgrep-rule-creator** - Create and refine Semgrep rules for custom vulnerability detection
 - **sarif-parsing** - Parse and analyze SARIF (Static Analysis Results Interchange Format) output
 
-### Vulnerability Detection
+### Security Domains
 
-- **sharp-edges** - Identify error-prone APIs, dangerous configurations, and footgun designs
-- **entry-point-analyzer** - Identify state-changing entry points for security auditing
+- **threat-modeling** - Systematic threat identification and risk assessment
+- **supply-chain-security** - Analyze dependencies and supply chain risks
+- **ci-cd-security** - CI/CD pipeline security analysis
+- **compliance-check** - Security compliance verification
+- **secure-code-patterns** - Reference patterns for secure coding
+
+### PoC Development
+
+- **file-construction-libraries** - Python libraries for constructing PoC input files
 
 ## Usage
 
