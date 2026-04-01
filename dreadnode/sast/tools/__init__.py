@@ -12,7 +12,7 @@ This module exports tools specific to the SAST capability:
 - Think: record reasoning during analysis
 - Dangerous function scanners: Python, Java, Go, C/C++, C#
 - CodeQL: static analysis using GitHub CodeQL
-- File construction: PoC file building helpers
+- ASN.1 builder: construct DER-encoded structures for PoC inputs
 
 NOTE: Common exploration tools (glob, grep, read, ls) are provided by
 the platform and do not need to be included here.
@@ -31,7 +31,7 @@ from .dangerous_functions import (
 from .diff import DiffTool
 from .editing import EditTool
 from .exploration import FileMapTool
-from .file_construction import ASN1BuilderTool, FileConstructionLibrariesTool
+from .file_construction import ASN1BuilderTool
 from .git_tools import GitTool
 from .review_highlight import (
     ReviewHighlight,
@@ -79,7 +79,6 @@ __all__ = [
     "DangerousFunctionsCSharpTool",
     # CodeQL
     "CodeQLTool",
-    # File construction helpers
-    "FileConstructionLibrariesTool",
+    # ASN.1 builder
     "ASN1BuilderTool",
 ]

@@ -1,7 +1,8 @@
-"""Tools for constructing binary/structured files for PoC inputs.
+"""ASN.1/DER structure builder for PoC inputs.
 
-Based on analysis of agent trajectories showing 20-40% of steps spent on
-manual struct.pack boilerplate instead of vulnerability analysis.
+Builds ASN.1 DER-encoded binary files from a JSON tree description.
+For general file construction library guidance, see the
+file-construction-libraries skill.
 """
 
 from __future__ import annotations
@@ -11,102 +12,6 @@ from pathlib import Path
 from typing import Any
 
 from dreadnode.agents.tools import Toolset, tool_method
-
-# Library reference: format → (library, one-line example)
-_LIBRARY_REFERENCE: dict[str, tuple[str, str]] = {
-    "TIFF/PNG/BMP/JPEG/GIF/WebP/ICO (+30 image formats)": (
-        "Pillow",
-        "from PIL import Image; Image.new('L', (16,4)).save('out.tiff')",
-    ),
-    "TIFF (low-level tag control, BigTIFF, ORF, DNG)": (
-        "tifffile",
-        "import numpy as np, tifffile; tifffile.imwrite('out.tiff', np.zeros((4,16), dtype='uint8'))",
-    ),
-    "PE/ELF/Mach-O executables": (
-        "lief",
-        "import lief; pe = lief.PE.Binary('poc', lief.PE.PE_TYPE.PE32)",
-    ),
-    "PE files (field-level modification)": (
-        "pefile",
-        "import pefile; pe = pefile.PE('input.exe'); pe.FILE_HEADER.NumberOfSections = 0xFF; pe.write('out.exe')",
-    ),
-    "OLE/CDF compound documents": (
-        "olefile",
-        "import olefile; ole = olefile.OleFileIO('doc.ole')",
-    ),
-    "Any binary format (declarative schema)": (
-        "construct",
-        "from construct import *; Int32ub.build(42)",
-    ),
-    "PLY 3D mesh files": (
-        "plyfile",
-        "from plyfile import PlyData, PlyElement; import numpy as np; v=np.array([(0,0,0)],dtype=[('x','f4'),('y','f4'),('z','f4')]); PlyData([PlyElement.describe(v,'vertex')]).write('out.ply')",
-    ),
-    "ASN.1/DER/BER encoding (PKCS#15, X.509, CMS)": (
-        "asn1crypto / pyasn1",
-        "from pyasn1.type import univ; from pyasn1.codec.der import encoder; encoder.encode(univ.Integer(1))",
-    ),
-}
-
-
-class FileConstructionLibrariesTool(Toolset):
-    """Informational tool listing available libraries for PoC file construction."""
-
-    @tool_method(catch=True)
-    async def list_file_construction_libraries(self) -> str:
-        """
-        List pre-installed Python libraries for constructing PoC input files.
-
-        Call this ONCE when you first need to construct a binary or structured
-        file as a PoC input (e.g., TIFF, PE, ELF, OLE, ASN.1, PLY). Returns
-        a reference of what's available with examples. Do NOT call repeatedly —
-        the output is static.
-
-        Use these libraries instead of manual struct.pack / offset arithmetic.
-        They handle header layouts, magic bytes, field sizes, and format-specific
-        conventions automatically.
-
-        Returns:
-            Reference of available libraries with formats, one-line import
-            examples, and the recommended two-step construction pattern
-            (create valid skeleton, then surgically corrupt specific bytes).
-        """
-        lines: list[str] = ["Available libraries for constructing PoC input files:\n"]
-
-        for fmt, (lib, example) in _LIBRARY_REFERENCE.items():
-            lines.append(f"- {lib}: {fmt}")
-            lines.append(f"    {example}")
-
-        lines.append("")
-        lines.append("Recommended pattern:")
-        lines.append("  1. Use a library to create a valid skeleton file")
-        lines.append(
-            "  2. Read back as bytearray: data = bytearray(open('skeleton', 'rb').read())"
-        )
-        lines.append("  3. Surgically corrupt the vulnerability-relevant fields")
-        lines.append("  4. Write corrupted version: open('poc', 'wb').write(data)")
-        lines.append("")
-        lines.append("Example (TIFF with Pillow + corruption):")
-        lines.append("  from PIL import Image, TiffImagePlugin")
-        lines.append("  img = Image.new('L', (16, 4))")
-        lines.append("  info = TiffImagePlugin.ImageFileDirectory_v2()")
-        lines.append('  info[0x010f] = "OLYMPUS IMAGING CORP."')
-        lines.append("  img.save('/tmp/skeleton.tiff', tiffinfo=info)")
-        lines.append("  data = bytearray(open('/tmp/skeleton.tiff', 'rb').read())")
-        lines.append("  # ... patch specific bytes for PoC ...")
-        lines.append("  open('/tmp/poc.tiff', 'wb').write(data)")
-        lines.append("")
-        lines.append(
-            "For ASN.1/DER/BER structures, use the dedicated `build_asn1_structure` tool"
-        )
-        lines.append(
-            "which handles TLV encoding, tag classes, and length-of-length automatically."
-        )
-
-        return "\n".join(lines)
-
-
-# ── ASN.1 builder ──────────────────────────────────────────────────────────
 
 # Tag class bits (bits 7-6)
 _TAG_CLASSES: dict[str, int] = {
