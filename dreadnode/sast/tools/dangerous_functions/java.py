@@ -96,7 +96,7 @@ _CATEGORIES: CategoryList = [
         "Server-Side Request Forgery (SSRF)",
         "CWE-918",
         "URL/HttpURLConnection opened with user-controlled input - may reach internal services",
-        r"new\s+URL\s*\(.*get(Parameter|Header|Attribute)|\.openConnection\s*\(|\.openStream\s*\(",
+        r"new\s+URL\s*\(.*get(Parameter|Header|Attribute)|new\s+URL\s*\(.*\+|new\s+URI\s*\(.*get(Parameter|Header|Attribute)",
     ),
     (
         "tls_insecure",
@@ -110,7 +110,7 @@ _CATEGORIES: CategoryList = [
         "Unsafe Jackson Deserialization",
         "CWE-502",
         "Jackson enableDefaultTyping or @JsonTypeInfo allow polymorphic deserialization - RCE via gadget chains",
-        r"enableDefaultTyping\s*\(|@JsonTypeInfo\s*\(|PolymorphicTypeValidator",
+        r"enableDefaultTyping\s*\(|@JsonTypeInfo\s*\(.*Id\.(CLASS|MINIMAL_CLASS)|activateDefaultTyping\s*\(",
     ),
     (
         "script_engine_injection",
@@ -131,7 +131,7 @@ _CATEGORIES: CategoryList = [
         "XPath Injection",
         "CWE-643",
         "XPath expression built with concatenation - can bypass auth or extract XML data",
-        r"XPath\.compile\s*\(|XPath\.evaluate\s*\(|XPathFactory|XPathExpression|\.newXPath\s*\(",
+        r"XPath\.compile\s*\(.*\+|\.evaluate\s*\(.*\+.*get(Parameter|Header|Attribute)|XPath\.compile\s*\(.*get(Parameter|Header|Attribute)",
     ),
     (
         "unsafe_reflection",

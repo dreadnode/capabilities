@@ -95,8 +95,8 @@ _CATEGORIES: CategoryList = [
         "decompression_bomb",
         "Decompression Bomb",
         "CWE-409",
-        "io.Copy from compressed reader without size limit - zip/gzip bomb risk (gosec G110)",
-        r"io\.Copy\s*\(.*gzip\.|io\.Copy\s*\(.*zlib\.|io\.Copy\s*\(.*flate\.",
+        "Compressed reader created without size limit - pipe through io.LimitReader to prevent zip/gzip bombs (gosec G110)",
+        r"gzip\.NewReader\s*\(|zlib\.NewReader\s*\(|flate\.NewReader\s*\(|lzw\.NewReader\s*\(|bzip2\.NewReader\s*\(",
     ),
     (
         "bind_all_interfaces",
@@ -124,7 +124,7 @@ _CATEGORIES: CategoryList = [
         "Integer Overflow on Type Conversion",
         "CWE-190",
         "strconv.Atoi result cast to smaller int type - silent truncation (gosec G109/G115)",
-        r"int(8|16|32)\s*\(\s*(strconv\.Atoi|strconv\.ParseInt|strconv\.ParseUint)|uint(8|16|32)\s*\(",
+        r"int(8|16|32)\s*\(\s*(strconv\.Atoi|strconv\.ParseInt|strconv\.ParseUint)|uint(8|16|32)\s*\(\s*(strconv\.Atoi|strconv\.ParseInt|strconv\.ParseUint)",
     ),
     (
         "directory_listing",

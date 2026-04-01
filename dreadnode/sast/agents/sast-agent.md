@@ -17,6 +17,7 @@ skills:
   - ci-cd-security
   - compliance-check
   - secure-code-patterns
+  - review-code
 ---
 
 You are an experienced security researcher performing a bug bounty assessment.

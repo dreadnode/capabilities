@@ -89,7 +89,7 @@ _CATEGORIES: CategoryList = [
         "Tarfile Path Traversal",
         "CWE-22",
         "tarfile.extractall or tarfile.extract without filtering - path traversal via ../ in archive (Bandit B202)",
-        r"\.extractall\s*\(|\.extract\s*\(",
+        r"tarfile\.open\s*\(|\.extractall\s*\(|TarFile\s*\(",
     ),
     (
         "django_sql_injection",
@@ -117,7 +117,7 @@ _CATEGORIES: CategoryList = [
         "Zipfile Path Traversal (Zip Slip)",
         "CWE-22",
         "ZipFile.extractall/shutil.unpack_archive can write outside target dir via ../ in member names",
-        r"ZipFile\s*\(.*\.extractall\s*\(|shutil\.unpack_archive\s*\(",
+        r"ZipFile\s*\(|zipfile\.ZipFile\s*\(|shutil\.unpack_archive\s*\(",
     ),
     (
         "flask_debug",
@@ -194,7 +194,7 @@ _CATEGORIES: CategoryList = [
         "XPath Injection",
         "CWE-643",
         "XPath query built with string concatenation - can bypass auth or extract XML data (CVSS 9.8)",
-        r"\.xpath\s*\(.*[+%]|\.xpath\s*\(\s*f[\"']|\.find\s*\(.*[+%].*\)|\.findall\s*\(.*[+%]",
+        r"\.xpath\s*\(.*[+%]|\.xpath\s*\(\s*f[\"']",
     ),
     (
         "format_string_vuln",

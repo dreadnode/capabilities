@@ -68,7 +68,7 @@ _CATEGORIES: CategoryList = [
         "LDAP Injection",
         "CWE-90",
         "LDAP queries built with string concatenation",
-        r"DirectorySearcher\s*\(.*\+|\.Filter\s*=.*\+.*Request|DirectoryEntry\s*\(.*\+|new\s+DirectorySearcher\b",
+        r"DirectorySearcher\s*\(.*\+|\.Filter\s*=.*\+|\.Filter\s*=.*Request|DirectoryEntry\s*\(.*\+",
     ),
     (
         "xss",
@@ -103,14 +103,14 @@ _CATEGORIES: CategoryList = [
         "Server-Side Request Forgery",
         "CWE-918",
         "HTTP requests with user-controlled URLs",
-        r"new\s+HttpClient\s*\(|HttpClient\.(Get|Post|Put|Delete|Send)Async\s*\(.*\+|new\s+WebClient\s*\(|WebClient\.(Download|Upload)\w+\s*\(.*\+|WebRequest\.Create\s*\(.*\+|new\s+Uri\s*\(.*Request\.",
+        r"HttpClient\.(Get|Post|Put|Delete|Send)Async\s*\(.*\+|WebClient\.(Download|Upload)\w+\s*\(.*\+|WebRequest\.Create\s*\(.*\+|new\s+Uri\s*\(.*Request\.|HttpClient\.(Get|Post|Put|Delete|Send)Async\s*\(.*Request\.",
     ),
     (
         "unsafe_reflection",
         "Unsafe Reflection",
         "CWE-470",
         "Dynamic type loading or method invocation with potentially untrusted input",
-        r"Type\.GetType\s*\(.*\+|Activator\.CreateInstance\s*\(.*\+|Assembly\.Load(From|File)?\s*\(.*\+|\.InvokeMember\s*\(.*\+|MethodInfo\.Invoke\s*\(",
+        r"Type\.GetType\s*\(.*\+|Activator\.CreateInstance\s*\(.*\+|Assembly\.Load(From|File)?\s*\(.*\+|\.InvokeMember\s*\(.*\+|Type\.GetType\s*\(.*Request\.",
     ),
     (
         "xpath_injection",
@@ -138,7 +138,7 @@ _CATEGORIES: CategoryList = [
         "Archive Path Traversal",
         "CWE-22",
         "Archive extraction without validating entry paths",
-        r"ZipFile\.ExtractToDirectory\s*\(|ZipArchiveEntry|\.ExtractToFile\s*\(|\.FullName.*\.\.[\\/]|TarEntry|GZipStream",
+        r"ZipFile\.ExtractToDirectory\s*\(|\.ExtractToFile\s*\(|\.FullName.*\+|TarEntry\.Name|TarEntry\.Key",
     ),
     (
         "viewstate_insecure",
@@ -187,7 +187,7 @@ _CATEGORIES: CategoryList = [
         "Debug/Diagnostic Exposure",
         "CWE-215",
         "Debug mode or developer exception pages enabled in production-facing code",
-        r'app\.UseDeveloperExceptionPage\s*\(|<compilation\s+debug\s*=\s*"true"|<customErrors\s+mode\s*=\s*"Off"|\.EnableDetailedErrors\s*\(\s*true|\.IsDevelopment\s*\(\s*\)\s*\)\s*\{?\s*$',
+        r'app\.UseDeveloperExceptionPage\s*\(|<compilation\s+debug\s*=\s*"true"|<customErrors\s+mode\s*=\s*"Off"|\.EnableDetailedErrors\s*\(\s*true',
     ),
     (
         "jwt_misconfiguration",

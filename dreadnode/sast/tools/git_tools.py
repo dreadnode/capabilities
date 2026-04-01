@@ -39,7 +39,7 @@ class GitTool(Toolset):
         if not await self._is_git_repo(cwd):
             return "Error: Not a git repository."
 
-        path_args = [str(target)] if target.is_file() else []
+        path_args = [str(target)] if path else []
 
         # Get unstaged changes
         unstaged = await self._run_git_cmd(["git", "diff"], path_args, cwd)

@@ -143,7 +143,8 @@ a clear writeup of your findings with specific file paths and line numbers.
                 # Get the last assistant message
                 for msg in reversed(trajectory.messages):
                     if msg.role == "assistant" and msg.content:
-                        result = msg.content
+                        content = msg.content
+                        result = content if isinstance(content, str) else str(content)
                         logger.info(
                             f"CodeSearch: Completed in {len(trajectory.steps)} steps, "
                             f"{trajectory.usage.total_tokens} tokens"

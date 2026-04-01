@@ -167,6 +167,7 @@ async def _run_subprocess(cmd: list[str], timeout: int) -> tuple[int, bytes, byt
 
 
 def _truncate_err(stderr: bytes, limit: int = 2000) -> str:
+    """Decode stderr bytes and truncate to limit characters."""
     err = stderr.decode(errors="replace").strip()
     if len(err) > limit:
         return err[:limit] + "\n... (truncated)"
@@ -341,8 +342,6 @@ class CodeQLTool(Toolset):
         timeout: int,
     ) -> tuple[str | None, str]:
         """Run codeql database analyze. Returns (error, sarif_path)."""
-        sarif_fd, sarif_path = tempfile.mkstemp(suffix=".sarif")
-        os.close(sarif_fd)  # CodeQL writes to the path directly
         suite = query_suite or _DEFAULT_SUITES.get(language, "")
         if not suite:
             return (
@@ -350,6 +349,9 @@ class CodeQLTool(Toolset):
                 "Provide query_suite explicitly.",
                 "",
             )
+
+        sarif_fd, sarif_path = tempfile.mkstemp(suffix=".sarif")
+        os.close(sarif_fd)  # CodeQL writes to the path directly
 
         cmd = [
             codeql,
@@ -367,9 +369,11 @@ class CodeQLTool(Toolset):
         try:
             rc, _, stderr = await _run_subprocess(cmd, timeout)
         except asyncio.TimeoutError:
+            _try_unlink(sarif_path)
             return (f"Error: analysis timed out after {timeout}s", "")
 
         if rc != 0:
+            _try_unlink(sarif_path)
             return (
                 f"Error running CodeQL analysis (exit {rc}):\n{_truncate_err(stderr)}",
                 "",
@@ -642,9 +646,4 @@ class CodeQLTool(Toolset):
         except (json.JSONDecodeError, OSError) as e:
             return f"Error parsing SARIF results: {e}"
         finally:
-            # Best-effort cleanup of temporary SARIF file
-            with contextlib.suppress(FileNotFoundError, OSError):
-                if isinstance(sarif_path, Path):
-                    sarif_path.unlink()
-                else:
-                    os.remove(sarif_path)
+            _try_unlink(sarif_path)

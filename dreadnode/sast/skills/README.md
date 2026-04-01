@@ -13,6 +13,7 @@ Skills provide specialized knowledge and workflows that the SAST agent can refer
 
 ### Code Auditing
 
+- **review-code** - Pre-PR code review: ruff, pyright, logic errors, security, and documentation
 - **fix-review** - Verify fix commits address audit findings without introducing bugs
 - **triage-priority** - Prioritize vulnerability findings by exploitability and impact
 - **false-positive-filters** - Filters to avoid reporting false positives during security analysis

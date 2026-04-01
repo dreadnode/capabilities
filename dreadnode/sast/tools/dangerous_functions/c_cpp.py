@@ -19,7 +19,7 @@ _CATEGORIES: CategoryList = [
         "Format String Vulnerability",
         "CWE-134",
         "printf-family call with a variable (not string literal) as format argument",
-        r"\b(printf|fprintf|sprintf|snprintf|syslog)\s*\(\s*[a-zA-Z_]\w*\s*[,)]",
+        r"\bprintf\s*\(\s*[a-zA-Z_]\w*\s*[,)]|\bsprintf\s*\(\s*\w+\s*,\s*[a-zA-Z_]\w*\s*[,)]|\bfprintf\s*\(\s*\w+\s*,\s*[a-zA-Z_]\w*\s*[,)]|\bsnprintf\s*\(\s*\w+\s*,\s*\w+\s*,\s*[a-zA-Z_]\w*\s*[,)]|\bsyslog\s*\(\s*\w+\s*,\s*[a-zA-Z_]\w*\s*[,)]",
     ),
     (
         "memory_management",
@@ -68,14 +68,14 @@ _CATEGORIES: CategoryList = [
         "Unbounded scanf %s",
         "CWE-120",
         "scanf with %s and no field width - unbounded string read into buffer",
-        r'\bscanf\s*\([^)]*"%[^"]*[^0-9]s"',
+        r'\b(scanf|fscanf|sscanf)\s*\([^)]*"%[^"]*%s"|\b(scanf|fscanf|sscanf)\s*\([^)]*"%s',
     ),
     (
         "cpp_new_delete",
         "Potential new[]/delete Mismatch",
         "CWE-762",
         "new[] allocation that may be freed with scalar delete (or vice versa)",
-        r"\bnew\s+\w+\s*\[|delete\s+[a-zA-Z_]\w*\s*;",
+        r"\bnew\s+\w+\s*\[",
     ),
     (
         "unsafe_memops",

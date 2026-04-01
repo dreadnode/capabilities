@@ -116,6 +116,11 @@ def _parse_python(source: str) -> list[str]:
 def _format_python_args(args: ast.arguments) -> str:
     """Format function arguments to a compact signature."""
     parts: list[str] = []
+    for arg in args.posonlyargs:
+        ann = f": {ast.unparse(arg.annotation)}" if arg.annotation else ""
+        parts.append(f"{arg.arg}{ann}")
+    if args.posonlyargs:
+        parts.append("/")
     for arg in args.args:
         ann = f": {ast.unparse(arg.annotation)}" if arg.annotation else ""
         parts.append(f"{arg.arg}{ann}")
@@ -448,5 +453,5 @@ class FileMapTool(Toolset):
             header = f"File: {filepath} ({language}, {total_lines} lines)\n"
             return header + "\n" + "\n".join(entries)
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, do_parse)
