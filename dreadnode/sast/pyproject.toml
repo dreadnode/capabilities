@@ -1,0 +1,10 @@
+[project]
+name = "sast-capability"
+version = "1.0.0"
+description = "SAST capability for autonomous vulnerability discovery"
+requires-python = ">=3.10"
+
+# Note: External tool requirements
+# - ripgrep (rg): Required for fast file/content search
+#   Install: brew install ripgrep (macOS), apt install ripgrep (Linux)
+# - git: Required for git operations (usually pre-installed)

@@ -1,0 +1,27 @@
+schema: 1
+name: sast
+version: "1.0.0"
+description: >
+  Static Application Security Testing (SAST) agent for autonomous vulnerability
+  discovery. Performs comprehensive security analysis of codebases to identify
+  exploitable vulnerabilities including SQL injection, XSS, command injection,
+  path traversal, SSRF, deserialization flaws, and more across Python, Java,
+  Go, C/C++, and C#/.NET codebases. Includes CodeQL integration and specialized
+  skills for threat modeling, compliance checking, and variant analysis.
+
+author:
+  name: Dreadnode
+  url: https://github.com/dreadnode
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - sast
+  - security
+  - vulnerability
+  - static-analysis
+  - code-review
+  - appsec
+  - bug-bounty
+  - codeql
+  - csharp
+  - dotnet
