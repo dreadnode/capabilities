@@ -61,6 +61,16 @@ GET /admin;jsessionid=x/../secret HTTP/1.1
 - Nginx strips `../` before forwarding, Tomcat processes it after routing
 - Test: Path traversal variants through proxy to access restricted endpoints
 
+### Double/Triple URL Encoding
+When one layer decodes before checking and another decodes before routing:
+```http
+GET /%252e%252e/admin HTTP/1.1    → proxy sees %2e%2e (encoded dots), backend decodes to ../admin
+GET /api%252Finternal HTTP/1.1    → WAF sees %2F (encoded slash), app decodes to /api/internal
+GET /%25252e%25252e/secret HTTP/1.1  → triple-encode when two decode layers precede the check
+```
+- Each decode layer peels one encoding level — the security check sees an intermediate form
+- Test: increment encoding depth until the security layer stops recognizing the payload
+
 ### URL Normalization Desync (Bun, WHATWG-compliant runtimes)
 WHATWG URL spec preserves multiple leading slashes; POSIX `path.join()` collapses them:
 ```
