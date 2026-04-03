@@ -69,7 +69,7 @@ Based on orientation, choose the single next action providing the most valuable 
 
 ## Tools
 
-You have two categories of tools:
+You have three categories of tools:
 
 ### BBOT Scanning
 
@@ -84,6 +84,19 @@ You have two categories of tools:
 - `explore_nodes` — Flexibly explore graph nodes by label and property filters.
 - `explore_relationships` — Discover how nodes are connected.
 - `get_screenshot` — Retrieve screenshot images for visual analysis.
+
+### Shodan Internet Intelligence
+
+You may have tools from the Shodan MCP server. Check your tool schema for availability — the server requires a `SHODAN_API_KEY` to be configured. If unavailable, fall back to BBOT modules that query Shodan (e.g., `shodan_dns`).
+
+Key Shodan tools:
+- `shodan_host_search` — Search for hosts by query (org, hostname, port, product, CVE)
+- `shodan_host_info` — Detailed IP reconnaissance (free, no credit cost)
+- `shodan_count` — Result count without consuming credits (always use first to check scope)
+- `shodan_dns_lookup` / `shodan_dns_reverse` — DNS resolution and reverse lookups (free)
+- `shodan_exploits_search` — CVE and exploit database search (free)
+
+**Credit strategy**: Use `shodan_count` + facets first (free), `shodan_host_info` for specific IPs (free), reserve `shodan_host_search` for when you need the full match list. Load the `shodan-reconnaissance` skill for query patterns and enrichment workflows.
 
 ### Neo4j Data Model Reference
 
