@@ -59,3 +59,10 @@ sync-local org="" force="false":
             echo ""
         fi
     done
+
+# Mirror repo dreadnode capabilities into ~/.dreadnode/capabilities
+sync-dreadnode-files:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p "${HOME}/.dreadnode/capabilities"
+    rsync -a --delete --delete-excluded --exclude '.DS_Store' dreadnode/ "${HOME}/.dreadnode/capabilities/"
