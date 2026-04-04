@@ -197,7 +197,6 @@ Single techniques fail more often than combinations. When you get a signal (diff
 TARGET="https://target.com"
 PATH="/admin"
 PROXY="-x localhost:8080 -k"
-HDR='-H "X-Bug-Bounty: HackerOne-0xmoose"'
 
 # Step 1: Baseline (record status + size)
 curl -sk --path-as-is $PROXY -o /dev/null -w "%{http_code} %{size_download}\n" "${TARGET}${PATH}"
