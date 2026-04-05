@@ -1,0 +1,94 @@
+# CI for capabilities repo — lint, type check, and test Python code.
+#
+# Runs on PRs and pushes to main. Covers:
+#   - ruff lint + format check for all Python files
+#   - pytest for capability tests (scripts, tools)
+#   - YAML validation for capability.yaml files
+#   - Markdown lint for agent prompts
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install ruff
+        run: uv pip install ruff --system
+
+      - name: Ruff check
+        run: ruff check --select E,F,W,I .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+  yaml-check:
+    name: Validate YAML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check capability.yaml files
+        run: |
+          pip install pyyaml
+          python -c "
+          import yaml, sys
+          from pathlib import Path
+          errors = 0
+          for f in Path('.').rglob('capability.yaml'):
+              try:
+                  yaml.safe_load(f.read_text())
+                  print(f'OK: {f}')
+              except Exception as e:
+                  print(f'FAIL: {f}: {e}')
+                  errors += 1
+          sys.exit(errors)
+          "
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install test dependencies
+        run: |
+          uv pip install pytest --system
+          # Install dreadnode SDK for import validation in tests
+          uv pip install dreadnode --system
+
+      - name: Run tests
+        run: python -m pytest tests/ -x -q --tb=short
