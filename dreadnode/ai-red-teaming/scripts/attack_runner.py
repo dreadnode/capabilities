@@ -859,6 +859,35 @@ SCORER_REGISTRY: dict[str, dict] = {
     "dangerous_tool_args": {"type": "agentic", "code": "dn.scorers.dangerous_tool_args"},
     "indirect_injection_success": {"type": "agentic", "code": "dn.scorers.indirect_injection_success"},
     "mcp_tool_manipulation": {"type": "agentic", "code": "dn.scorers.mcp_tool_manipulation"},
+    # Text analysis
+    "contains": {"type": "builtin", "code": "dn.scorers.contains()"},
+    "detect_sensitive_keywords": {"type": "builtin", "code": "dn.scorers.detect_sensitive_keywords()"},
+    "detect_unsafe_shell_content": {"type": "builtin", "code": "dn.scorers.detect_unsafe_shell_content()"},
+    "detect_ansi_escapes": {"type": "builtin", "code": "dn.scorers.detect_ansi_escapes()"},
+    "is_xml": {"type": "builtin", "code": "dn.scorers.is_xml()"},
+    "readability": {"type": "builtin", "code": "dn.scorers.readability()"},
+    "character_consistency": {"type": "builtin", "code": "dn.scorers.character_consistency()"},
+    "type_token_ratio": {"type": "builtin", "code": "dn.scorers.type_token_ratio()"},
+    "training_data_memorization": {"type": "builtin", "code": "dn.scorers.training_data_memorization()"},
+    "memory_poisoning": {"type": "builtin", "code": "dn.scorers.memory_poisoning_detected()"},
+    # Sentiment
+    "sentiment": {"type": "builtin", "code": "dn.scorers.sentiment()"},
+    "sentiment_perspective": {"type": "builtin", "code": "dn.scorers.sentiment_with_perspective()"},
+    # Length-based
+    "length_in_range": {"type": "builtin", "code": "dn.scorers.length_in_range()"},
+    "length_ratio": {"type": "builtin", "code": "dn.scorers.length_ratio()"},
+    "length_target": {"type": "builtin", "code": "dn.scorers.length_target()"},
+    # Documentation security
+    "env_var_exfiltration": {"type": "builtin", "code": "dn.scorers.env_var_exfiltration()"},
+    "favicon_exfiltration": {"type": "builtin", "code": "dn.scorers.favicon_exfiltration()"},
+    "hidden_documentation_injection": {"type": "builtin", "code": "dn.scorers.hidden_documentation_injection()"},
+    "package_readme_poisoning": {"type": "builtin", "code": "dn.scorers.package_readme_poisoning()"},
+    "resource_hint_exfil": {"type": "builtin", "code": "dn.scorers.resource_hint_exfil()"},
+    # Classification
+    "detect_refusal_zero_shot": {"type": "builtin", "code": "dn.scorers.detect_refusal_with_zero_shot()"},
+    "zero_shot_classification": {"type": "builtin", "code": "dn.scorers.zero_shot_classification()"},
+    # PII
+    "detect_pii_presidio": {"type": "builtin", "code": "dn.scorers.detect_pii_with_presidio()"},
 }
 
 GOAL_CATEGORY_ALIASES: dict[str, str] = {
@@ -1016,7 +1045,16 @@ def _resolve_goal_category(alias: str | None) -> str:
     if not alias:
         return "JAILBREAK_GENERAL"
     key = alias.strip().lower().replace("-", "_").replace(" ", "_")
-    return GOAL_CATEGORY_ALIASES.get(key, "JAILBREAK_GENERAL")
+    resolved = GOAL_CATEGORY_ALIASES.get(key)
+    if resolved is None:
+        import sys
+        print(
+            "WARNING: Unknown goal_category '{}'. Using JAILBREAK_GENERAL. "
+            "Valid categories: {}".format(alias, ", ".join(sorted(GOAL_CATEGORY_ALIASES.keys()))),
+            file=sys.stderr,
+        )
+        return "JAILBREAK_GENERAL"
+    return resolved
 
 # Script rendering — uses template strings to avoid f-string escaping issues
 
