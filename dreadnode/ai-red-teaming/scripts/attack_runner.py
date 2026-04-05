@@ -1238,16 +1238,26 @@ def _build_config_section(config: dict) -> str:
     return "\n".join(lines)
 
 def _build_target() -> str:
-    """Build the @task target function."""
+    """Build the @task target function with retry logic for LLM timeouts."""
     return '''\
 @task
 async def target(prompt: str) -> str:
     generator = get_generator(TARGET_MODEL)
     messages = [Message(role="user", content=prompt)]
-    results = await generator.generate_messages([messages], [GenerateParams()])
-    if not results or isinstance(results[0], BaseException):
-        raise RuntimeError(f"Generator failed: {results[0] if results else 'No response'}")
-    return results[0].message.content
+    last_error = None
+    for attempt in range(3):
+        try:
+            results = await generator.generate_messages([messages], [GenerateParams()])
+            if not results or isinstance(results[0], BaseException):
+                last_error = RuntimeError(f"Generator failed: {results[0] if results else 'No response'}")
+                continue
+            return results[0].message.content
+        except Exception as e:
+            last_error = e
+            if attempt < 2:
+                import asyncio
+                await asyncio.sleep(1 * (attempt + 1))
+    raise last_error or RuntimeError("Target model unreachable after 3 attempts")
 '''
 
 def _build_attack_params(atk: dict, transforms_expr: str | None = None, goal_expr: str = "GOAL", goal_category_expr: str = "GOAL_CATEGORY.value", transform_names: list[str] | None = None) -> str:
@@ -1962,11 +1972,12 @@ def generate_category_attack(params: dict) -> dict:
         "  Iterations per goal: {}".format(n_iterations),
     ]
 
-    # Auto-execute the workflow
-    exec_output = _auto_execute_workflow(filename)
-    result_lines.append(exec_output)
+    # Auto-execute the workflow (unless generate_only mode)
+    if not params.get("generate_only"):
+        exec_output = _auto_execute_workflow(filename)
+        result_lines.append(exec_output)
 
-    return {"result": "\n".join(result_lines)}
+    return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
 
 # Main entry point
 
@@ -2054,13 +2065,14 @@ def generate_attack(params: dict) -> dict:
 
     # Determine mode and generate script
     is_campaign = len(attacks_resolved) > 1
-    # Auto-enable transform study when transforms are provided (creates 1 assessment with N+1 attacks)
-    is_study = bool(transforms_resolved) and not is_campaign
+    # Transform study: when transforms + compare_transforms are set, create N+1 runs
+    # (baseline + each transform individually). Works for single attacks AND campaigns.
+    is_study = bool(transforms_resolved) and compare_transforms
 
-    if is_campaign:
-        script = _generate_campaign(config)
-    elif is_study:
+    if is_study and not is_campaign:
         script = _generate_transform_study(config)
+    elif is_campaign:
+        script = _generate_campaign(config)
     else:
         script = _generate_single(config)
 
@@ -2125,11 +2137,12 @@ def generate_attack(params: dict) -> dict:
             len(transforms_resolved) + 1, len(transforms_resolved)
         ))
 
-    # Auto-execute the workflow
-    exec_output = _auto_execute_workflow(filename)
-    result_lines.append(exec_output)
+    # Auto-execute the workflow (unless generate_only mode)
+    if not params.get("generate_only"):
+        exec_output = _auto_execute_workflow(filename)
+        result_lines.append(exec_output)
 
-    return {"result": "\n".join(result_lines)}
+    return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
 
 # Agentic attack generation — targets HTTP agent APIs
 
@@ -2524,11 +2537,12 @@ def generate_agentic_attack(params: dict) -> dict:
         "  Iterations: {}".format(n_iterations),
     ]
 
-    # Auto-execute the workflow
-    exec_output = _auto_execute_workflow(filename)
-    result_lines.append(exec_output)
+    # Auto-execute the workflow (unless generate_only mode)
+    if not params.get("generate_only"):
+        exec_output = _auto_execute_workflow(filename)
+        result_lines.append(exec_output)
 
-    return {"result": "\n".join(result_lines)}
+    return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
 
 # stdin/stdout JSON dispatch
 
