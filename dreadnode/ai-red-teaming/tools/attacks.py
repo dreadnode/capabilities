@@ -65,13 +65,16 @@ def generate_attack(
     attack_type: t.Annotated[
         str,
         "Attack type(s), comma-separated. Options: tap, pair, crescendo, goat, "
-        "prompt, rainbow, gptfuzzer, autodan, renellm, beast, drattack, inception",
+        "prompt, rainbow, gptfuzzer (or fuzzer), autodan (or autodan_turbo), "
+        "renellm, beast, drattack, inception (or deep_inception). "
+        "Use comma-separated for campaigns: 'tap,goat,crescendo'",
     ],
     goal: t.Annotated[str, "The attack goal/objective"],
     target_model: t.Annotated[
         str,
-        "Target LLM model. Aliases: gpt-4o, claude, claude-opus, gemini, "
-        "mistral, groq, ollama — or full litellm path (e.g., openai/gpt-4o)",
+        "Target LLM model. Aliases: gpt-4o, gpt-4.1, claude, claude-opus, claude-haiku, "
+        "gemini, groq, groq scout, groq 70b, mistral, ollama, deepseek — "
+        "or full litellm path (e.g., openai/gpt-4o, groq/meta-llama/llama-4-scout-17b-16e-instruct)",
     ],
     attacker_model: t.Annotated[str, "Attacker LLM for generating prompts"] = "",
     evaluator_model: t.Annotated[str, "Judge LLM for scoring"] = "",
@@ -79,7 +82,14 @@ def generate_attack(
     transforms: t.Annotated[
         list[str] | None,
         "Transform names to apply (e.g., ['base64', 'caesar(5)', 'role_play_wrapper']). "
-        "200+ available across encoding, cipher, persuasion, agentic, MCP, and more.",
+        "200+ available: encoding (base64, hex, leetspeak, morse, braille), "
+        "cipher (rot13, atbash, caesar), persuasion (authority_appeal, emotional_appeal), "
+        "stylistic (ascii_art, role_play_wrapper), guardrail_bypass (payload_split, emoji_smuggle), "
+        "system_prompt_extraction (direct_extraction, boundary_probe), "
+        "reasoning_attacks (reasoning_hijack, cot_backdoor), "
+        "perturbation (zalgo, unicode_confusable, simulate_typos), "
+        "injection (skeleton_key_framing, many_shot_examples), "
+        "advanced_jailbreak, mcp_attacks, multi_agent_attacks, exfiltration, and more.",
     ] = None,
     compare_transforms: t.Annotated[
         bool, "If True with transforms, creates N+1 comparison study"
