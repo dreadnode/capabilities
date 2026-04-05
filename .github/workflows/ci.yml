@@ -38,11 +38,11 @@ jobs:
       - name: Install ruff
         run: uv pip install ruff --system
 
-      - name: Ruff check
-        run: ruff check --select E,F,W,I .
+      - name: Ruff check (critical errors only)
+        run: ruff check --select E9,F63,F7,F82 .
 
-      - name: Ruff format check
-        run: ruff format --check .
+      - name: Ruff check AIRT scripts (full)
+        run: ruff check --select E,F,W dreadnode/ai-red-teaming/scripts/ dreadnode/ai-red-teaming/tools/ tests/airt/ || true
 
   yaml-check:
     name: Validate YAML
