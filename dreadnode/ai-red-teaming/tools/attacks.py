@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import typing as t
 from pathlib import Path
 
@@ -26,7 +27,7 @@ def _call_runner(name: str, params: dict) -> str:
     payload = json.dumps({"name": name, "parameters": params})
     try:
         result = subprocess.run(
-            ["python3", str(_RUNNER_SCRIPT)],
+            [sys.executable, str(_RUNNER_SCRIPT)],
             input=payload,
             capture_output=True,
             text=True,

@@ -1375,6 +1375,13 @@ async def main():
     sys.stdout.flush()
 
 asyncio.run(main())
+
+# Flush OTEL spans before subprocess exits — BatchSpanProcessor uses a
+# background thread that may not flush in time if the process exits quickly.
+try:
+    dn.shutdown()
+except Exception:
+    pass
 '''
 
 _SINGLE_ATTACK_TEMPLATE = '''\
@@ -1417,6 +1424,13 @@ async def main():
     sys.stdout.flush()
 
 asyncio.run(main())
+
+# Flush OTEL spans before subprocess exits — BatchSpanProcessor uses a
+# background thread that may not flush in time if the process exits quickly.
+try:
+    dn.shutdown()
+except Exception:
+    pass
 '''
 
 _CAMPAIGN_ATTACK_BLOCK = '''\
@@ -1444,6 +1458,13 @@ _CAMPAIGN_FOOTER = '''\
     sys.stdout.flush()
 
 asyncio.run(main())
+
+# Flush OTEL spans before subprocess exits — BatchSpanProcessor uses a
+# background thread that may not flush in time if the process exits quickly.
+try:
+    dn.shutdown()
+except Exception:
+    pass
 '''
 
 # Script generation
@@ -1713,6 +1734,13 @@ async def main():
     sys.stdout.flush()
 
 asyncio.run(main())
+
+# Flush OTEL spans before subprocess exits — BatchSpanProcessor uses a
+# background thread that may not flush in time if the process exits quickly.
+try:
+    dn.shutdown()
+except Exception:
+    pass
 '''
 
 def _load_goals_csv() -> list[dict[str, str]]:
@@ -2365,6 +2393,13 @@ async def main():
     sys.stdout.flush()
 
 asyncio.run(main())
+
+# Flush OTEL spans before subprocess exits — BatchSpanProcessor uses a
+# background thread that may not flush in time if the process exits quickly.
+try:
+    dn.shutdown()
+except Exception:
+    pass
 '''
 
 def _generate_agentic_single(config: dict, agent_config: dict) -> str:

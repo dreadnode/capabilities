@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import typing as t
 from datetime import datetime, timezone
 from pathlib import Path
@@ -122,7 +123,7 @@ def execute_workflow(
 
     try:
         result = subprocess.run(
-            ["python3", str(filepath)],
+            [sys.executable, str(filepath)],
             capture_output=True,
             text=True,
             timeout=timeout,
