@@ -1,0 +1,20 @@
+schema: 1
+name: capability-improver
+version: "0.1.0"
+description: >
+  Proposal-policy capability for Dreadnode local capability improvement loops.
+  Reviews reflective evaluation feedback and proposes bounded full-text
+  replacements for capability-owned prompts and skills while leaving scoring,
+  holdout gating, and acceptance to the external harness.
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - capability-improvement
+  - self-improvement
+  - optimization
+  - prompts
+  - skills

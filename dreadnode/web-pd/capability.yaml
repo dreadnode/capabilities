@@ -1,0 +1,52 @@
+schema: 1
+name: web-pd
+version: "0.1.0"
+description: >
+  Open-ended, ProjectDiscovery-only web reconnaissance and validation with a
+  span-backed event journal and a local SQLite FTS5 projection.
+
+agents:
+  - agents/
+tools:
+  - tools/web_pd.py
+skills: []
+
+dependencies:
+  scripts:
+    - scripts/install_pd_tools.sh
+
+checks:
+  - name: sqlite-fts5
+    command: 'python -c "import sqlite3; conn = sqlite3.connect('':memory:''); conn.execute(''create virtual table t using fts5(x)'')"'
+  - name: pdtm
+    command: 'command -v pdtm >/dev/null 2>&1'
+  - name: subfinder
+    command: 'command -v subfinder >/dev/null 2>&1 || test -x "$HOME/.pdtm/go/bin/subfinder"'
+  - name: httpx
+    command: 'command -v httpx >/dev/null 2>&1 || test -x "$HOME/.pdtm/go/bin/httpx"'
+  - name: katana
+    command: 'command -v katana >/dev/null 2>&1 || test -x "$HOME/.pdtm/go/bin/katana"'
+  - name: dnsx
+    command: 'command -v dnsx >/dev/null 2>&1 || test -x "$HOME/.pdtm/go/bin/dnsx"'
+  - name: naabu
+    command: 'command -v naabu >/dev/null 2>&1 || test -x "$HOME/.pdtm/go/bin/naabu"'
+  - name: tlsx
+    command: 'command -v tlsx >/dev/null 2>&1 || test -x "$HOME/.pdtm/go/bin/tlsx"'
+  - name: alterx
+    command: 'command -v alterx >/dev/null 2>&1 || test -x "$HOME/.pdtm/go/bin/alterx"'
+  - name: nuclei
+    command: 'command -v nuclei >/dev/null 2>&1 || test -x "$HOME/.pdtm/go/bin/nuclei"'
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - web
+  - recon
+  - projectdiscovery
+  - nuclei
+  - subfinder
+  - httpx
+  - event-sourcing
