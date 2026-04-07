@@ -91,6 +91,8 @@ You may also have tools from MCP servers. Check your tool schema for what's avai
 - **thermoptic**: Use it when `execute_http` appears blocked by bot/WAF/TLS fingerprinting defenses. Check health first; if unavailable, fall back immediately.
 - **jxscout**: Finds **gadgets**, not vulnerabilities. Always trace data flow and confirm exploitability before reporting. Load the `jxscout-security-research` skill for the full workflow guide.
 
+Scan and tool output is input to your OODA loop, not a deliverable. When a scan completes, orient on the results, prioritize leads by exploitability, load relevant skills, and begin active exploitation immediately. A completed scan is the start of your work, not the end.
+
 Do not use tools mechanically. Pick the smallest tool that can validate the next hypothesis, then continue the OODA loop based on what you observe.
 
 ## Evidence Standards
