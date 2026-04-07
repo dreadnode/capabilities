@@ -114,6 +114,15 @@ def shodan_host_info(
     api = _get_client()
     host = api.host(ip, history=history)
 
+    # Shodan returns `vulns` as a dict (CVE → metadata) on detailed host
+    # responses and as a list elsewhere. Normalize to a list of CVE IDs so
+    # the agent gets a consistent shape across host_info / host_search.
+    vulns_raw = host.get("vulns") or []
+    if isinstance(vulns_raw, dict):
+        vulns = sorted(vulns_raw.keys())
+    else:
+        vulns = list(vulns_raw)
+
     return _safe_json({
         "ip": host.get("ip_str"),
         "org": host.get("org"),
@@ -121,9 +130,12 @@ def shodan_host_info(
         "ports": host.get("ports", []),
         "hostnames": host.get("hostnames", []),
         "domains": host.get("domains", []),
-        "vulns": host.get("vulns", []),
+        "vulns": vulns,
         "tags": host.get("tags", []),
         "last_update": host.get("last_update"),
+        # `country_name`, `city`, `asn`, `isp` are top-level on the Shodan
+        # host object — not nested under a `location` key. Re-grouping them
+        # here is purely a presentation choice for the agent.
         "location": {
             "country": host.get("country_name"),
             "city": host.get("city"),
@@ -174,7 +186,9 @@ def shodan_dns_lookup(
 ) -> str:
     """Resolve domain names to IP addresses via Shodan DNS."""
     api = _get_client()
-    result = api.dns.resolve(",".join(hostnames))
+    # shodan-python's `Dns` class dispatches `.resolve` / `.reverse` via
+    # __getattr__, so static analyzers can't see the methods. Valid at runtime.
+    result = api.dns.resolve(",".join(hostnames))  # pyright: ignore[reportAttributeAccessIssue]
     return _safe_json(result)
 
 
@@ -184,7 +198,7 @@ def shodan_dns_reverse(
 ) -> str:
     """Reverse DNS lookup — find hostnames for IP addresses."""
     api = _get_client()
-    result = api.dns.reverse(",".join(ips))
+    result = api.dns.reverse(",".join(ips))  # pyright: ignore[reportAttributeAccessIssue]
     return _safe_json(result)
 
 
@@ -295,3 +309,7 @@ def shodan_api_info() -> str:
         "scan_credits": info.get("scan_credits"),
         "unlocked": info.get("unlocked"),
     })
+
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")

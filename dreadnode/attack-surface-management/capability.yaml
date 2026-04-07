@@ -17,6 +17,23 @@ mcp:
       args:
         - "run"
         - "${CAPABILITY_ROOT}/mcp/bbot.py"
+      env:
+        # Neo4j connection. NEO4J_PASSWORD is REQUIRED — the server fails
+        # closed on its first connection attempt if unset (no baked-in default).
+        NEO4J_URI: "${NEO4J_URI}"
+        NEO4J_USER: "${NEO4J_USER}"
+        NEO4J_PASSWORD: "${NEO4J_PASSWORD}"
+        # Per-Cypher-query wall-clock timeout. Bounds every Neo4j call
+        # independently so a runaway query fails fast instead of consuming the
+        # full `timeout:` budget below (which exists for `run_bbot_scan`).
+        NEO4J_QUERY_TIMEOUT: "60"
+        # Subprocess timeout for `bbot` invocations inside the server.
+        # Keep aligned with `timeout:` below — both must be raised together
+        # if you need to run scans longer than 1 hour.
+        BBOT_SCAN_TIMEOUT: "3600"
+      # The 1-hour `timeout:` below is sized for `run_bbot_scan`. All other
+      # tools are bounded by NEO4J_QUERY_TIMEOUT above (60s by default), so
+      # this generous ceiling is not their effective limit.
       init_timeout: 60
       timeout: 3600
     shodan:

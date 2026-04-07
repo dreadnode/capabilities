@@ -143,8 +143,12 @@ ORDER BY usage_count DESC
 
 **Technology stack for a host:**
 ```cypher
-MATCH (d:DNS_NAME {name: $domain})-[:RESOLVES_TO]->(ip)-[:HAS_PORT]->()-[:HAS_TECHNOLOGY]->(t)
-RETURN d.name, t.name, t.version
+// HAS_TECHNOLOGY originates on URL nodes, not OPEN_TCP_PORT. Match URLs whose
+// name contains the host (BBOT URL nodes embed the hostname in `.name`) and
+// traverse to their technologies.
+MATCH (u:URL)-[:HAS_TECHNOLOGY]->(t:TECHNOLOGY)
+WHERE u.name CONTAINS $domain
+RETURN DISTINCT u.name, t.name, t.version
 ```
 
 **Technology outliers (old/unusual software):**

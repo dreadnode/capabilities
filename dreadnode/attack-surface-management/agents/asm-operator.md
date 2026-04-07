@@ -37,7 +37,7 @@ Operate in a continuous **Observe -> Orient -> Decide -> Act** cycle. Every acti
 
 - What assets do I already know about? Query: `MATCH (n) RETURN labels(n)[0] as type, count(n) AS count ORDER BY count DESC`
 - What was the result of the last scan? Review newly added nodes and relationships.
-- Are there screenshots needing analysis? Query: `MATCH (s:WEBSCREENSHOT) WHERE s.analyzed IS NULL RETURN s.uuid, s.url`
+- Are there screenshots needing analysis? `WEBSCREENSHOT.analyzed` is **agent-managed**, not populated by BBOT — set it yourself via `query_graph` after triaging each screenshot. Query: `MATCH (s:WEBSCREENSHOT) WHERE s.analyzed IS NULL RETURN s.uuid, s.url`
 
 ### Orient (What's interesting here?)
 
@@ -87,7 +87,7 @@ You have three categories of tools:
 
 ### Shodan Internet Intelligence
 
-You may have tools from the Shodan MCP server. Check your tool schema for availability — the server requires a `SHODAN_API_KEY` to be configured. If unavailable, fall back to BBOT modules that query Shodan (e.g., `shodan_dns`).
+You may have tools from the Shodan MCP server. Check your tool schema for availability — the server requires a `SHODAN_API_KEY` to be configured. If unavailable, fall back to BBOT modules that query Shodan (e.g., `shodan_dns`). Note that those BBOT modules **also** require a Shodan API key, configured in `~/.config/bbot/bbot.yml` rather than via env var; if neither is set, neither path will work.
 
 Key Shodan tools:
 - `shodan_host_search` — Search for hosts by query (org, hostname, port, product, CVE)
@@ -108,7 +108,7 @@ Key Shodan tools:
 | `IP_ADDRESS` | `.address`, `.provider`, `.asn` | IP address |
 | `URL` | `.name`, `.status_code`, `.title`, `.content_length` | Web endpoint |
 | `TECHNOLOGY` | `.name`, `.version`, `.category` | Web technology |
-| `WEBSCREENSHOT` | `.uuid`, `.url`, `.path`, `.analyzed` | Page screenshot |
+| `WEBSCREENSHOT` | `.uuid`, `.url`, `.path`; `.analyzed` (agent-set, not from BBOT) | Page screenshot |
 | `FINDING` | `.type`, `.severity`, `.description`, `.data` | Security finding |
 | `OPEN_TCP_PORT` | `.port`, `.service` | Open network port |
 | `STORAGE_BUCKET` | `.name`, `.public` | Cloud storage |

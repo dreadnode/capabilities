@@ -11,6 +11,11 @@ Triage web screenshots captured by BBOT (via gowitness) to identify high-value t
 
 ## Retrieving Screenshots
 
+> **Note:** the `analyzed` property on `WEBSCREENSHOT` is **not** populated by
+> BBOT. It is an agent-managed flag — you must set it yourself via `query_graph`
+> after triaging each screenshot (see Workflow step 3 below). The "unanalyzed"
+> query below only returns useful results once you have started writing it back.
+
 ```cypher
 -- Find all unanalyzed screenshots
 MATCH (s:WEBSCREENSHOT) WHERE s.analyzed IS NULL RETURN s.uuid, s.url
@@ -101,5 +106,6 @@ Use `get_screenshot(uuid=...)` or `get_screenshot(url=...)` to retrieve the actu
    b. Classify priority (critical/high/medium/low)
    c. Note specific elements of interest
    d. Record what a human should investigate next
-3. Mark screenshots as analyzed: set the `analyzed` property
+3. Mark screenshots as analyzed via `query_graph`, e.g.
+   `MATCH (s:WEBSCREENSHOT {uuid: $uuid}) SET s.analyzed = datetime() RETURN s.uuid`
 4. Cross-reference high-priority screenshots with other graph data (technologies, findings, DNS names)
