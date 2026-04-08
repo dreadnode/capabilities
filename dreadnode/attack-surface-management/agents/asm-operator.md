@@ -37,7 +37,7 @@ Operate in a continuous **Observe -> Orient -> Decide -> Act** cycle. Every acti
 
 - What assets do I already know about? Query: `MATCH (n) RETURN labels(n)[0] as type, count(n) AS count ORDER BY count DESC`
 - What was the result of the last scan? Review newly added nodes and relationships.
-- Are there screenshots needing analysis? `WEBSCREENSHOT.analyzed` is **agent-managed**, not populated by BBOT — set it yourself via `query_graph` after triaging each screenshot. Query: `MATCH (s:WEBSCREENSHOT) WHERE s.analyzed IS NULL RETURN s.uuid, s.url`
+- Are there screenshots needing analysis? `WEBSCREENSHOT.analyzed` is **agent-managed**, not populated by BBOT — set it yourself via `query_graph` after triaging each screenshot. Query: `MATCH (s:WEBSCREENSHOT) WHERE s.analyzed IS NULL RETURN s.uuid, s.host, s.data` (the source URL is inside the JSON-encoded `.data` dict, not a top-level property).
 
 ### Orient (What's interesting here?)
 
@@ -100,30 +100,50 @@ Key Shodan tools:
 
 ### Neo4j Data Model Reference
 
-**Key Node Labels:**
+> BBOT's `neo4j` output module spreads each event's `event.json(mode="graph")`
+> onto the node, so every label shares the same envelope of properties. The
+> canonical primary value lives in **`.data`** — there is no `.name`, `.address`,
+> `.url`, `.title`, etc. Always run `get_db_schema` before constructing queries.
 
-| Label | Properties | Purpose |
+**Common properties on every event node:** `id`, `uuid`, `data`, `type`, `host`,
+`netloc`, `port`, `tags`, `scope_distance`, `scope_description`, `scan`,
+`module`, `parent`, `discovery_context`, `discovery_path`.
+
+**Per-label `.data` semantics:**
+
+| Label | `.data` content | Other useful properties | Purpose |
+|---|---|---|---|
+| `DNS_NAME` | hostname string (e.g. `app.example.com`) | `.host`, `.netloc`, `.tags` | Domain or subdomain |
+| `IP_ADDRESS` | IP string | `.host`, `.tags` | IP address |
+| `URL` | URL string (e.g. `https://example.com/`) | `.host`, `.port`, `.netloc`, `.web_spider_distance` | Verified web endpoint |
+| `URL_UNVERIFIED` | URL string | same as `URL` | Unfetched URL |
+| `OPEN_TCP_PORT` | `host:port` string | `.host`, `.port` | Open network port |
+| `EMAIL_ADDRESS` | email string | `.host` | Email address |
+| `TECHNOLOGY` | technology name string (e.g. `nginx`) | `.host`, `.port` | Web technology |
+| `FINDING` | serialized dict (`description`, `host`, `severity`, …) | `.host` | Security finding — parse `.data` JSON |
+| `VULNERABILITY` | serialized dict (`description`, `severity`, …) | `.host` | Confirmed vuln — parse `.data` JSON |
+| `WEBSCREENSHOT` | screenshot label | `.uuid`, `.url`, `.path`, `.scan`; `.analyzed` (agent-set, not from BBOT) | Page screenshot — fetch via `get_screenshot` |
+| `STORAGE_BUCKET` | serialized dict | `.host` | Cloud storage — parse `.data` JSON |
+| `SCAN` | serialized scan dict (id, name, start_time, modules) | `.id` | Scan metadata — parse via `get_scan_metadata` |
+| `ORG_STUB` | org name string | — | Organization placeholder |
+
+**Relationships:** BBOT names every relationship after the *module that
+emitted the edge* (or, for DNS resolution, the record type), not after a
+semantic verb. There are no `RESOLVES_TO`/`HAS_PORT`/`HAS_TECHNOLOGY` types.
+Common relationship types you'll see in practice:
+
+| Relationship | Source module / origin | Typical pattern |
 |---|---|---|
-| `DNS_NAME` | `.name`, `.tags` | Domain or subdomain |
-| `IP_ADDRESS` | `.address`, `.provider`, `.asn` | IP address |
-| `URL` | `.name`, `.status_code`, `.title`, `.content_length` | Web endpoint |
-| `TECHNOLOGY` | `.name`, `.version`, `.category` | Web technology |
-| `WEBSCREENSHOT` | `.uuid`, `.url`, `.path`; `.analyzed` (agent-set, not from BBOT) | Page screenshot |
-| `FINDING` | `.type`, `.severity`, `.description`, `.data` | Security finding |
-| `OPEN_TCP_PORT` | `.port`, `.service` | Open network port |
-| `STORAGE_BUCKET` | `.name`, `.public` | Cloud storage |
-| `EMAIL_ADDRESS` | `.address` | Email address |
-| `SCAN` | `.name`, `.id`, `.start_time`, `.modules` | Scan metadata |
+| `TARGET` | scan setup | `(SCAN)-[:TARGET]->(DNS_NAME\|IP_ADDRESS)` |
+| `A`, `AAAA`, `CNAME`, `MX`, `NS`, `SOA`, `PTR`, `TXT` | `dnsresolve` | `(DNS_NAME)-[:A]->(IP_ADDRESS)` etc. |
+| `host` | host helper | scan-graph parent → child |
+| `httpx` | `httpx` module | `(URL_UNVERIFIED)-[:httpx]->(URL)` |
+| `excavate` | `excavate` module | content-extracted children |
+| `speculate` | `speculate` module | inferred children (e.g. ports) |
+| `cloudcheck` | `cloudcheck` module | cloud-tagged children |
 
-**Key Relationships:**
-
-| Relationship | Pattern | Purpose |
-|---|---|---|
-| `RESOLVES_TO` | `(DNS_NAME)-[:RESOLVES_TO]->(IP_ADDRESS)` | DNS resolution |
-| `HAS_PORT` | `(IP_ADDRESS)-[:HAS_PORT]->(OPEN_TCP_PORT)` | Port discovery |
-| `HAS_TECHNOLOGY` | `(URL)-[:HAS_TECHNOLOGY]->(TECHNOLOGY)` | Tech detection |
-| `HAS_FINDING` | `(URL\|DNS_NAME\|IP_ADDRESS)-[:HAS_FINDING]->(FINDING)` | Vulnerability link |
-| `USED_BY` | `(TECHNOLOGY)-[:USED_BY]->(URL)` | Reverse tech link |
+Use `CALL db.relationshipTypes()` (or `get_db_schema`) to enumerate what
+exists in the current scan — the set varies by which modules ran.
 
 ## Evidence Standards
 

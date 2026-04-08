@@ -19,11 +19,19 @@ The primary workflow is: **BBOT discovers assets → Shodan enriches them.**
 
 ### Enrichment Patterns
 
-**Enrich all discovered IPs:**
+**Enrich all discovered IPs.** BBOT exposes IPs two ways: as
+`(:IP_ADDRESS)` nodes (when `dnsresolve` promoted them to events) and as the
+`resolved_hosts` list on every `(:DNS_NAME)`. Cover both:
 ```cypher
-MATCH (ip:IP_ADDRESS) RETURN ip.address
+// Explicit IP_ADDRESS nodes
+MATCH (ip:IP_ADDRESS) RETURN ip.data AS ip
+UNION
+// IPs from DNS resolution that may not have been promoted
+MATCH (d:DNS_NAME) WHERE d.resolved_hosts IS NOT NULL
+UNWIND d.resolved_hosts AS ip
+RETURN DISTINCT ip
 ```
-Then for each IP: `shodan_host_info(ip="x.x.x.x")`
+Then for each IP: `shodan_host_info(ip="x.x.x.x")`.
 
 **Find org-wide exposure:**
 ```
@@ -36,7 +44,7 @@ Cross-reference results against known IPs in the graph.
 shodan_host_search(query='ssl.cert.subject.cn:target.com')
 shodan_host_search(query='hostname:target.com')
 ```
-Compare with `MATCH (d:DNS_NAME) RETURN d.name` to find gaps.
+Compare with `MATCH (d:DNS_NAME) RETURN d.data` to find gaps.
 
 ## Query Strategies
 

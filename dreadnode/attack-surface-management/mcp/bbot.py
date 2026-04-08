@@ -466,9 +466,12 @@ async def get_subdomains(
     limit: Annotated[int, "Maximum results"] = 100,
 ) -> str:
     """List discovered subdomains for a domain."""
+    # BBOT's neo4j output module stores the hostname in `data`, not `name` —
+    # DNS_NAME nodes have no `name` property at all. Same applies to URL,
+    # TECHNOLOGY, IP_ADDRESS, etc: `data` is the canonical primary value.
     result = await _neo4j.query(
-        "MATCH (n:DNS_NAME) WHERE n.name ENDS WITH $domain "
-        "RETURN n.name ORDER BY n.name LIMIT $limit",
+        "MATCH (n:DNS_NAME) WHERE n.data ENDS WITH $domain "
+        "RETURN n.data AS name ORDER BY n.data LIMIT $limit",
         {"domain": domain, "limit": limit},
     )
     return json.dumps(result, indent=2, default=str)
@@ -478,8 +481,12 @@ async def get_subdomains(
 @_catch_errors
 async def get_technologies() -> str:
     """List all discovered technologies and their usage counts."""
+    # TECHNOLOGY events are serialized to graph mode with `data` set to the
+    # technology name string (via `_pretty_string`), not separate name/version
+    # properties. Group by data + host to dedupe per-host fingerprints.
     result = await _neo4j.query(
-        "MATCH (t:TECHNOLOGY) RETURN DISTINCT t.name, t.version, count(*) as usage "
+        "MATCH (t:TECHNOLOGY) "
+        "RETURN t.data AS technology, count(*) AS usage "
         "ORDER BY usage DESC"
     )
     return json.dumps(result, indent=2, default=str)
@@ -538,7 +545,7 @@ async def explore_nodes(
 @_catch_errors
 async def explore_relationships(
     source_label: Annotated[str | None, "Source node type (e.g., 'DNS_NAME')"] = None,
-    relationship_type: Annotated[str | None, "Relationship type (e.g., 'RESOLVES_TO')"] = None,
+    relationship_type: Annotated[str | None, "Relationship type — BBOT names these after the emitting module/record (e.g. 'A', 'CNAME', 'httpx', 'dnsresolve'); call get_db_schema first"] = None,
     target_label: Annotated[str | None, "Target node type (e.g., 'IP_ADDRESS')"] = None,
     limit: Annotated[int, "Maximum relationships to return (1-1000)"] = 100,
 ) -> str:
@@ -587,8 +594,13 @@ async def get_screenshot(
         raise ValueError("Either 'uuid' or 'url' must be provided.")
 
     if url and not uuid:
+        # WEBSCREENSHOT has no top-level `url` property — the URL lives inside
+        # the JSON-encoded `.data` dict (alongside `path`). The URL string
+        # appears verbatim in that serialization regardless of whether BBOT
+        # used json.dumps (double quotes) or Python repr (single quotes), so
+        # a plain CONTAINS match is reliable.
         nodes = await _neo4j.query(
-            "MATCH (node:WEBSCREENSHOT) WHERE node.url CONTAINS $url RETURN node LIMIT 1",
+            "MATCH (node:WEBSCREENSHOT) WHERE node.data CONTAINS $url RETURN node LIMIT 1",
             {"url": url},
         )
         if not nodes:
