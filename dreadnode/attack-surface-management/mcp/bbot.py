@@ -92,7 +92,10 @@ def _catch_errors(func):
             return f"Error: Neo4j unavailable at {NEO4J_URI}: {e}"
         except Neo4jError as e:
             # e.code is e.g. 'Neo.ClientError.Statement.SyntaxError'
-            return f"Error: Neo4j {getattr(e, 'code', 'error')}: {e.message}"
+            return (
+                f"Error: Neo4j {getattr(e, 'code', 'error')}: "
+                f"{getattr(e, 'message', str(e))}"
+            )
         except Exception as e:
             return f"Error: {type(e).__name__}: {e}"
 
