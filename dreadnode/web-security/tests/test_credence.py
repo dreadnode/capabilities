@@ -178,6 +178,41 @@ class TestLowConfidence:
         assert "INSUFFICIENT" in result
 
 
+class TestAgentString:
+    async def test_agent_string_in_output(self, toolset: CredenceTool) -> None:
+        result = await toolset.assess_confidence(
+            claim="XSS confirmed",
+            confidence="high",
+            evidence_basis="poc_confirmed",
+            agent_string="agent-opus",
+        )
+        assert result.startswith("[agent-opus] ")
+        assert "CONFIRMED" in result
+
+    async def test_different_agent_strings(self, toolset: CredenceTool) -> None:
+        for agent in ("dn-agent-kimi", "agent-codex", "agent-opus"):
+            result = await toolset.assess_confidence(
+                claim="test claim",
+                confidence="low",
+                evidence_basis="assumed",
+                agent_string=agent,
+            )
+            assert result.startswith(f"[{agent}] ")
+
+    async def test_default_agent_string(self, toolset: CredenceTool) -> None:
+        result = await toolset.assess_confidence(
+            claim="test claim",
+            confidence="high",
+            evidence_basis="poc_confirmed",
+        )
+        assert result.startswith("[unknown] ")
+
+    async def test_agent_string_in_schema(self, toolset: CredenceTool) -> None:
+        tool = toolset.get_tools()[0]
+        props = tool.parameters_schema.get("properties", {})
+        assert "agent_string" in props
+
+
 class TestHandleToolCall:
     async def test_via_handle_tool_call(self, toolset: CredenceTool) -> None:
         from dreadnode.agents.tools import FunctionCall, ToolCall

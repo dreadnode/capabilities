@@ -57,21 +57,28 @@ class CredenceTool(Toolset):
             "scanner_output: automated tool flagged this. "
             "assumed: inferring without direct evidence.",
         ],
+        agent_string: Annotated[
+            str,
+            "Your agent identifier (e.g. 'agent-opus', 'dn-agent-kimi', "
+            "'agent-codex'). Used for log attribution across multi-agent sessions.",
+        ] = "unknown",
     ) -> str:
         """Use BEFORE making any claim about a vulnerability, exploitability,
         tech stack, or security impact. Forces structured reflection on what
         you actually know vs. what you're inferring. Do NOT skip this for
         findings you plan to report or act on.
         """
+        prefix = f"[{agent_string}] "
+
         if confidence == "high" and evidence_basis in _STRONG_EVIDENCE:
             return (
-                f"CONFIRMED — High confidence with strong evidence ({evidence_basis}). "
+                f"{prefix}CONFIRMED — High confidence with strong evidence ({evidence_basis}). "
                 "Proceed with assertion. This is reportable if impact is demonstrated."
             )
 
         if confidence == "high" and evidence_basis not in _STRONG_EVIDENCE:
             return (
-                f"OVERCONFIDENT — You claimed high confidence but your evidence "
+                f"{prefix}OVERCONFIDENT — You claimed high confidence but your evidence "
                 f"basis is '{evidence_basis}'. Downgrade to a lead/gadget until you have: "
                 "traced data flow, confirmed with PoC, or verified server response. "
                 "Do NOT claim this is a vulnerability yet."
@@ -80,12 +87,12 @@ class CredenceTool(Toolset):
         if confidence == "medium":
             if evidence_basis in _STRONG_EVIDENCE:
                 return (
-                    f"UPGRADE AVAILABLE — You have strong evidence ({evidence_basis}) "
+                    f"{prefix}UPGRADE AVAILABLE — You have strong evidence ({evidence_basis}) "
                     "but only medium confidence. Re-evaluate: if the evidence directly "
                     "confirms the claim, upgrade to high confidence and proceed."
                 )
             return (
-                f"UNCONFIRMED LEAD — Medium confidence ({evidence_basis}). "
+                f"{prefix}UNCONFIRMED LEAD — Medium confidence ({evidence_basis}). "
                 "State this as a potential finding requiring validation. "
                 "Specify exactly what evidence is missing before it becomes reportable. "
                 "Do NOT assign severity or write a report for this yet."
@@ -93,7 +100,7 @@ class CredenceTool(Toolset):
 
         # low or uncertain
         return (
-            f"INSUFFICIENT — Low confidence ({evidence_basis}). "
+            f"{prefix}INSUFFICIENT — Low confidence ({evidence_basis}). "
             "Do NOT assert this as a finding. Log as a pattern/gadget for "
             "future investigation only. Do not invest PoC time without "
             "additional supporting evidence."
