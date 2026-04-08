@@ -1,0 +1,44 @@
+schema: 1
+name: attack-surface-management
+version: "1.0.0"
+description: >
+  External attack surface management with BBOT reconnaissance scanning,
+  Neo4j graph database analysis, Shodan internet intelligence, and
+  autonomous OODA-loop driven asset discovery. Covers subdomain
+  enumeration, web scanning, cloud resource discovery, technology
+  fingerprinting, vulnerability detection, screenshot triage, and
+  CVE/exploit correlation. Includes Cypher query playbooks for
+  graph-based infrastructure mapping and threat prioritization.
+
+mcp:
+  servers:
+    bbot:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/bbot.py"
+      init_timeout: 60
+      timeout: 3600
+    shodan:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/shodan.py"
+      env:
+        SHODAN_API_KEY: "${SHODAN_API_KEY}"
+      init_timeout: 30
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - attack-surface-management
+  - reconnaissance
+  - bbot
+  - neo4j
+  - shodan
+  - subdomain-enumeration
+  - asset-discovery
+  - vulnerability-intelligence
