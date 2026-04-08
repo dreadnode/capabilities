@@ -32,6 +32,7 @@ import functools
 import json
 import os
 import re
+import signal
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -41,21 +42,14 @@ from neo4j.exceptions import Neo4jError, ServiceUnavailable
 
 NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
-# No default — refusing to bake BBOT's documented "bbotislife" default into
-# source means a misconfigured deploy fails fast instead of silently
-# authenticating with a known credential. The first connection attempt will
-# raise a clear error if this is unset.
+# No default — refuses to bake BBOT's documented "bbotislife" default into
+# source. Server fails closed at first connection if unset.
 NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD")
 BBOT_DATA_DIR = os.environ.get("BBOT_DATA_DIR", ".bbot")
-# Subprocess timeout for `bbot` invocations. Should be ≤ the MCP tool-call
-# timeout in capability.yaml (`mcp.servers.bbot.timeout`); override both
-# together via the BBOT_SCAN_TIMEOUT env var if you need longer scans.
-SCAN_TIMEOUT = int(os.environ.get("BBOT_SCAN_TIMEOUT", "3600"))
-# Per-Cypher-query wall-clock timeout. Bounds every Neo4j call independently
-# of the MCP harness timeout, so a runaway query (bad Cypher, missing index)
-# fails fast instead of consuming the full `mcp.servers.bbot.timeout` budget
-# meant for long scans. 60s is generous for exploration queries.
-QUERY_TIMEOUT = int(os.environ.get("NEO4J_QUERY_TIMEOUT", "60"))
+# `or N` handles both unset and empty-string (the harness passes empty when
+# the deployer hasn't exported the var).
+SCAN_TIMEOUT = int(os.environ.get("BBOT_SCAN_TIMEOUT") or 3600)
+QUERY_TIMEOUT = int(os.environ.get("NEO4J_QUERY_TIMEOUT") or 60)
 MAX_OUTPUT = 50_000
 
 _IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -316,13 +310,31 @@ async def run_bbot_scan(
             *parts,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
+            # New session/process group so we can signal the entire bbot
+            # process tree on timeout. BBOT spawns children (nuclei, dnsbrute,
+            # httpx, ...) and a bare proc.terminate() would not reach them.
+            start_new_session=True,
         )
+    except FileNotFoundError:
+        return "Error: bbot not found. Install with: pip install bbot"
+
+    try:
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=SCAN_TIMEOUT)
         output = stdout.decode(errors="replace")
     except asyncio.TimeoutError:
-        return f"Scan timed out after {SCAN_TIMEOUT}s"
-    except FileNotFoundError:
-        return "Error: bbot not found. Install with: pip install bbot"
+        # wait_for only cancels the await; the bbot process tree is still
+        # running. Send SIGTERM to the whole group, give it 5s to exit
+        # cleanly, then escalate to SIGKILL. Without this, repeated timeouts
+        # leak scans that hold Neo4j connections and bbot data-dir locks.
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(proc.pid, signal.SIGTERM)
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=5)
+        except asyncio.TimeoutError:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGKILL)
+            await proc.wait()
+        return f"Scan timed out after {SCAN_TIMEOUT}s (process tree terminated)"
 
     if len(output) > MAX_OUTPUT:
         output = output[:MAX_OUTPUT] + f"\n\n... [TRUNCATED: {len(output)} chars total]"
