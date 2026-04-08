@@ -205,3 +205,8 @@ With this vulnerability, an attacker can:
 - Technical — write for a security engineer, not a manager.
 - Factual — state what happened, not what might happen.
 - Both CVSS 4.0 and 3.1 required with clickable calculator links matching demonstrated impact.
+- Never fabricate PoC output — every response block must be from actual execution.
+- Include a control test showing non-vulnerable behavior (invalid key -> denied, unauthed -> 401) to prove the delta.
+- Every impact claim must trace to a PoC step — if you claim "quota abuse", demonstrate batch requests succeeding.
+- Delineate scope: document what doesn't work alongside what does to prevent inflation.
+- If report-preflight returned NEEDS_JUSTIFICATION, include the justification block in Impact.
