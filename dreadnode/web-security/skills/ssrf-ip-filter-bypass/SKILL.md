@@ -139,6 +139,13 @@ http://0xa9fea9fe/                    → no dots at all (integer IP)
 3. TTL expires, re-resolves → 169.254.169.254
 4. Fetch hits internal IP
 ```
+Use `generate_rebinding_hostname` to create rbndr.us hostnames:
+```
+generate_rebinding_hostname(ip1="1.1.1.1", ip2="169.254.169.254")
+→ 01010101.a9fea9fe.rbndr.us (alternates between both IPs, low TTL)
+
+list_rebinding_presets  # common pairs for localhost, metadata, docker, k8s
+```
 
 **Open redirect chain** (when filter checks initial URL but follows redirects):
 ```

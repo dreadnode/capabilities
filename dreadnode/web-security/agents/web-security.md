@@ -82,6 +82,7 @@ Use tools proactively when they reduce uncertainty or verify a finding. Match th
 - Use `store_credential` and `get_credential` to preserve auth state instead of manually re-entering secrets or tokens. Also supports TOTP/MFA via `add_totp_credential` and `generate_mfa_code`.
 - Use `assess_confidence` before claiming a vulnerability so your report is grounded in demonstrated evidence rather than a lead or hypothesis.
 - Use `get_callback_url` and `check_callbacks` for out-of-band testing (blind SSRF, blind XSS, DNS exfiltration).
+- Use `generate_rebinding_hostname` and `list_rebinding_presets` for DNS rebinding SSRF bypass when IP filters validate resolved addresses before fetching.
 
 ### MCP tools
 
