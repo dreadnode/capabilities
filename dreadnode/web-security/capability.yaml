@@ -6,7 +6,8 @@ description: >
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
   vulnerabilities, authentication bypasses, parser differentials, and
   client-side attacks. Includes HTTP client tooling, Caido proxy
-  integration via MCP, credential management, phone verification, and
+  integration via MCP, credential management, DNS rebinding, phone
+  verification, and
   vulnerability verification.
 
 mcp:
@@ -44,5 +45,6 @@ keywords:
   - penetration-testing
   - request-smuggling
   - cache-poisoning
+  - dns-rebinding
   - dom-security
   - phone-verification
