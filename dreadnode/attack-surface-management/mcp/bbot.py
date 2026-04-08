@@ -326,16 +326,25 @@ async def run_bbot_scan(
         output = stdout.decode(errors="replace")
     except asyncio.TimeoutError:
         # wait_for only cancels the await; the bbot process tree is still
-        # running. Send SIGTERM to the whole group, give it 5s to exit
-        # cleanly, then escalate to SIGKILL. Without this, repeated timeouts
-        # leak scans that hold Neo4j connections and bbot data-dir locks.
-        with contextlib.suppress(ProcessLookupError):
-            os.killpg(proc.pid, signal.SIGTERM)
+        # running. On POSIX, signal the whole group created by
+        # start_new_session=True. On platforms without os.killpg (for example
+        # Windows), fall back to terminating the direct child process so
+        # timeouts still fail closed instead of raising in cleanup.
+        if hasattr(os, "killpg"):
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGTERM)
+        else:
+            with contextlib.suppress(ProcessLookupError):
+                proc.terminate()
         try:
             await asyncio.wait_for(proc.wait(), timeout=5)
         except asyncio.TimeoutError:
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(proc.pid, signal.SIGKILL)
+            if hasattr(os, "killpg"):
+                with contextlib.suppress(ProcessLookupError):
+                    os.killpg(proc.pid, signal.SIGKILL)
+            else:
+                with contextlib.suppress(ProcessLookupError):
+                    proc.kill()
             await proc.wait()
         return f"Scan timed out after {SCAN_TIMEOUT}s (process tree terminated)"
 
