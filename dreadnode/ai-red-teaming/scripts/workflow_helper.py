@@ -119,7 +119,7 @@ def execute_workflow(params: dict) -> dict:
 
     try:
         result = subprocess.run(
-            ["python3", str(filepath)],
+            [sys.executable, str(filepath)],
             cwd=str(WORKFLOWS_DIR.parent),
             capture_output=True,
             text=True,

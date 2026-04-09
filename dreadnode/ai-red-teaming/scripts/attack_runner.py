@@ -859,6 +859,35 @@ SCORER_REGISTRY: dict[str, dict] = {
     "dangerous_tool_args": {"type": "agentic", "code": "dn.scorers.dangerous_tool_args"},
     "indirect_injection_success": {"type": "agentic", "code": "dn.scorers.indirect_injection_success"},
     "mcp_tool_manipulation": {"type": "agentic", "code": "dn.scorers.mcp_tool_manipulation"},
+    # Text analysis
+    "contains": {"type": "builtin", "code": "dn.scorers.contains()"},
+    "detect_sensitive_keywords": {"type": "builtin", "code": "dn.scorers.detect_sensitive_keywords()"},
+    "detect_unsafe_shell_content": {"type": "builtin", "code": "dn.scorers.detect_unsafe_shell_content()"},
+    "detect_ansi_escapes": {"type": "builtin", "code": "dn.scorers.detect_ansi_escapes()"},
+    "is_xml": {"type": "builtin", "code": "dn.scorers.is_xml()"},
+    "readability": {"type": "builtin", "code": "dn.scorers.readability()"},
+    "character_consistency": {"type": "builtin", "code": "dn.scorers.character_consistency()"},
+    "type_token_ratio": {"type": "builtin", "code": "dn.scorers.type_token_ratio()"},
+    "training_data_memorization": {"type": "builtin", "code": "dn.scorers.training_data_memorization()"},
+    "memory_poisoning": {"type": "builtin", "code": "dn.scorers.memory_poisoning_detected()"},
+    # Sentiment
+    "sentiment": {"type": "builtin", "code": "dn.scorers.sentiment()"},
+    "sentiment_perspective": {"type": "builtin", "code": "dn.scorers.sentiment_with_perspective()"},
+    # Length-based
+    "length_in_range": {"type": "builtin", "code": "dn.scorers.length_in_range()"},
+    "length_ratio": {"type": "builtin", "code": "dn.scorers.length_ratio()"},
+    "length_target": {"type": "builtin", "code": "dn.scorers.length_target()"},
+    # Documentation security
+    "env_var_exfiltration": {"type": "builtin", "code": "dn.scorers.env_var_exfiltration()"},
+    "favicon_exfiltration": {"type": "builtin", "code": "dn.scorers.favicon_exfiltration()"},
+    "hidden_documentation_injection": {"type": "builtin", "code": "dn.scorers.hidden_documentation_injection()"},
+    "package_readme_poisoning": {"type": "builtin", "code": "dn.scorers.package_readme_poisoning()"},
+    "resource_hint_exfil": {"type": "builtin", "code": "dn.scorers.resource_hint_exfil()"},
+    # Classification
+    "detect_refusal_zero_shot": {"type": "builtin", "code": "dn.scorers.detect_refusal_with_zero_shot()"},
+    "zero_shot_classification": {"type": "builtin", "code": "dn.scorers.zero_shot_classification()"},
+    # PII
+    "detect_pii_presidio": {"type": "builtin", "code": "dn.scorers.detect_pii_with_presidio()"},
 }
 
 GOAL_CATEGORY_ALIASES: dict[str, str] = {
@@ -1016,7 +1045,16 @@ def _resolve_goal_category(alias: str | None) -> str:
     if not alias:
         return "JAILBREAK_GENERAL"
     key = alias.strip().lower().replace("-", "_").replace(" ", "_")
-    return GOAL_CATEGORY_ALIASES.get(key, "JAILBREAK_GENERAL")
+    resolved = GOAL_CATEGORY_ALIASES.get(key)
+    if resolved is None:
+        import sys
+        print(
+            "WARNING: Unknown goal_category '{}'. Using JAILBREAK_GENERAL. "
+            "Valid categories: {}".format(alias, ", ".join(sorted(GOAL_CATEGORY_ALIASES.keys()))),
+            file=sys.stderr,
+        )
+        return "JAILBREAK_GENERAL"
+    return resolved
 
 # Script rendering — uses template strings to avoid f-string escaping issues
 
@@ -1238,16 +1276,26 @@ def _build_config_section(config: dict) -> str:
     return "\n".join(lines)
 
 def _build_target() -> str:
-    """Build the @task target function."""
+    """Build the @task target function with retry logic for LLM timeouts."""
     return '''\
 @task
 async def target(prompt: str) -> str:
     generator = get_generator(TARGET_MODEL)
     messages = [Message(role="user", content=prompt)]
-    results = await generator.generate_messages([messages], [GenerateParams()])
-    if not results or isinstance(results[0], BaseException):
-        raise RuntimeError(f"Generator failed: {results[0] if results else 'No response'}")
-    return results[0].message.content
+    last_error = None
+    for attempt in range(3):
+        try:
+            results = await generator.generate_messages([messages], [GenerateParams()])
+            if not results or isinstance(results[0], BaseException):
+                last_error = RuntimeError(f"Generator failed: {results[0] if results else 'No response'}")
+                continue
+            return results[0].message.content
+        except Exception as e:
+            last_error = e
+            if attempt < 2:
+                import asyncio
+                await asyncio.sleep(1 * (attempt + 1))
+    raise last_error or RuntimeError("Target model unreachable after 3 attempts")
 '''
 
 def _build_attack_params(atk: dict, transforms_expr: str | None = None, goal_expr: str = "GOAL", goal_category_expr: str = "GOAL_CATEGORY.value", transform_names: list[str] | None = None) -> str:
@@ -1327,6 +1375,13 @@ async def main():
     sys.stdout.flush()
 
 asyncio.run(main())
+
+# Flush OTEL spans before subprocess exits — BatchSpanProcessor uses a
+# background thread that may not flush in time if the process exits quickly.
+try:
+    dn.shutdown()
+except Exception:
+    pass
 '''
 
 _SINGLE_ATTACK_TEMPLATE = '''\
@@ -1369,6 +1424,13 @@ async def main():
     sys.stdout.flush()
 
 asyncio.run(main())
+
+# Flush OTEL spans before subprocess exits — BatchSpanProcessor uses a
+# background thread that may not flush in time if the process exits quickly.
+try:
+    dn.shutdown()
+except Exception:
+    pass
 '''
 
 _CAMPAIGN_ATTACK_BLOCK = '''\
@@ -1396,6 +1458,13 @@ _CAMPAIGN_FOOTER = '''\
     sys.stdout.flush()
 
 asyncio.run(main())
+
+# Flush OTEL spans before subprocess exits — BatchSpanProcessor uses a
+# background thread that may not flush in time if the process exits quickly.
+try:
+    dn.shutdown()
+except Exception:
+    pass
 '''
 
 # Script generation
@@ -1665,6 +1734,13 @@ async def main():
     sys.stdout.flush()
 
 asyncio.run(main())
+
+# Flush OTEL spans before subprocess exits — BatchSpanProcessor uses a
+# background thread that may not flush in time if the process exits quickly.
+try:
+    dn.shutdown()
+except Exception:
+    pass
 '''
 
 def _load_goals_csv() -> list[dict[str, str]]:
@@ -1962,11 +2038,12 @@ def generate_category_attack(params: dict) -> dict:
         "  Iterations per goal: {}".format(n_iterations),
     ]
 
-    # Auto-execute the workflow
-    exec_output = _auto_execute_workflow(filename)
-    result_lines.append(exec_output)
+    # Auto-execute the workflow (unless generate_only mode)
+    if not params.get("generate_only"):
+        exec_output = _auto_execute_workflow(filename)
+        result_lines.append(exec_output)
 
-    return {"result": "\n".join(result_lines)}
+    return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
 
 # Main entry point
 
@@ -2054,13 +2131,14 @@ def generate_attack(params: dict) -> dict:
 
     # Determine mode and generate script
     is_campaign = len(attacks_resolved) > 1
-    # Auto-enable transform study when transforms are provided (creates 1 assessment with N+1 attacks)
-    is_study = bool(transforms_resolved) and not is_campaign
+    # Transform study: when transforms + compare_transforms are set, create N+1 runs
+    # (baseline + each transform individually). Works for single attacks AND campaigns.
+    is_study = bool(transforms_resolved) and compare_transforms
 
-    if is_campaign:
-        script = _generate_campaign(config)
-    elif is_study:
+    if is_study and not is_campaign:
         script = _generate_transform_study(config)
+    elif is_campaign:
+        script = _generate_campaign(config)
     else:
         script = _generate_single(config)
 
@@ -2125,11 +2203,12 @@ def generate_attack(params: dict) -> dict:
             len(transforms_resolved) + 1, len(transforms_resolved)
         ))
 
-    # Auto-execute the workflow
-    exec_output = _auto_execute_workflow(filename)
-    result_lines.append(exec_output)
+    # Auto-execute the workflow (unless generate_only mode)
+    if not params.get("generate_only"):
+        exec_output = _auto_execute_workflow(filename)
+        result_lines.append(exec_output)
 
-    return {"result": "\n".join(result_lines)}
+    return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
 
 # Agentic attack generation — targets HTTP agent APIs
 
@@ -2314,6 +2393,13 @@ async def main():
     sys.stdout.flush()
 
 asyncio.run(main())
+
+# Flush OTEL spans before subprocess exits — BatchSpanProcessor uses a
+# background thread that may not flush in time if the process exits quickly.
+try:
+    dn.shutdown()
+except Exception:
+    pass
 '''
 
 def _generate_agentic_single(config: dict, agent_config: dict) -> str:
@@ -2524,11 +2610,12 @@ def generate_agentic_attack(params: dict) -> dict:
         "  Iterations: {}".format(n_iterations),
     ]
 
-    # Auto-execute the workflow
-    exec_output = _auto_execute_workflow(filename)
-    result_lines.append(exec_output)
+    # Auto-execute the workflow (unless generate_only mode)
+    if not params.get("generate_only"):
+        exec_output = _auto_execute_workflow(filename)
+        result_lines.append(exec_output)
 
-    return {"result": "\n".join(result_lines)}
+    return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
 
 # stdin/stdout JSON dispatch
 
