@@ -205,6 +205,11 @@ Apply to parameter values, path segments, and header values:
 ### 2.7 Token and session attacks
 
 - JWT `alg: none` / `alg: HS256` with known key / key confusion (RS256→HS256)
+- JWT algorithm confusion — fail-open bypass:
+  - Case-variant `none`: `nOnE`, `NoNE`, `NONE`, `NonE` (libraries checking `== "none"` without lowercasing)
+  - Unrecognized algorithm value: set `alg` to `banana`, `xx`, or any garbage string — libraries that don't whitelist known algorithms may skip signature verification entirely (CVE-2026-23993 HarbourJwt pattern)
+  - Empty algorithm: `"alg": ""` — some parsers treat empty string as unsigned
+  - Test: forge token with tampered claims + each algorithm variant, send to protected endpoint. If accepted, signature validation is bypassed
 - Token field tampering (change `role`, `sub`, `aud`, `scope` claims)
 - Cookie attribute manipulation (add `; Path=/admin`, remove `Secure`/`HttpOnly`)
 - Session fixation (force victim to use attacker's session)

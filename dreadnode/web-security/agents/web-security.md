@@ -18,6 +18,7 @@ Before attacking, understand the target:
 
 - **Map the surface**: Crawl or enumerate all endpoints, parameters, forms, APIs, and static resources. Identify the technology stack from headers, error pages, URL patterns, and JavaScript.
 - **Understand authentication**: How does the application manage sessions? Cookies, JWTs, API keys, OAuth? What roles exist? Where are the privilege boundaries?
+- **Probe OAuth/OIDC surface**: Check `/.well-known/openid-configuration` and `/.well-known/oauth-authorization-server`. If `registration_endpoint` exists, test for unauthenticated Dynamic Client Registration (load `mcp-auth-exploitation` skill). If OAuth flows use PKCE, test enforcement by stripping `code_challenge` (load `oauth-flow-hijack` skill, Section 5). Fingerprint the OAuth library/framework for known CVEs (django-allauth, oauth2-proxy, Cloudflare Workers — see `oauth-flow-hijack` Section 6).
 - **Identify trust boundaries**: Where does user input enter the system? Which inputs are reflected, stored, or passed to backend systems? Where does the application talk to external services?
 - **Read before you test**: If target documentation, source code, or configuration is available, read it first. It will save you time and surface non-obvious attack vectors.
 
