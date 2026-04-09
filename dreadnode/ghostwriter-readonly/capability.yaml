@@ -7,6 +7,18 @@ description: >
   reports, infrastructure (servers and domains), activity logs, white
   cards, and notes without modifying any GhostWriter state.
 
+mcp:
+  servers:
+    ghostwriter:
+      command: "uv"
+      args: ["run", "${CAPABILITY_ROOT}/mcp/server.py"]
+      init_timeout: 30
+      env:
+        GHOSTWRITER_URL: "${GHOSTWRITER_URL:-}"
+        GHOSTWRITER_API_TOKEN: "${GHOSTWRITER_API_TOKEN:-}"
+        GHOSTWRITER_USERNAME: "${GHOSTWRITER_USERNAME:-}"
+        GHOSTWRITER_PASSWORD: "${GHOSTWRITER_PASSWORD:-}"
+
 author:
   name: Dreadnode
   url: https://dreadnode.io

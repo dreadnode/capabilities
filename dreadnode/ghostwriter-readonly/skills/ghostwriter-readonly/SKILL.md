@@ -3,68 +3,62 @@ name: ghostwriter-readonly
 description: Use when reviewing GhostWriter data in read-only mode — clients, projects, findings, objectives, targets, scope, deconflictions, evidence, observations, reports, infrastructure, activity logs, and notes.
 ---
 
-# GhostWriter Read-Only Viewer
+# GhostWriter Read-Only MCP Server
 
-Query GhostWriter reporting and operational data without modifying state.
+Query GhostWriter reporting and operational data without modifying state. Credentials are configured in the server environment — they never appear in conversations.
 
 ## Configuration
 
-Set env vars before use: `GHOSTWRITER_URL`, `GHOSTWRITER_API_TOKEN` (or `GHOSTWRITER_USERNAME` + `GHOSTWRITER_PASSWORD`).
-
-## Usage
-
-```bash
-uv run {baseDir}/scripts/ghostwriter_read.py <command> [options]
-```
+Set env vars in the MCP server environment: `GHOSTWRITER_URL`, `GHOSTWRITER_API_TOKEN` (or `GHOSTWRITER_USERNAME` + `GHOSTWRITER_PASSWORD`).
 
 ## Orientation Workflow
 
-```bash
-uv run {baseDir}/scripts/ghostwriter_read.py status
-uv run {baseDir}/scripts/ghostwriter_read.py clients
-uv run {baseDir}/scripts/ghostwriter_read.py projects
-uv run {baseDir}/scripts/ghostwriter_read.py objectives --project 1
-uv run {baseDir}/scripts/ghostwriter_read.py targets --project 1
-uv run {baseDir}/scripts/ghostwriter_read.py findings --project 1
-uv run {baseDir}/scripts/ghostwriter_read.py activity-logs --project 1
-```
+1. `get_status` — verify connection, see aggregate counts
+2. `list_clients` — see client organizations
+3. `list_projects` — see engagements (filter by client_id)
+4. `list_objectives --project_id N` — project objectives
+5. `list_targets --project_id N` — target hosts
+6. `list_findings --project_id N` — reported findings
+7. `list_activity_logs --project_id N` — oplog entries
 
-## Commands
+## Tools
 
-| Command | Description |
-|---------|-------------|
-| `status` | Connection info and authentication check |
-| `clients [--limit N]` | List client organizations |
-| `client <id>` | Full details for one client (JSON) |
-| `projects [--client N] [--limit N]` | List projects/engagements |
-| `project <id>` | Full project details with associated findings |
-| `findings [--project N] [--severity S] [--limit N] [--offset N]` | List reported findings |
-| `finding <id>` | Full finding details (JSON) |
-| `finding-templates [--severity S] [--limit N]` | Finding template library |
-| `objectives [--project N] [--limit N]` | Project objectives and sub-tasks |
-| `targets [--project N] [--limit N]` | Target hosts/systems |
-| `scope [--project N] [--limit N]` | Scope definitions (IP ranges, etc.) |
-| `deconflictions [--project N] [--limit N]` | Deconfliction entries |
-| `evidence [--project N] [--finding N] [--limit N]` | Evidence files |
-| `whitecards [--project N] [--limit N]` | White cards / exceptions |
-| `observations [--project N] [--limit N] [--offset N]` | Observations/notes |
-| `reports [--project N] [--limit N]` | List reports |
-| `infrastructure [--project N]` | Summary of servers and domains |
-| `servers [--project N] [--limit N]` | List team servers |
-| `domains [--project N] [--limit N]` | List registered domains |
-| `activity-logs [--project N] [--limit N] [--offset N]` | Operation activity logs |
-| `notes <type> [--parent-id N] [--limit N]` | Notes (type: client, project, domain, server) |
-| `search <term> [--types ...] [--limit N]` | Cross-type search |
+| Tool | Purpose |
+|------|---------|
+| `get_status` | Connection info and aggregate counts |
+| `list_clients` | List client organizations |
+| `get_client` | Full client details with projects |
+| `list_projects` | List projects/engagements |
+| `get_project` | Full project details with findings and reports |
+| `list_findings` | List reported findings (filter by project, severity) |
+| `get_finding` | Full finding details (CVSS, remediation, evidence) |
+| `list_finding_templates` | Finding template library |
+| `list_objectives` | Project objectives and sub-tasks |
+| `list_targets` | Target hosts/systems |
+| `list_scope` | Scope definitions (IP ranges, etc.) |
+| `list_deconflictions` | Deconfliction entries |
+| `list_evidence` | Evidence files (filter by project, finding) |
+| `list_whitecards` | White cards / exceptions |
+| `list_observations` | Observations from reports |
+| `list_reports` | List reports |
+| `get_infrastructure` | Combined server + domain summary |
+| `list_servers` | Team servers with checkouts |
+| `list_domains` | Registered domains with checkouts |
+| `list_activity_logs` | Operation activity logs |
+| `list_notes` | Notes (type: client, project, domain, server) |
+| `search` | Cross-type search across multiple data types |
 
-## Global Flags
+## Common Filters
 
-- `--detail` / `-d` — full raw JSON output (all fields, metadata, everything)
-- `--json` — machine-parseable JSON output
-
-## Summary vs Detail
-
-Default output is compact text tables. Use `--detail` or `--json` when you need full data for reporting analysis (full finding descriptions, remediation text, raw evidence metadata).
+Most list tools accept `project_id` to scope results to a single engagement and `limit` for pagination. `list_findings` and `list_activity_logs` also accept `offset`.
 
 ## Read-Only
 
-This tool CANNOT create, modify, or delete any GhostWriter data. The only mutation used is the Login mutation to obtain a JWT token for authentication.
+This server CANNOT create, modify, or delete any GhostWriter data. The only mutation used is the Login mutation to obtain a JWT token when API token auth is not configured.
+
+## CLI Fallback
+
+The original CLI script is still available at `scripts/ghostwriter_read.py` for standalone use:
+```bash
+uv run {baseDir}/scripts/ghostwriter_read.py <command> [options]
+```
