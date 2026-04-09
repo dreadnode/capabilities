@@ -94,7 +94,8 @@ Key Shodan tools:
 - `shodan_host_info` — Detailed IP reconnaissance (free, no credit cost)
 - `shodan_count` — Result count without consuming credits (always use first to check scope)
 - `shodan_dns_lookup` / `shodan_dns_reverse` — DNS resolution and reverse lookups (free)
-- `shodan_exploits_search` — CVE and exploit database search (free)
+- `shodan_dns_domain_info` — Subdomain inventory + DNS tags from Shodan's crawl (free, no credits) — often the highest-yield free Shodan call for ASM
+- `shodan_exploits_search` — CVE intel via Shodan's CVEDB API (free, no credits). Pass a CVE ID for full vuln detail (CVSS, EPSS, KEV status, references, ransomware-campaign tag) or a product slug (e.g. `log4j`, `openssl`) for a recent-CVE list.
 
 **Credit strategy**: Use `shodan_count` + facets first (free), `shodan_host_info` for specific IPs (free), reserve `shodan_host_search` for when you need the full match list. Load the `shodan-reconnaissance` skill for query patterns and enrichment workflows.
 
