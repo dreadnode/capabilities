@@ -123,7 +123,7 @@ Key Shodan tools:
 | `TECHNOLOGY` | technology name string (e.g. `nginx`) | `.host`, `.port` | Web technology |
 | `FINDING` | serialized dict (`description`, `host`, `severity`, …) | `.host` | Security finding — parse `.data` JSON |
 | `VULNERABILITY` | serialized dict (`description`, `severity`, …) | `.host` | Confirmed vuln — parse `.data` JSON |
-| `WEBSCREENSHOT` | screenshot label | `.uuid`, `.url`, `.path`, `.scan`; `.analyzed` (agent-set, not from BBOT) | Page screenshot — fetch via `get_screenshot` |
+| `WEBSCREENSHOT` | serialized dict (for example `url`, `path`, …) | `.uuid`, `.scan`; `.analyzed` (agent-set, not from BBOT) | Page screenshot — parse `.data` for URL/path and fetch via `get_screenshot` |
 | `STORAGE_BUCKET` | serialized dict | `.host` | Cloud storage — parse `.data` JSON |
 | `SCAN` | serialized scan dict (id, name, start_time, modules) | `.id` | Scan metadata — parse via `get_scan_metadata` |
 | `ORG_STUB` | org name string | — | Organization placeholder |
