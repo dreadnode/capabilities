@@ -19,11 +19,19 @@ The primary workflow is: **BBOT discovers assets → Shodan enriches them.**
 
 ### Enrichment Patterns
 
-**Enrich all discovered IPs:**
+**Enrich all discovered IPs.** BBOT exposes IPs two ways: as
+`(:IP_ADDRESS)` nodes (when `dnsresolve` promoted them to events) and as the
+`resolved_hosts` list on every `(:DNS_NAME)`. Cover both:
 ```cypher
-MATCH (ip:IP_ADDRESS) RETURN ip.address
+// Explicit IP_ADDRESS nodes
+MATCH (ip:IP_ADDRESS) RETURN ip.data AS ip
+UNION
+// IPs from DNS resolution that may not have been promoted
+MATCH (d:DNS_NAME) WHERE d.resolved_hosts IS NOT NULL
+UNWIND d.resolved_hosts AS ip
+RETURN DISTINCT ip
 ```
-Then for each IP: `shodan_host_info(ip="x.x.x.x")`
+Then for each IP: `shodan_host_info(ip="x.x.x.x")`.
 
 **Find org-wide exposure:**
 ```
@@ -36,7 +44,7 @@ Cross-reference results against known IPs in the graph.
 shodan_host_search(query='ssl.cert.subject.cn:target.com')
 shodan_host_search(query='hostname:target.com')
 ```
-Compare with `MATCH (d:DNS_NAME) RETURN d.name` to find gaps.
+Compare with `MATCH (d:DNS_NAME) RETURN d.data` to find gaps.
 
 ## Query Strategies
 
@@ -114,18 +122,28 @@ shodan_host_info(ip="x.x.x.x", history=True)
 ```
 Historical data reveals services that were recently taken down or changed.
 
-### Step 5: Exploit Correlation
-For any CVEs found on hosts, check exploit availability.
+### Step 5: CVE Correlation
+For any CVEs found on hosts, look up vuln intel via Shodan's CVEDB.
 ```
-shodan_exploits_search(query="CVE-2024-XXXXX")
+shodan_exploits_search(query="CVE-2021-44228")    # full CVSS/EPSS/KEV detail
+shodan_exploits_search(query="log4j", limit=10)   # recent CVEs for a product
 ```
+Note: this tool now hits Shodan's CVEDB API directly (the legacy
+`exploits.shodan.io` endpoint was deprecated and the shodan-python
+library wasn't updated). It consumes no Shodan credits and works
+without a paid plan.
 
 ### Step 6: DNS Cross-Reference
 Validate and expand DNS data.
 ```
 shodan_dns_lookup(hostnames=["api.target.com", "dev.target.com"])
 shodan_dns_reverse(ips=["x.x.x.x", "y.y.y.y"])
+shodan_dns_domain_info(domain="target.com")  # subdomain inventory + DNS tags
 ```
+`shodan_dns_domain_info` is usually the highest-yield free Shodan call
+for ASM — Shodan returns its full crawled subdomain list for the domain
+plus DNS-feature tags (e.g. `dmarc`, `spf`, `google-verified`, `ipv6`),
+which is far richer than just resolving to IPs.
 
 ## Facet Analysis
 
@@ -158,6 +176,8 @@ shodan_host_search(
 | `shodan_host_info` | Free (IP lookups are free) |
 | `shodan_dns_lookup` | Free |
 | `shodan_dns_reverse` | Free |
-| `shodan_exploits_search` | Free |
+| `shodan_dns_domain_info` | Free |
+| `shodan_exploits_search` | Free (CVEDB, no credits) |
+| `shodan_query_search` / `shodan_query_tags` | Free **but currently returning HTTP 500 from Shodan's backend** — the call shape is correct, the service is down. Re-test periodically. |
 
 **Strategy**: Use `count` + facets first, `host_info` for specific IPs (free), and reserve `host_search` for when you need the full match list.

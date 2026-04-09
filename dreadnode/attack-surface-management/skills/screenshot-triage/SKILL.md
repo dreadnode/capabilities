@@ -11,16 +11,30 @@ Triage web screenshots captured by BBOT (via gowitness) to identify high-value t
 
 ## Retrieving Screenshots
 
+> **Note:** the `analyzed` property on `WEBSCREENSHOT` is **not** populated by
+> BBOT. It is an agent-managed flag — you must set it yourself via `query_graph`
+> after triaging each screenshot (see Workflow step 3 below). The "unanalyzed"
+> query below only returns useful results once you have started writing it back.
+
+> **Schema note.** `WEBSCREENSHOT` events are emitted by the `gowitness`
+> module. The node carries the full envelope of BBOT properties (`.uuid`,
+> `.host`, `.scope_distance`, `.scan`, …). The screenshot file path and
+> source URL live inside `.data` as a JSON-encoded dict (with keys `path`
+> and `url`), not as top-level node properties — see `mcp/bbot.py` →
+> `get_screenshot` for the canonical retrieval logic. The `analyzed`
+> property below is **agent-managed** (you set it after triaging); BBOT
+> never writes it.
+
 ```cypher
--- Find all unanalyzed screenshots
-MATCH (s:WEBSCREENSHOT) WHERE s.analyzed IS NULL RETURN s.uuid, s.url
+// Find all unanalyzed screenshots
+MATCH (s:WEBSCREENSHOT) WHERE s.analyzed IS NULL RETURN s.uuid, s.host, s.data
 
--- Get screenshot for a specific URL
-MATCH (s:WEBSCREENSHOT) WHERE s.url CONTAINS 'admin' RETURN s.uuid, s.url
+// Find screenshots for URLs matching a substring (data contains the URL)
+MATCH (s:WEBSCREENSHOT) WHERE s.data CONTAINS 'admin' RETURN s.uuid, s.host, s.data
 
--- Get screenshots with their host context
+// Get screenshots with their host context (use parent.data, not parent.name)
 MATCH (s:WEBSCREENSHOT)-[]-(parent)
-RETURN s.uuid, s.url, labels(parent)[0] as parent_type, parent.name
+RETURN s.uuid, s.host, labels(parent)[0] AS parent_type, parent.data
 ```
 
 Use `get_screenshot(uuid=...)` or `get_screenshot(url=...)` to retrieve the actual image.
@@ -101,5 +115,6 @@ Use `get_screenshot(uuid=...)` or `get_screenshot(url=...)` to retrieve the actu
    b. Classify priority (critical/high/medium/low)
    c. Note specific elements of interest
    d. Record what a human should investigate next
-3. Mark screenshots as analyzed: set the `analyzed` property
+3. Mark screenshots as analyzed via `query_graph`, e.g.
+   `MATCH (s:WEBSCREENSHOT {uuid: $uuid}) SET s.analyzed = datetime() RETURN s.uuid`
 4. Cross-reference high-priority screenshots with other graph data (technologies, findings, DNS names)
