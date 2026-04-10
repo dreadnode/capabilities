@@ -3,73 +3,56 @@ name: mythic-c2-readonly
 description: Use when reviewing Mythic C2 operation data in read-only mode — viewing callbacks, task history, credentials, files, artifacts, and other collected data.
 ---
 
-# Mythic Read-Only Viewer
+# Mythic Read-Only MCP Server
 
-Query Mythic C2 operation data without executing commands or modifying state.
+Query Mythic C2 operation data without executing commands or modifying state. Credentials are configured in the server environment — they never appear in conversations.
 
 ## Configuration
 
-Set env vars before use: `MYTHIC_SERVER_IP`, `MYTHIC_SERVER_PORT`, `MYTHIC_PASSWORD` (or `MYTHIC_API_TOKEN`).
-
-## Usage
-
-```bash
-uv run {baseDir}/scripts/mythic_read.py <command> [options]
-```
+Set env vars in the MCP server environment: `MYTHIC_SERVER_IP`, `MYTHIC_SERVER_PORT`, `MYTHIC_PASSWORD` (or `MYTHIC_API_TOKEN`).
 
 ## Orientation Workflow
 
-```bash
-uv run {baseDir}/scripts/mythic_read.py status
-uv run {baseDir}/scripts/mythic_read.py callbacks --active
-uv run {baseDir}/scripts/mythic_read.py tasks --callback 1
-uv run {baseDir}/scripts/mythic_read.py credentials
-uv run {baseDir}/scripts/mythic_read.py files
-```
+1. `get_status` — verify connection and current operation
+2. `list_callbacks --active_only` — see live agents
+3. `list_tasks --callback_id N` — command history for a callback
+4. `list_credentials` — discovered credentials
+5. `list_files` — downloaded/uploaded files
+6. `search "<term>"` — cross-type search
 
-## Commands
+## Tools
 
-| Command | Description |
-|---------|-------------|
-| `status` | Connection info and current operation |
-| `callbacks [--active]` | List callbacks (agents) |
-| `callback <id>` | Full details for one callback (JSON) |
-| `tasks [--callback N] [--limit N] [--offset N]` | List executed commands |
-| `task-output <id> [--max-lines N] [--offset N]` | Decoded task output with line paging |
-| `credentials [--limit N] [--offset N]` | Discovered credentials |
-| `files [--uploaded] [--limit N]` | Downloaded/uploaded files |
-| `file-contents <uuid>` | Save file to /tmp/mythic-readonly/ + preview |
-| `artifacts [--limit N] [--offset N]` | IOCs/artifacts |
-| `keylogs [--callback N] [--limit N]` | Keylog captures |
-| `screenshots [--limit N]` | Screenshot metadata |
-| `processes [--host NAME] [--limit N]` | Process listings |
-| `file-browser [--host NAME] [--path PREFIX] [--limit N]` | File system data |
-| `tokens [--callback N] [--limit N]` | Windows token data |
-| `search <term> [--types tasks,credentials,...] [--limit N]` | Cross-type search |
-
-## Global Flags
-
-- `--detail` / `-d` — full raw JSON output (SIDs, DACLs, metadata, everything)
-- `--json` — machine-parseable JSON output
+| Tool | Purpose |
+|------|---------|
+| `get_status` | Connection info and current operation |
+| `list_callbacks` | List callbacks (agents); filter with `active_only` |
+| `get_callback` | Full details for a single callback |
+| `list_tasks` | Executed commands (filter by callback, paginated) |
+| `get_task_output` | Decoded task output with line paging |
+| `list_credentials` | Discovered credentials |
+| `list_files` | Downloaded/uploaded files |
+| `get_file_contents` | Download file to /tmp/mythic-readonly/ + preview |
+| `list_artifacts` | IOCs/artifacts |
+| `list_keylogs` | Keylog captures |
+| `list_screenshots` | Screenshot metadata |
+| `list_processes` | Captured process listings |
+| `list_file_browser` | File system data from agents |
+| `list_tokens` | Windows token captures |
+| `search` | Cross-type search (tasks, credentials, files, artifacts, keylogs) |
 
 ## Working with Large Outputs
 
-Task output supports line-based paging:
-```bash
-uv run {baseDir}/scripts/mythic_read.py task-output 5 --max-lines 50
-uv run {baseDir}/scripts/mythic_read.py task-output 5 --max-lines 50 --offset 50
-```
+`get_task_output` supports line-based paging via `max_lines` and `offset`. For big command output, request chunks rather than the whole thing.
 
-File contents are saved to disk — use the Read tool for targeted access:
-```bash
-uv run {baseDir}/scripts/mythic_read.py file-contents <uuid>
-# Then use: Read("/tmp/mythic-readonly/<uuid>", offset=100, limit=50)
-```
-
-## Summary vs Detail
-
-Default output is compact text tables. Use `--detail` or `--json` when you need full data for security analysis (token internals, raw artifacts, full process metadata).
+`get_file_contents` saves the file to disk and returns a preview plus the path — use your Read tool on the saved path with offset/limit for targeted access to large files.
 
 ## Read-Only
 
-This tool CANNOT execute commands, modify callbacks, create tasks, or change any Mythic state.
+This server CANNOT execute commands, modify callbacks, create tasks, or change any Mythic state.
+
+## CLI Fallback
+
+The original CLI script is still available at `scripts/mythic_read.py` for standalone use:
+```bash
+uv run {baseDir}/scripts/mythic_read.py <command> [options]
+```

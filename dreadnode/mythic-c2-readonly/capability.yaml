@@ -7,6 +7,20 @@ description: >
   screenshots, processes, file browser data, and tokens without executing
   any commands or modifying Mythic state.
 
+mcp:
+  servers:
+    mythic:
+      command: "uv"
+      args: ["run", "${CAPABILITY_ROOT}/mcp/server.py"]
+      init_timeout: 30
+      env:
+        MYTHIC_SERVER_IP: "${MYTHIC_SERVER_IP:-}"
+        MYTHIC_SERVER_PORT: "${MYTHIC_SERVER_PORT:-}"
+        MYTHIC_USERNAME: "${MYTHIC_USERNAME:-}"
+        MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-}"
+        MYTHIC_API_TOKEN: "${MYTHIC_API_TOKEN:-}"
+        MYTHIC_TIMEOUT: "${MYTHIC_TIMEOUT:-}"
+
 author:
   name: Dreadnode
   url: https://dreadnode.io

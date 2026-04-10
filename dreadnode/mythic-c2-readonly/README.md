@@ -37,7 +37,16 @@ For Claude Code, add to `.claude/settings.json`:
 }
 ```
 
-## Quick Start
+## MCP Server (Recommended)
+
+The MCP server keeps credentials in its own process environment — they never appear in conversations. Once env vars are set, the 15 tools (e.g. `get_status`, `list_callbacks`, `search`) are available automatically via the MCP protocol. The server validates credentials at startup and fails fast if they're wrong.
+
+The server is registered in `capability.yaml` and starts via:
+```bash
+uv run mcp/server.py
+```
+
+## CLI (Standalone)
 
 ```bash
 uv run skills/mythic-c2-readonly/scripts/mythic_read.py status
