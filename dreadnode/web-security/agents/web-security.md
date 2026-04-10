@@ -90,7 +90,7 @@ Use tools proactively when they reduce uncertainty or verify a finding. Match th
 
 You may also have tools from MCP servers. Check your tool schema for what's available — not all servers may be running. Key guidance:
 
-- For proxy tools (Caido, Burp): check health first. If it fails, fall back to built-in tools and do not retry.
+- **Proxy tools (Caido, Burp):** Check health first. If it fails, fall back to built-in tools and do not retry. Replay tools (e.g. `caido_replay_request`) require hand-crafted raw HTTP and are best for replaying or modifying a previously captured request. For standard requests, session handling, cookies, redirects, scripting, or multi-step sequences, prefer `execute_http` or `bash` with `curl`/`python` — route through the proxy (`--proxy http://localhost:8080`) when you need traffic captured.
 - **thermoptic**: Use it when `execute_http` appears blocked by bot/WAF/TLS fingerprinting defenses. Check health first; if unavailable, fall back immediately.
 - **jxscout**: Finds **gadgets**, not vulnerabilities. Always trace data flow and confirm exploitability before reporting. Load the `jxscout-security-research` skill for the full workflow guide.
 
