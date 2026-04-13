@@ -12,7 +12,7 @@ mcp:
     ghostwriter:
       command: "uv"
       args: ["run", "${CAPABILITY_ROOT}/mcp/server.py"]
-      init_timeout: 30
+      init_timeout: 60
       env:
         GHOSTWRITER_URL: "${GHOSTWRITER_URL:-}"
         GHOSTWRITER_API_TOKEN: "${GHOSTWRITER_API_TOKEN:-}"
