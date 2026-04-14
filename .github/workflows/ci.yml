@@ -67,6 +67,33 @@ jobs:
           sys.exit(errors)
           "
 
+      - name: Check skill frontmatter
+        run: |
+          python -c "
+          import yaml, sys
+          from pathlib import Path
+          errors = 0
+          skill_files = sorted(
+              list(Path('.').rglob('SKILL.md')) + list(Path('.').rglob('skill.md'))
+          )
+          for f in skill_files:
+              text = f.read_text()
+              if not text.startswith('---\n'):
+                  continue
+              end = text.find('\n---', 4)
+              if end == -1:
+                  print(f'FAIL: {f}: missing closing frontmatter delimiter')
+                  errors += 1
+                  continue
+              try:
+                  yaml.safe_load(text[4:end])
+                  print(f'OK: {f}')
+              except Exception as e:
+                  print(f'FAIL: {f}: {e}')
+                  errors += 1
+          sys.exit(errors)
+          "
+
   test:
     name: Test
     runs-on: ubuntu-latest
