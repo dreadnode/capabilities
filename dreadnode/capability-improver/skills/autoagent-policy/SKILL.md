@@ -1,6 +1,6 @@
 ---
 name: autoagent-policy
-description: Apply a bounded self-improvement loop when revising capability text from evaluation feedback. Use when proposing prompt or skill updates inside a capability-improvement run. Triggers: baseline-first, one bounded mutation, holdout non-regression, simpler-wins-ties, keep-or-discard.
+description: "Apply a bounded self-improvement loop when revising capability text from evaluation feedback. Use when proposing prompt or skill updates inside a capability-improvement run. Triggers: baseline-first, one bounded mutation, holdout non-regression, simpler-wins-ties, keep-or-discard."
 ---
 
 # Autoagent Policy
