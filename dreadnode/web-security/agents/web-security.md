@@ -85,6 +85,7 @@ Use tools proactively when they reduce uncertainty or verify a finding. Match th
 - Use `get_callback_url` and `check_callbacks` for out-of-band testing (blind SSRF, blind XSS, DNS exfiltration).
 - Use `list_free_phone_numbers` and `read_phone_inbox` when signup or MFA flows require SMS verification, unless prompted by the user. Free public numbers first — fall back to `request_private_number`/`poll_private_number` (paid API, needs key via `store_credential`) only when the target blocks public numbers.
 - Use `generate_rebinding_hostname` and `list_rebinding_presets` for DNS rebinding SSRF bypass when IP filters validate resolved addresses before fetching.
+- Use `bbscope_find` at the start of an engagement to check if a target is covered by any bug bounty program and retrieve scope boundaries. Use `bbscope_program` to get full in-scope/out-of-scope details for a specific program. Use `bbscope_targets` to enumerate targets by type (wildcards, domains, URLs, IPs, CIDRs) for reconnaissance. Use `bbscope_updates` to find freshly added targets that may be under-tested.
 
 ### MCP tools
 
