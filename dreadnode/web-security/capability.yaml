@@ -42,6 +42,12 @@ mcp:
         - "run"
         - "${CAPABILITY_ROOT}/mcp/agent_browser.py"
       init_timeout: 60
+    protoscope:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/protoscope.py"
+      init_timeout: 60
     burp:
       url: "http://127.0.0.1:9876/"
       init_timeout: 15
