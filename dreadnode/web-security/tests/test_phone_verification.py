@@ -13,6 +13,10 @@ import pytest
 
 
 def _install_dreadnode_tools_stub() -> None:
+    existing = sys.modules.get("dreadnode.agents.tools")
+    if existing is not None and hasattr(existing, "FunctionCall"):
+        return
+
     dreadnode = types.ModuleType("dreadnode")
     agents = types.ModuleType("dreadnode.agents")
     tools = types.ModuleType("dreadnode.agents.tools")
