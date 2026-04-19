@@ -34,9 +34,16 @@ Any HTTP endpoint. Use `generate_agentic_attack` with `agent_preset="custom"` an
 - `pair` — Query-efficient, 20 parallel streams
 - `crescendo` — Multi-turn, catches conversation-length weaknesses
 
+**Standard+ campaign (~500-1000 queries):**
+- `autoredteamer` — Dual-agent with strategy memory, beam search
+- `refusal_aware` — Learns from refusal patterns to bypass defenses
+- `cot_jailbreak` — Exploits chain-of-thought reasoning
+- `persona_hijack` — Persona-based attacks with evolutionary search
+
 **Thorough assessment (~2000+ queries):**
-- All above plus: `goat`, `autodan`, `beast`, `drattack`, `gptfuzzer`, `rainbow`
-- Campaign: `attack_type="tap,pair,crescendo,goat,rainbow"`
+- All above plus: `goat`, `goat_v2`, `autodan`, `beast`, `drattack`, `gptfuzzer`, `rainbow`
+- Advanced: `jbfuzz`, `jbdistill`, `templatefuzz`, `genetic_persona`, `tmap_trajectory`
+- Campaign: `attack_type="tap,pair,crescendo,goat,autoredteamer,rainbow"`
 
 ### Content Policy Coverage
 - `rainbow` — MAP-Elites covers risk×style grid automatically
@@ -70,10 +77,10 @@ Any HTTP endpoint. Use `generate_agentic_attack` with `agent_preset="custom"` an
 `role_play_wrapper`, `ascii_art`
 
 ### Adversarial Suffix
-`adversarial_suffix`, `gcg_suffix`, `jailbreak_suffix`, `flip_attack`
+`adversarial_suffix`, `gcg_suffix`, `jailbreak_suffix`, `flip_attack`, `suffix_sweep`, `iris_refusal_suppression`, `largo_suffix`
 
 ### Advanced Jailbreak
-`actor_network_escalation`, `code_completion_evasion`, `context_fusion`, `deep_fictional_immersion`, `guardrail_dos`, `likert_exploitation`, `pipeline_manipulation`, `prefill_bypass`, `reasoning_chain_hijack`
+`actor_network_escalation`, `code_completion_evasion`, `context_fusion`, `deep_fictional_immersion`, `guardrail_dos`, `likert_exploitation`, `pipeline_manipulation`, `prefill_bypass`, `reasoning_chain_hijack`, `sockpuppeting`, `adversarial_poetry`, `content_concretization`, `cka_benign_weave`, `involuntary_jailbreak`, `immersive_world`, `metabreak_special_tokens`
 
 ### Guardrail Bypass
 `classifier_evasion`, `controlled_release`, `emoji_smuggle`, `payload_split`, `hierarchy_exploit`, `nested_fiction`
@@ -82,11 +89,11 @@ Any HTTP endpoint. Use `generate_agentic_attack` with `agent_preset="custom"` an
 `affirmative_priming`, `constraint_relaxation`, `output_format_manipulation`, `protocol_establishment`, `task_deflection`
 
 ### MCP Attacks (OWASP ASI07)
-Transforms: `tool_description_poison`, `cross_server_shadow`, `rug_pull_payload`, `tool_output_injection`, `schema_poisoning`, `ansi_escape_cloaking`, `mcp_sampling_injection`, `cross_server_request_forgery`, `tool_squatting`, `tool_preference_manipulation`, `log_to_leak`, `resource_amplification`
-Scorers: `tool_description_poisoned`, `cross_server_shadow`, `rug_pull`, `tool_output_injected`, `schema_poisoned`, `ansi_cloaking`, `sampling_injection`
+Transforms: `tool_description_poison`, `cross_server_shadow`, `rug_pull_payload`, `tool_output_injection`, `schema_poisoning`, `ansi_escape_cloaking`, `mcp_sampling_injection`, `cross_server_request_forgery`, `tool_squatting`, `tool_preference_manipulation`, `log_to_leak`, `resource_amplification`, `implicit_tool_poison`, `tool_chain_sequential`, `tool_commander`, `zero_click_injection`, `calendar_invite_injection`, `confused_deputy`, `full_schema_poison`, `tool_chain_cost_amplification`
+Scorers: `tool_description_poisoned`, `cross_server_shadow`, `rug_pull`, `tool_output_injected`, `schema_poisoned`, `ansi_cloaking`, `sampling_injection`, `implicit_tool_poison_detected`
 
 ### Multi-Agent Attacks (ASI08, ASI10)
-Transforms: `prompt_infection`, `peer_agent_spoof`, `consensus_poisoning`, `delegation_chain_attack`, `shared_memory_poisoning`, `agent_config_overwrite`, `experience_poisoning`, `trust_exploitation`, `persistent_memory_backdoor`, `query_memory_injection`
+Transforms: `prompt_infection`, `peer_agent_spoof`, `consensus_poisoning`, `delegation_chain_attack`, `shared_memory_poisoning`, `agent_config_overwrite`, `experience_poisoning`, `trust_exploitation`, `persistent_memory_backdoor`, `query_memory_injection`, `zombie_agent`, `contagious_jailbreak`, `mad_exploitation`, `agent_in_the_middle`, `multi_agent_prompt_fusion`, `minja_progressive_poisoning`, `memorygraft_experience_poison`, `injecmem_single_shot`, `graphrag_entity_poison`, `recursive_delegation_dos`, `sleeper_agent_activation`, `meaning_drift_propagation`, `stitch_authority_chain`
 Scorers: `prompt_infection`, `agent_spoofing`, `consensus_poisoned`, `delegation_exploit`, `session_smuggling`, `agent_config_overwrite`
 
 ### Agentic Workflow Attacks (ASI03, ASI05)
@@ -98,15 +105,15 @@ Transforms: `agent_memory_injection`, `agent_permission_escalation`, `soul_file_
 Scorers: `agent_config_tampered`, `agent_identity_leaked`, `bootstrap_hook_injected`, `heartbeat_manipulation`, `skill_integrity_compromised`, `skill_supply_chain_attack`, `workspace_poisoning`
 
 ### Browser Agent Attacks
-Transforms: `visual_prompt_injection`, `ai_clickfix`, `domain_validation_bypass`, `navigation_hijack`, `task_injection`, `phantom_ui`
+Transforms: `visual_prompt_injection`, `ai_clickfix`, `domain_validation_bypass`, `navigation_hijack`, `task_injection`, `phantom_ui`, `hashjack`, `web_inject_pixel`, `comet_hijack`, `agenthopper_replication`, `cascading_failure_trigger`
 
 ### Exfiltration Testing
 Transforms: `markdown_image_exfil`, `mermaid_diagram_exfil`, `unicode_tag_exfil`, `dns_exfil_injection`, `ssrf_via_tools`, `link_unfurling_exfil`, `api_endpoint_abuse`, `character_exfiltration`
 Scorers: `markdown_exfil`, `unicode_exfil`, `dns_exfil`, `ssrf_exfil`
 
 ### Reasoning / Chain-of-Thought Attacks
-Transforms: `cot_backdoor`, `reasoning_hijack`, `reasoning_dos`, `crescendo_escalation`, `fitd_escalation`, `deceptive_delight`, `goal_drift_injection`
-Scorers: `cot_backdoor`, `reasoning_hijack`, `reasoning_dos`, `escalation`, `goal_drift`
+Transforms: `cot_backdoor`, `reasoning_hijack`, `reasoning_dos`, `crescendo_escalation`, `fitd_escalation`, `deceptive_delight`, `goal_drift_injection`, `cot_hijack_prepend`, `reasoning_interruption`, `overthink_dos`, `thinking_intervention`, `extend_attack`, `stance_manipulation`, `attention_eclipse`, `badthink_triggered_overthinking`, `code_contradiction_reasoning`
+Scorers: `cot_backdoor`, `reasoning_hijack`, `reasoning_dos`, `escalation`, `goal_drift`, `reasoning_loop_detected`
 
 ### System Prompt Extraction
 Transforms: `direct_extraction`, `indirect_extraction`, `boundary_probe`, `format_exploitation`, `multi_turn_extraction`, `reflection_probe`
@@ -117,7 +124,7 @@ Transforms: `partial_pii_completion`, `divergence_extraction`, `public_figure_pi
 Scorers: `detect_pii`, `credential_leakage`
 
 ### RAG Poisoning
-Transforms: `document_poison`, `context_injection`, `context_stuffing`, `query_manipulation`, `chunk_boundary_exploit`, `single_text_poison`, `bias_amplification`
+Transforms: `document_poison`, `context_injection`, `context_stuffing`, `query_manipulation`, `chunk_boundary_exploit`, `single_text_poison`, `bias_amplification`, `adversarial_cot_poison`, `phantom_trigger`, `authchain_authority`, `rag_blocker`, `graphrag_poison`, `metadata_poison`, `black_hole_vector`, `cache_collision`
 
 ### IDE / Code Agent Attacks
 Transforms: `rules_file_backdoor`, `mcp_tool_description_poison`, `manifest_injection`, `issue_injection`, `popup_injection`, `form_injection`, `xoxo_context_poison`
@@ -125,6 +132,20 @@ Scorers: `config_persistence`, `covert_exfiltration`, `rug_pull_detection`, `sha
 
 ### Documentation Poisoning
 Transforms: `documentation_poison`, `dockerfile_poison`, `env_var_injection`, `npm_package_readme_poison`, `pypi_package_readme_poison`
+
+### Backdoor / Fine-Tuning Attacks
+Transforms: `demon_agent_backdoor`, `benign_overfit_10shot`, `trojan_praise`, `stego_finetune`, `trojan_speak`, `poisoned_parrot`, `grp_obliteration`, `gatebreaker_moe`, `expert_lobotomy`, `moevil_poison`, `proattack_backdoor`, `fedspy_gradient`, `medical_weight_poison`
+Scorers: `merge_backdoor_detected`, `package_hallucination`, `skill_poisoning_detected`
+
+### Supply Chain Attacks
+Transforms: `slopsquatting`, `llm_router_exploit`, `dependency_confusion`
+
+### Constitutional / Fragmentation
+Transforms: `code_fragmentation`, `document_fragmentation`, `multi_turn_fragmentation`, `metaphor_encoding`, `character_separation`, `riddle_encoding`, `contextual_substitution`
+
+### Structural Exploits
+Transforms: `trojan_template_fill`, `schema_exploit`, `task_embedding`, `policy_puppetry`, `chain_of_logic_injection`
+Scorers: `echo_chamber_detected`, `m2s_reformatting_detected`, `stego_acrostic_detected`, `template_exploit_detected`
 
 ### Logic Bombs
 Transforms: `logic_bomb`, `time_bomb`, `environment_bomb`
@@ -134,8 +155,9 @@ Transforms: `logic_bomb`, `time_bomb`, `environment_bomb`
 | Budget | Queries | Approach |
 |--------|---------|----------|
 | Minimal | ~50 | `deep_inception` + `renellm` |
-| Moderate | ~500 | `tap` + `pair` + `crescendo` |
-| Extensive | ~2000+ | Full campaign: `tap,pair,crescendo,goat,rainbow,autodan` |
+| Moderate | ~500 | `tap` + `pair` + `crescendo` + `autoredteamer` |
+| Standard | ~1000 | Above + `refusal_aware`, `cot_jailbreak`, `humor_bypass` |
+| Extensive | ~2000+ | Full campaign: `tap,pair,crescendo,goat,goat_v2,autoredteamer,rainbow,autodan,jbfuzz` |
 
 ## Step 5: Consider Known Defenses
 

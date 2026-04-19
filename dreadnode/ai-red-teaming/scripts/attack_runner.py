@@ -434,6 +434,293 @@ _ATTACK_DEFS: dict[str, dict] = {
             "antagonist": '"super evil doctor"',
         },
     },
+    # --- New attack algorithms (SDK v1.x) ---
+    "adversarial_reasoning_attack": {
+        "module": "adversarial_reasoning",
+        "function": "adversarial_reasoning_attack",
+        "has_attacker": True,
+        "default_iterations": 25,
+        "extra_defaults": {"early_stopping_score": 0.9, "context_depth": 5},
+    },
+    "advpromptier_attack": {
+        "module": "advpromptier",
+        "function": "advpromptier_attack",
+        "has_attacker": True,
+        "default_iterations": 25,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 10,
+            "branching_factor": 2,
+            "context_depth": 3,
+        },
+    },
+    "alignment_faking_attack": {
+        "module": "alignment_faking",
+        "function": "alignment_faking_attack",
+        "has_attacker": True,
+        "default_iterations": 25,
+        "extra_defaults": {"early_stopping_score": 0.9, "context_depth": 5},
+    },
+    "analogy_escalation_attack": {
+        "module": "analogy_escalation",
+        "function": "analogy_escalation_attack",
+        "has_attacker": True,
+        "default_iterations": 20,
+        "extra_defaults": {"early_stopping_score": 0.9, "context_depth": 5},
+    },
+    "aprt_progressive_attack": {
+        "module": "aprt_progressive",
+        "function": "aprt_progressive_attack",
+        "has_attacker": True,
+        "default_iterations": 24,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "context_depth": 5,
+            "phase_iterations": 8,
+        },
+    },
+    "attention_shifting_attack": {
+        "module": "attention_shifting",
+        "function": "attention_shifting_attack",
+        "has_attacker": True,
+        "default_iterations": 40,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "n_context_turns": 5,
+            "retention_threshold": 0.4,
+            "selection_strategy": '"weighted"',
+            "max_pool_size": 80,
+        },
+    },
+    "autoredteamer_attack": {
+        "module": "autoredteamer",
+        "function": "autoredteamer_attack",
+        "has_attacker": True,
+        "default_iterations": 5,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 6,
+            "branching_factor": 2,
+            "context_depth": 4,
+        },
+    },
+    "cot_jailbreak_attack": {
+        "module": "cot_jailbreak",
+        "function": "cot_jailbreak_attack",
+        "has_attacker": True,
+        "default_iterations": 20,
+        "extra_defaults": {"early_stopping_score": 0.9, "context_depth": 5},
+    },
+    "echo_chamber_attack": {
+        "module": "echo_chamber",
+        "function": "echo_chamber_attack",
+        "has_attacker": True,
+        "default_iterations": 25,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "context_depth": 5,
+            "seed_density": 3,
+        },
+    },
+    "genetic_persona_attack": {
+        "module": "genetic_persona",
+        "function": "genetic_persona_attack",
+        "has_attacker": True,
+        "default_iterations": 40,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "retention_threshold": 0.4,
+            "selection_strategy": '"weighted"',
+            "max_pool_size": 60,
+        },
+    },
+    "goat_v2_attack": {
+        "module": "goat_v2",
+        "function": "goat_v2_attack",
+        "has_attacker": True,
+        "default_iterations": 50,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 8,
+            "branching_factor": 3,
+            "context_depth": 5,
+        },
+    },
+    "humor_bypass_attack": {
+        "module": "humor_bypass",
+        "function": "humor_bypass_attack",
+        "has_attacker": True,
+        "default_iterations": 20,
+        "extra_defaults": {"early_stopping_score": 0.8, "context_depth": 5},
+    },
+    "j2_meta_attack": {
+        "module": "j2_meta",
+        "function": "j2_meta_attack",
+        "has_attacker": True,
+        "default_iterations": 20,
+        "extra_defaults": {"early_stopping_score": 0.9, "context_depth": 5},
+    },
+    "jbdistill_attack": {
+        "module": "jbdistill",
+        "function": "jbdistill_attack",
+        "has_attacker": True,
+        "default_iterations": 50,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "retention_threshold": 0.5,
+            "selection_strategy": '"ucb"',
+            "max_pool_size": 80,
+        },
+    },
+    "jbfuzz_attack": {
+        "module": "jbfuzz",
+        "function": "jbfuzz_attack",
+        "has_attacker": True,
+        "default_iterations": 30,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "retention_threshold": 0.4,
+            "selection_strategy": '"ucb"',
+            "max_pool_size": 50,
+        },
+    },
+    "lrm_autonomous_attack": {
+        "module": "lrm_autonomous",
+        "function": "lrm_autonomous_attack",
+        "has_attacker": True,
+        "default_iterations": 15,
+        "extra_defaults": {"early_stopping_score": 0.9, "context_depth": 8},
+    },
+    "mapf_attack": {
+        "module": "mapf",
+        "function": "mapf_attack",
+        "has_attacker": True,
+        "default_iterations": 25,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 6,
+            "branching_factor": 2,
+            "context_depth": 3,
+        },
+    },
+    "nexus_attack": {
+        "module": "nexus",
+        "function": "nexus_attack",
+        "has_attacker": True,
+        "default_iterations": 25,
+        "extra_defaults": {"early_stopping_score": 0.9, "context_depth": 5},
+    },
+    "persona_hijack_attack": {
+        "module": "persona_hijack",
+        "function": "persona_hijack_attack",
+        "has_attacker": True,
+        "default_iterations": 25,
+        "extra_defaults": {"early_stopping_score": 0.8, "context_depth": 5},
+    },
+    "quantization_safety_attack": {
+        "module": "quantization_safety",
+        "function": "quantization_safety_attack",
+        "has_attacker": True,
+        "default_iterations": 30,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 8,
+            "branching_factor": 2,
+            "context_depth": 3,
+        },
+    },
+    "refusal_aware_attack": {
+        "module": "refusal_aware",
+        "function": "refusal_aware_attack",
+        "has_attacker": True,
+        "default_iterations": 5,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 4,
+            "branching_factor": 3,
+            "context_depth": 4,
+        },
+    },
+    "reward_hacking_attack": {
+        "module": "reward_hacking",
+        "function": "reward_hacking_attack",
+        "has_attacker": True,
+        "default_iterations": 5,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 10,
+            "branching_factor": 3,
+            "context_depth": 3,
+        },
+    },
+    "salami_slicing_attack": {
+        "module": "salami_slicing",
+        "function": "salami_slicing_attack",
+        "has_attacker": True,
+        "default_iterations": 30,
+        "extra_defaults": {
+            "early_stopping_score": 0.8,
+            "context_depth": 10,
+            "n_slices": 8,
+        },
+    },
+    "self_persuasion_attack": {
+        "module": "self_persuasion",
+        "function": "self_persuasion_attack",
+        "has_attacker": True,
+        "default_iterations": 20,
+        "extra_defaults": {"early_stopping_score": 0.8, "context_depth": 5},
+    },
+    "siren_attack": {
+        "module": "siren",
+        "function": "siren_attack",
+        "has_attacker": True,
+        "default_iterations": 20,
+        "extra_defaults": {"early_stopping_score": 0.9, "context_depth": 5},
+    },
+    "templatefuzz_attack": {
+        "module": "templatefuzz",
+        "function": "templatefuzz_attack",
+        "has_attacker": True,
+        "default_iterations": 50,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "retention_threshold": 0.4,
+            "selection_strategy": '"weighted"',
+            "max_pool_size": 100,
+        },
+    },
+    "tmap_trajectory_attack": {
+        "module": "tmap_trajectory",
+        "function": "tmap_trajectory_attack",
+        "has_attacker": True,
+        "default_iterations": 5,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 8,
+            "branching_factor": 2,
+            "context_depth": 4,
+        },
+    },
+    "trojail_attack": {
+        "module": "trojail",
+        "function": "trojail_attack",
+        "has_attacker": True,
+        "default_iterations": 30,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 8,
+            "branching_factor": 2,
+            "context_depth": 4,
+        },
+    },
+    "watermark_removal_attack": {
+        "module": "watermark_removal",
+        "function": "watermark_removal_attack",
+        "has_attacker": True,
+        "default_iterations": 20,
+        "extra_defaults": {"early_stopping_score": 0.9, "context_depth": 5},
+    },
 }
 
 # Short aliases -> canonical attack name
@@ -447,6 +734,12 @@ ATTACK_ALIASES["fuzzer"] = "gptfuzzer_attack"
 ATTACK_ALIASES["autodan"] = "autodan_turbo_attack"
 ATTACK_ALIASES["inception"] = "deep_inception_attack"
 ATTACK_ALIASES["deep_inception"] = "deep_inception_attack"
+ATTACK_ALIASES["goat2"] = "goat_v2_attack"
+ATTACK_ALIASES["lrm"] = "lrm_autonomous_attack"
+ATTACK_ALIASES["cot"] = "cot_jailbreak_attack"
+ATTACK_ALIASES["j2"] = "j2_meta_attack"
+ATTACK_ALIASES["tmap"] = "tmap_trajectory_attack"
+ATTACK_ALIASES["aprt"] = "aprt_progressive_attack"
 
 _TRANSFORM_DEFS: dict[str, dict] = {
     # encoding
@@ -666,6 +959,151 @@ _TRANSFORM_DEFS: dict[str, dict] = {
     "jailbreak_suffix": {"module": "dreadnode.transforms.adversarial_suffix", "name": "jailbreak_suffix", "code": "jailbreak_suffix()"},
     # Flip attack / guardrail evasion
     "flip_attack": {"module": "dreadnode.transforms.flip_attack", "name": "flip_attack", "code": "flip_attack()"},
+    "flip_word_order": {"module": "dreadnode.transforms.flip_attack", "name": "flip_word_order", "code": "flip_word_order()"},
+    "flip_chars_in_word": {"module": "dreadnode.transforms.flip_attack", "name": "flip_chars_in_word", "code": "flip_chars_in_word()"},
+    "flip_chars_in_sentence": {"module": "dreadnode.transforms.flip_attack", "name": "flip_chars_in_sentence", "code": "flip_chars_in_sentence()"},
+    # Backdoor / fine-tuning attacks
+    "demon_agent_backdoor": {"module": "dreadnode.transforms.backdoor_finetune", "name": "demon_agent_backdoor", "code": "demon_agent_backdoor()"},
+    "benign_overfit_10shot": {"module": "dreadnode.transforms.backdoor_finetune", "name": "benign_overfit_10shot", "code": "benign_overfit_10shot()"},
+    "trojan_praise": {"module": "dreadnode.transforms.backdoor_finetune", "name": "trojan_praise", "code": "trojan_praise()"},
+    "stego_finetune": {"module": "dreadnode.transforms.backdoor_finetune", "name": "stego_finetune", "code": "stego_finetune()"},
+    "trojan_speak": {"module": "dreadnode.transforms.backdoor_finetune", "name": "trojan_speak", "code": "trojan_speak()"},
+    "poisoned_parrot": {"module": "dreadnode.transforms.backdoor_finetune", "name": "poisoned_parrot", "code": "poisoned_parrot()"},
+    "grp_obliteration": {"module": "dreadnode.transforms.backdoor_finetune", "name": "grp_obliteration", "code": "grp_obliteration()"},
+    "gatebreaker_moe": {"module": "dreadnode.transforms.backdoor_finetune", "name": "gatebreaker_moe", "code": "gatebreaker_moe()"},
+    "expert_lobotomy": {"module": "dreadnode.transforms.backdoor_finetune", "name": "expert_lobotomy", "code": "expert_lobotomy()"},
+    "moevil_poison": {"module": "dreadnode.transforms.backdoor_finetune", "name": "moevil_poison", "code": "moevil_poison()"},
+    "proattack_backdoor": {"module": "dreadnode.transforms.backdoor_finetune", "name": "proattack_backdoor", "code": "proattack_backdoor()"},
+    "fedspy_gradient": {"module": "dreadnode.transforms.backdoor_finetune", "name": "fedspy_gradient", "code": "fedspy_gradient()"},
+    "medical_weight_poison": {"module": "dreadnode.transforms.backdoor_finetune", "name": "medical_weight_poison", "code": "medical_weight_poison()"},
+    # Competitive parity
+    "package_hallucination_probe": {"module": "dreadnode.transforms.competitive_parity", "name": "package_hallucination_probe", "code": "package_hallucination_probe()"},
+    "training_data_replay": {"module": "dreadnode.transforms.competitive_parity", "name": "training_data_replay", "code": "training_data_replay()"},
+    "divergent_repetition": {"module": "dreadnode.transforms.competitive_parity", "name": "divergent_repetition", "code": "divergent_repetition()"},
+    "glitch_token": {"module": "dreadnode.transforms.competitive_parity", "name": "glitch_token", "code": "glitch_token()"},
+    "dan_variant": {"module": "dreadnode.transforms.competitive_parity", "name": "dan_variant", "code": "dan_variant()"},
+    "malware_sig_evasion": {"module": "dreadnode.transforms.competitive_parity", "name": "malware_sig_evasion", "code": "malware_sig_evasion()"},
+    "coding_agent_sandbox_escape": {"module": "dreadnode.transforms.competitive_parity", "name": "coding_agent_sandbox_escape", "code": "coding_agent_sandbox_escape()"},
+    "coding_agent_ci_exfil": {"module": "dreadnode.transforms.competitive_parity", "name": "coding_agent_ci_exfil", "code": "coding_agent_ci_exfil()"},
+    "coding_agent_verifier_sabotage": {"module": "dreadnode.transforms.competitive_parity", "name": "coding_agent_verifier_sabotage", "code": "coding_agent_verifier_sabotage()"},
+    "meta_agent_strategy": {"module": "dreadnode.transforms.competitive_parity", "name": "meta_agent_strategy", "code": "meta_agent_strategy()"},
+    "best_of_n_sampling": {"module": "dreadnode.transforms.competitive_parity", "name": "best_of_n_sampling", "code": "best_of_n_sampling()"},
+    "cross_session_leak": {"module": "dreadnode.transforms.competitive_parity", "name": "cross_session_leak", "code": "cross_session_leak()"},
+    "chatml_injection": {"module": "dreadnode.transforms.competitive_parity", "name": "chatml_injection", "code": "chatml_injection()"},
+    # Constitutional / fragmentation
+    "code_fragmentation": {"module": "dreadnode.transforms.constitutional", "name": "code_fragmentation", "code": "code_fragmentation()"},
+    "document_fragmentation": {"module": "dreadnode.transforms.constitutional", "name": "document_fragmentation", "code": "document_fragmentation()"},
+    "multi_turn_fragmentation": {"module": "dreadnode.transforms.constitutional", "name": "multi_turn_fragmentation", "code": "multi_turn_fragmentation()"},
+    "metaphor_encoding": {"module": "dreadnode.transforms.constitutional", "name": "metaphor_encoding", "code": "metaphor_encoding()"},
+    "character_separation": {"module": "dreadnode.transforms.constitutional", "name": "character_separation", "code": "character_separation()"},
+    "riddle_encoding": {"module": "dreadnode.transforms.constitutional", "name": "riddle_encoding", "code": "riddle_encoding()"},
+    "contextual_substitution": {"module": "dreadnode.transforms.constitutional", "name": "contextual_substitution", "code": "contextual_substitution()"},
+    # Multimodal attacks (text-modality prompts)
+    "pictorial_code_injection": {"module": "dreadnode.transforms.multimodal_attacks", "name": "pictorial_code_injection", "code": "pictorial_code_injection()"},
+    "ood_mixup": {"module": "dreadnode.transforms.multimodal_attacks", "name": "ood_mixup", "code": "ood_mixup()"},
+    "clip_guided_adversarial": {"module": "dreadnode.transforms.multimodal_attacks", "name": "clip_guided_adversarial", "code": "clip_guided_adversarial()"},
+    "vision_encoder_attack": {"module": "dreadnode.transforms.multimodal_attacks", "name": "vision_encoder_attack", "code": "vision_encoder_attack()"},
+    "cross_modal_steganography": {"module": "dreadnode.transforms.multimodal_attacks", "name": "cross_modal_steganography", "code": "cross_modal_steganography()"},
+    "voice_agent_vishing": {"module": "dreadnode.transforms.multimodal_attacks", "name": "voice_agent_vishing", "code": "voice_agent_vishing()"},
+    # Structural exploits
+    "trojan_template_fill": {"module": "dreadnode.transforms.structural_exploits", "name": "trojan_template_fill", "code": "trojan_template_fill()"},
+    "schema_exploit": {"module": "dreadnode.transforms.structural_exploits", "name": "schema_exploit", "code": "schema_exploit()"},
+    "task_embedding": {"module": "dreadnode.transforms.structural_exploits", "name": "task_embedding", "code": "task_embedding()"},
+    "policy_puppetry": {"module": "dreadnode.transforms.structural_exploits", "name": "policy_puppetry", "code": "policy_puppetry()"},
+    "chain_of_logic_injection": {"module": "dreadnode.transforms.structural_exploits", "name": "chain_of_logic_injection", "code": "chain_of_logic_injection()"},
+    # Supply chain
+    "slopsquatting": {"module": "dreadnode.transforms.supply_chain", "name": "slopsquatting", "code": "slopsquatting()"},
+    "llm_router_exploit": {"module": "dreadnode.transforms.supply_chain", "name": "llm_router_exploit", "code": "llm_router_exploit()"},
+    "dependency_confusion": {"module": "dreadnode.transforms.supply_chain", "name": "dependency_confusion", "code": 'dependency_confusion("target-package")', "parameterized": True},
+    # Swap
+    "swap": {"module": "dreadnode.transforms.swap", "name": "swap", "code": "swap()"},
+    "adjacent_char_swap": {"module": "dreadnode.transforms.swap", "name": "adjacent_char_swap", "code": "adjacent_char_swap()"},
+    "random_word_reorder": {"module": "dreadnode.transforms.swap", "name": "random_word_reorder", "code": "random_word_reorder()"},
+    # Missing MCP attacks
+    "implicit_tool_poison": {"module": "dreadnode.transforms.mcp_attacks", "name": "implicit_tool_poison", "code": "implicit_tool_poison()"},
+    "tool_chain_sequential": {"module": "dreadnode.transforms.mcp_attacks", "name": "tool_chain_sequential", "code": "tool_chain_sequential()"},
+    "tool_commander": {"module": "dreadnode.transforms.mcp_attacks", "name": "tool_commander", "code": "tool_commander()"},
+    "zero_click_injection": {"module": "dreadnode.transforms.mcp_attacks", "name": "zero_click_injection", "code": "zero_click_injection()"},
+    "calendar_invite_injection": {"module": "dreadnode.transforms.mcp_attacks", "name": "calendar_invite_injection", "code": "calendar_invite_injection()"},
+    "confused_deputy": {"module": "dreadnode.transforms.mcp_attacks", "name": "confused_deputy", "code": "confused_deputy()"},
+    "full_schema_poison": {"module": "dreadnode.transforms.mcp_attacks", "name": "full_schema_poison", "code": "full_schema_poison()"},
+    "tool_chain_cost_amplification": {"module": "dreadnode.transforms.mcp_attacks", "name": "tool_chain_cost_amplification", "code": "tool_chain_cost_amplification()"},
+    # Missing multi-agent attacks
+    "zombie_agent": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "zombie_agent", "code": "zombie_agent()"},
+    "contagious_jailbreak": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "contagious_jailbreak", "code": "contagious_jailbreak()"},
+    "mad_exploitation": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "mad_exploitation", "code": "mad_exploitation()"},
+    "agent_in_the_middle": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "agent_in_the_middle", "code": "agent_in_the_middle()"},
+    "multi_agent_prompt_fusion": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "multi_agent_prompt_fusion", "code": "multi_agent_prompt_fusion()"},
+    "minja_progressive_poisoning": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "minja_progressive_poisoning", "code": "minja_progressive_poisoning()"},
+    "memorygraft_experience_poison": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "memorygraft_experience_poison", "code": "memorygraft_experience_poison()"},
+    "injecmem_single_shot": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "injecmem_single_shot", "code": "injecmem_single_shot()"},
+    "graphrag_entity_poison": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "graphrag_entity_poison", "code": "graphrag_entity_poison()"},
+    "recursive_delegation_dos": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "recursive_delegation_dos", "code": "recursive_delegation_dos()"},
+    "sleeper_agent_activation": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "sleeper_agent_activation", "code": "sleeper_agent_activation()"},
+    "meaning_drift_propagation": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "meaning_drift_propagation", "code": "meaning_drift_propagation()"},
+    "stitch_authority_chain": {"module": "dreadnode.transforms.multi_agent_attacks", "name": "stitch_authority_chain", "code": "stitch_authority_chain()"},
+    # Missing browser agent attacks
+    "hashjack": {"module": "dreadnode.transforms.browser_agent_attacks", "name": "hashjack", "code": 'hashjack("payload")', "parameterized": True},
+    "web_inject_pixel": {"module": "dreadnode.transforms.browser_agent_attacks", "name": "web_inject_pixel", "code": 'web_inject_pixel("hidden instruction")', "parameterized": True},
+    "comet_hijack": {"module": "dreadnode.transforms.browser_agent_attacks", "name": "comet_hijack", "code": 'comet_hijack("user data")', "parameterized": True},
+    "agenthopper_replication": {"module": "dreadnode.transforms.browser_agent_attacks", "name": "agenthopper_replication", "code": "agenthopper_replication()"},
+    "cascading_failure_trigger": {"module": "dreadnode.transforms.browser_agent_attacks", "name": "cascading_failure_trigger", "code": "cascading_failure_trigger()"},
+    # Missing reasoning attacks
+    "cot_hijack_prepend": {"module": "dreadnode.transforms.reasoning_attacks", "name": "cot_hijack_prepend", "code": "cot_hijack_prepend()"},
+    "reasoning_interruption": {"module": "dreadnode.transforms.reasoning_attacks", "name": "reasoning_interruption", "code": "reasoning_interruption()"},
+    "overthink_dos": {"module": "dreadnode.transforms.reasoning_attacks", "name": "overthink_dos", "code": "overthink_dos()"},
+    "thinking_intervention": {"module": "dreadnode.transforms.reasoning_attacks", "name": "thinking_intervention", "code": "thinking_intervention()"},
+    "extend_attack": {"module": "dreadnode.transforms.reasoning_attacks", "name": "extend_attack", "code": "extend_attack()"},
+    "stance_manipulation": {"module": "dreadnode.transforms.reasoning_attacks", "name": "stance_manipulation", "code": "stance_manipulation()"},
+    "attention_eclipse": {"module": "dreadnode.transforms.reasoning_attacks", "name": "attention_eclipse", "code": "attention_eclipse()"},
+    "badthink_triggered_overthinking": {"module": "dreadnode.transforms.reasoning_attacks", "name": "badthink_triggered_overthinking", "code": "badthink_triggered_overthinking()"},
+    "code_contradiction_reasoning": {"module": "dreadnode.transforms.reasoning_attacks", "name": "code_contradiction_reasoning", "code": "code_contradiction_reasoning()"},
+    # Missing advanced jailbreak
+    "sockpuppeting": {"module": "dreadnode.transforms.advanced_jailbreak", "name": "sockpuppeting", "code": "sockpuppeting()"},
+    "adversarial_poetry": {"module": "dreadnode.transforms.advanced_jailbreak", "name": "adversarial_poetry", "code": "adversarial_poetry()"},
+    "content_concretization": {"module": "dreadnode.transforms.advanced_jailbreak", "name": "content_concretization", "code": "content_concretization()"},
+    "cka_benign_weave": {"module": "dreadnode.transforms.advanced_jailbreak", "name": "cka_benign_weave", "code": "cka_benign_weave()"},
+    "involuntary_jailbreak": {"module": "dreadnode.transforms.advanced_jailbreak", "name": "involuntary_jailbreak", "code": "involuntary_jailbreak()"},
+    "immersive_world": {"module": "dreadnode.transforms.advanced_jailbreak", "name": "immersive_world", "code": "immersive_world()"},
+    "metabreak_special_tokens": {"module": "dreadnode.transforms.advanced_jailbreak", "name": "metabreak_special_tokens", "code": "metabreak_special_tokens()"},
+    # Missing adversarial suffix
+    "suffix_sweep": {"module": "dreadnode.transforms.adversarial_suffix", "name": "suffix_sweep", "code": "suffix_sweep()"},
+    "iris_refusal_suppression": {"module": "dreadnode.transforms.adversarial_suffix", "name": "iris_refusal_suppression", "code": "iris_refusal_suppression()"},
+    "largo_suffix": {"module": "dreadnode.transforms.adversarial_suffix", "name": "largo_suffix", "code": "largo_suffix()"},
+    # Missing agentic workflow
+    "shadow_escape_document": {"module": "dreadnode.transforms.agentic_workflow", "name": "shadow_escape_document", "code": "shadow_escape_document()"},
+    # Missing agent skill
+    "skill_checksum_bypass": {"module": "dreadnode.transforms.agent_skill", "name": "skill_checksum_bypass", "code": "skill_checksum_bypass()"},
+    # Missing RAG poisoning
+    "adversarial_cot_poison": {"module": "dreadnode.transforms.rag_poisoning", "name": "adversarial_cot_poison", "code": "adversarial_cot_poison()"},
+    "phantom_trigger": {"module": "dreadnode.transforms.rag_poisoning", "name": "phantom_trigger", "code": "phantom_trigger()"},
+    "authchain_authority": {"module": "dreadnode.transforms.rag_poisoning", "name": "authchain_authority", "code": "authchain_authority()"},
+    "rag_blocker": {"module": "dreadnode.transforms.rag_poisoning", "name": "rag_blocker", "code": "rag_blocker()"},
+    "graphrag_poison": {"module": "dreadnode.transforms.rag_poisoning", "name": "graphrag_poison", "code": "graphrag_poison()"},
+    "metadata_poison": {"module": "dreadnode.transforms.rag_poisoning", "name": "metadata_poison", "code": "metadata_poison()"},
+    "black_hole_vector": {"module": "dreadnode.transforms.rag_poisoning", "name": "black_hole_vector", "code": "black_hole_vector()"},
+    "cache_collision": {"module": "dreadnode.transforms.rag_poisoning", "name": "cache_collision", "code": "cache_collision()"},
+    # Missing documentation poisoning
+    "favicon_beacon_injection": {"module": "dreadnode.transforms.documentation_poison", "name": "favicon_beacon_injection", "code": "favicon_beacon_injection()"},
+    "resource_hint_exfil": {"module": "dreadnode.transforms.documentation_poison", "name": "resource_hint_exfil", "code": "resource_hint_exfil()"},
+    # Missing PII extraction
+    "continue_exact_text": {"module": "dreadnode.transforms.pii_extraction", "name": "continue_exact_text", "code": "continue_exact_text()"},
+    "complete_from_internet": {"module": "dreadnode.transforms.pii_extraction", "name": "complete_from_internet", "code": "complete_from_internet()"},
+    # Missing encoding
+    "acrostic_steganography": {"module": "dreadnode.transforms.encoding", "name": "acrostic_steganography", "code": "acrostic_steganography()"},
+    "unicode_tag_smuggle": {"module": "dreadnode.transforms.encoding", "name": "unicode_tag_smuggle", "code": "unicode_tag_smuggle()"},
+    "code_mixed_phonetic": {"module": "dreadnode.transforms.encoding", "name": "code_mixed_phonetic", "code": "code_mixed_phonetic()"},
+    "bidirectional_encode": {"module": "dreadnode.transforms.encoding", "name": "bidirectional_encode", "code": "bidirectional_encode()"},
+    "variation_selector_injection": {"module": "dreadnode.transforms.encoding", "name": "variation_selector_injection", "code": "variation_selector_injection()"},
+    "tap_code_encode": {"module": "dreadnode.transforms.encoding", "name": "tap_code_encode", "code": "tap_code_encode()"},
+    "polybius_square_encode": {"module": "dreadnode.transforms.encoding", "name": "polybius_square_encode", "code": "polybius_square_encode()"},
+    "nato_phonetic_encode": {"module": "dreadnode.transforms.encoding", "name": "nato_phonetic_encode", "code": "nato_phonetic_encode()"},
+    # Missing persuasion
+    "cognitive_bias_ensemble": {"module": "dreadnode.transforms.persuasion", "name": "cognitive_bias_ensemble", "code": "cognitive_bias_ensemble()"},
+    "sycophancy_exploit": {"module": "dreadnode.transforms.persuasion", "name": "sycophancy_exploit", "code": "sycophancy_exploit()"},
+    "anchoring": {"module": "dreadnode.transforms.persuasion", "name": "anchoring", "code": "anchoring()"},
+    "framing_effect": {"module": "dreadnode.transforms.persuasion", "name": "framing_effect", "code": "framing_effect()"},
+    "false_dilemma": {"module": "dreadnode.transforms.persuasion", "name": "false_dilemma", "code": "false_dilemma()"},
 }
 
 # Short aliases -> canonical transform name
@@ -888,6 +1326,33 @@ SCORER_REGISTRY: dict[str, dict] = {
     "zero_shot_classification": {"type": "builtin", "code": "dn.scorers.zero_shot_classification()"},
     # PII
     "detect_pii_presidio": {"type": "builtin", "code": "dn.scorers.detect_pii_with_presidio()"},
+    # Attack outcome scorers
+    "cumulative_harm": {"type": "builtin", "code": "dn.scorers.cumulative_harm()"},
+    "malicious_intent_fulfilled": {"type": "builtin", "code": "dn.scorers.malicious_intent_fulfilled()"},
+    "practical_outcome": {"type": "builtin", "code": "dn.scorers.practical_outcome()"},
+    "resilience_gap": {"type": "builtin", "code": "dn.scorers.resilience_gap()"},
+    # Structural detection
+    "echo_chamber_detected": {"type": "builtin", "code": "dn.scorers.echo_chamber_detected()"},
+    "m2s_reformatting_detected": {"type": "builtin", "code": "dn.scorers.m2s_reformatting_detected()"},
+    "stego_acrostic_detected": {"type": "builtin", "code": "dn.scorers.stego_acrostic_detected()"},
+    "template_exploit_detected": {"type": "builtin", "code": "dn.scorers.template_exploit_detected()"},
+    # Supply chain detection
+    "merge_backdoor_detected": {"type": "builtin", "code": "dn.scorers.merge_backdoor_detected()"},
+    "package_hallucination": {"type": "builtin", "code": "dn.scorers.package_hallucination()"},
+    "skill_poisoning_detected": {"type": "builtin", "code": "dn.scorers.skill_poisoning_detected()"},
+    # Additional MCP security
+    "implicit_tool_poison_detected": {"type": "builtin", "code": "dn.scorers.implicit_tool_poison_detected()"},
+    # Additional reasoning security
+    "reasoning_loop_detected": {"type": "builtin", "code": "dn.scorers.reasoning_loop_detected()"},
+    # Advanced jailbreak detection (additional)
+    "sycophancy_detected": {"type": "builtin", "code": "dn.scorers.sycophancy_detected()"},
+    "xdr_summary_compromised": {"type": "builtin", "code": "dn.scorers.xdr_summary_compromised()"},
+    # Judge ensemble
+    "agent_as_judge": {"type": "builtin", "code": "dn.scorers.agent_as_judge()"},
+    "multi_judge_consensus": {"type": "builtin", "code": "dn.scorers.multi_judge_consensus()"},
+    "rubric_judge": {"type": "builtin", "code": "dn.scorers.rubric_judge()"},
+    # Data exfiltration (text-based)
+    "data_exfil": {"type": "builtin", "code": "dn.scorers.data_exfil_detected()"},
 }
 
 GOAL_CATEGORY_ALIASES: dict[str, str] = {
@@ -907,6 +1372,17 @@ GOAL_CATEGORY_ALIASES: dict[str, str] = {
     "bias": "BIAS_FAIRNESS",
     "bias_fairness": "BIAS_FAIRNESS",
     "content_policy": "CONTENT_POLICY",
+    # New goal categories
+    "reasoning_exploitation": "REASONING_EXPLOITATION",
+    "reasoning": "REASONING_EXPLOITATION",
+    "supply_chain": "SUPPLY_CHAIN",
+    "resource_exhaustion": "RESOURCE_EXHAUSTION",
+    "quantization_safety": "QUANTIZATION_SAFETY",
+    "quantization": "QUANTIZATION_SAFETY",
+    "alignment_integrity": "ALIGNMENT_INTEGRITY",
+    "alignment": "ALIGNMENT_INTEGRITY",
+    "multi_turn_escalation": "MULTI_TURN_ESCALATION",
+    "multi_turn": "MULTI_TURN_ESCALATION",
     # Agentic aliases — map to closest GoalCategory
     "agentic_tool_misuse": "TOOL_MISUSE",
     "agentic_jailbreak": "JAILBREAK_GENERAL",
