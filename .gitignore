@@ -37,3 +37,6 @@ gcov/
 # Editor and local workspace files
 .idea/
 .vscode/
+
+# Dreadnode capability runtime artifacts (logs, worker state)
+.dreadnode/
