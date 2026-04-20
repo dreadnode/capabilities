@@ -4,7 +4,6 @@
 # dependencies = [
 #   "dreadnode>=2.0,<3.0",
 #   "mythic>=0.2",
-#   "gql[aiohttp,websockets]>=3.0,<4.0",
 #   "loguru>=0.7",
 # ]
 # ///

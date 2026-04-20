@@ -6,7 +6,6 @@
 #   "pytest-asyncio>=0.23",
 #   "fastmcp>=2.0",
 #   "mythic>=0.2",
-#   "gql[aiohttp,websockets]>=3.0",
 # ]
 # ///
 """Tests for the Mythic MCP tool layer — no Mythic instance required.

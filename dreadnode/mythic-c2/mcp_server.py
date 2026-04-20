@@ -4,7 +4,6 @@
 # dependencies = [
 #   "fastmcp>=2.0",
 #   "mythic>=0.2",
-#   "gql[aiohttp,websockets]>=3.0,<4.0",
 # ]
 # ///
 """Mythic C2 MCP server entry point.
