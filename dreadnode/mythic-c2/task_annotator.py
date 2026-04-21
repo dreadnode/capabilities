@@ -683,6 +683,30 @@ async def _ensure_session(client: RuntimeClient, session_id: str, agent: str) ->
             raise
 
 
+async def _run_analyzer(
+    client: RuntimeClient, *, session_key: str, user_message: str
+) -> dict[str, t.Any] | None:
+    """Shared path: run the task-analyzer agent and return a validated finding.
+
+    Returns ``None`` on turn failure, empty response, malformed JSON, or any
+    validation rejection. Finders pass their own ``session_key`` so the log
+    trail reflects which finder called it (task-output vs keylog vs file).
+    """
+    session_id = str(uuid5(_SESSION_NS, session_key))
+    await _ensure_session(client, session_id, ANALYZER_AGENT)
+    try:
+        result = await client.run_turn(
+            session_id=session_id, message=user_message, reset=True
+        )
+    except (TurnCancelledError, TurnFailedError) as exc:
+        logger.warning("analyzer: turn failed for {}: {}", session_key, exc)
+        return None
+    response_text = (result.get("response_text") or "").strip()
+    if not response_text:
+        return None
+    return _parse_finding(response_text)
+
+
 async def analyze_task(
     client: RuntimeClient, mythic: Mythic, task: dict[str, t.Any]
 ) -> bool:
@@ -695,22 +719,11 @@ async def analyze_task(
     decoded = await fetch_decoded_output(mythic, display_id)
     user_message = _build_user_message(task, decoded)
 
-    session_id = str(uuid5(_SESSION_NS, f"task:{task['id']}"))
-    await _ensure_session(client, session_id, ANALYZER_AGENT)
-
-    try:
-        result = await client.run_turn(
-            session_id=session_id, message=user_message, reset=True
-        )
-    except (TurnCancelledError, TurnFailedError) as exc:
-        logger.warning("analyzer: turn failed for task {}: {}", display_id, exc)
-        return False
-
-    response_text = (result.get("response_text") or "").strip()
-    if not response_text:
-        return False
-
-    finding = _parse_finding(response_text)
+    finding = await _run_analyzer(
+        client,
+        session_key=f"task:{task['id']}",
+        user_message=user_message,
+    )
     if finding is None:
         return False
 
@@ -720,6 +733,217 @@ async def analyze_task(
         finding["category"],
         finding["severity"],
         display_id,
+    )
+    return True
+
+
+# ── Keylog finder ───────────────────────────────────────────────────
+
+
+async def fetch_recent_keylogs(limit: int = 500) -> list[dict[str, t.Any]]:
+    data = await gql(
+        "query RecentKeylogs($limit: Int!) {"
+        "  keylog(order_by: {id: desc}, limit: $limit) {"
+        "    id keystrokes_text window user timestamp"
+        "    task { id display_id command_name comment"
+        "           callback { display_id host } }"
+        "  }"
+        "}",
+        {"limit": limit},
+    )
+    return data.get("keylog") or []
+
+
+def _build_keylog_message(task: dict[str, t.Any], rows: list[dict[str, t.Any]]) -> str:
+    cb = task.get("callback") or {}
+    lines = [
+        f"Task display_id: {task.get('display_id')}",
+        f"Command: {task.get('command_name')}",
+        f"Callback: display_id={cb.get('display_id')} host={cb.get('host')}",
+        "",
+        "This input is keylog data captured by the task. Each entry lists the",
+        "window title and user at the time of capture, then the keystrokes.",
+        "Look for credentials typed into login dialogs, command-line prompts,",
+        "or pasted into text fields — not routine navigation keystrokes.",
+        "Cite by window/user + the quoted substring.",
+        "",
+        "Keylog entries (oldest first):",
+    ]
+    rows_sorted = sorted(rows, key=lambda r: int(r.get("id") or 0))
+    for r in rows_sorted:
+        window = r.get("window") or "?"
+        user = r.get("user") or "?"
+        keys = r.get("keystrokes_text") or ""
+        keys_one_line = keys.replace("\n", "\\n").replace("\r", "\\r")
+        lines.append(
+            f"  id={r.get('id')} user={user} window={window!r}: {keys_one_line}"
+        )
+    return "\n".join(lines)
+
+
+async def analyze_keylog_batch(
+    client: RuntimeClient, task: dict[str, t.Any], rows: list[dict[str, t.Any]]
+) -> bool:
+    display_id = int(task.get("display_id") or 0)
+    if display_id == 0:
+        return False
+    if MARKER_PREFIX in (task.get("comment") or ""):
+        return False
+    if not rows:
+        return False
+
+    user_message = _build_keylog_message(task, rows)
+    finding = await _run_analyzer(
+        client,
+        session_key=f"keylog:task:{task['id']}",
+        user_message=user_message,
+    )
+    if finding is None:
+        return False
+
+    await write_finding(display_id=display_id, **finding)
+    logger.info(
+        "keylog finder: wrote {}/{} finding on task {} ({} keylog row(s))",
+        finding["category"],
+        finding["severity"],
+        display_id,
+        len(rows),
+    )
+    return True
+
+
+# ── File finder ─────────────────────────────────────────────────────
+
+
+FILE_SIZE_CAP_BYTES = 256 * 1024
+FILE_PRINTABLE_RATIO = 0.85
+
+
+async def fetch_recent_downloads(limit: int = 100) -> list[dict[str, t.Any]]:
+    data = await gql(
+        "query RecentDownloads($limit: Int!) {"
+        "  filemeta(where: {"
+        "    is_download_from_agent: {_eq: true},"
+        "    complete: {_eq: true},"
+        "    is_payload: {_eq: false}"
+        "  }, order_by: {id: desc}, limit: $limit) {"
+        "    id agent_file_id filename_utf8 full_remote_path_utf8 host"
+        "    md5 sha1 timestamp"
+        "    task { id display_id command_name comment"
+        "           callback { display_id host } }"
+        "  }"
+        "}",
+        {"limit": limit},
+    )
+    return data.get("filemeta") or []
+
+
+def _is_textual(body: bytes) -> bool:
+    if not body:
+        return False
+    try:
+        text = body.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    printable = sum(1 for ch in text if ch.isprintable() or ch in "\n\t\r ")
+    return (printable / max(len(text), 1)) >= FILE_PRINTABLE_RATIO
+
+
+def _decode_filename(raw: str | None) -> str:
+    """filename_utf8 and full_remote_path_utf8 arrive as JSON-encoded strings."""
+    if not raw:
+        return ""
+    try:
+        decoded = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return str(raw)
+    return (
+        str(decoded) if not isinstance(decoded, list) else "/".join(map(str, decoded))
+    )
+
+
+def _build_file_message(
+    task: dict[str, t.Any], file: dict[str, t.Any], body: str
+) -> str:
+    cb = task.get("callback") or {}
+    filename = _decode_filename(file.get("filename_utf8"))
+    remote_path = _decode_filename(file.get("full_remote_path_utf8"))
+    lines = [
+        f"Task display_id: {task.get('display_id')}",
+        f"Command: {task.get('command_name')}",
+        f"Callback: display_id={cb.get('display_id')} host={cb.get('host')}",
+        f"Downloaded file: {filename or '<unnamed>'}",
+        f"Remote path: {remote_path or '<unknown>'}",
+        f"Host: {file.get('host')}",
+        f"Size: {len(body)} bytes (may be truncated for analysis)",
+        f"md5: {file.get('md5')}",
+        "",
+        "This input is the textual contents of a file downloaded from a",
+        "compromised host. Look for secrets the file contains — credentials,",
+        "tokens, keys, or sensitive configuration. Cite by line number.",
+        "",
+        "File contents (line-numbered):",
+    ]
+    lines.append(
+        "\n".join(f"{i + 1:>5}: {line}" for i, line in enumerate(body.split("\n")))
+    )
+    return "\n".join(lines)
+
+
+async def analyze_file(
+    client: RuntimeClient, mythic: Mythic, file: dict[str, t.Any]
+) -> bool:
+    task = file.get("task") or {}
+    display_id = int(task.get("display_id") or 0)
+    if display_id == 0:
+        return False
+    if MARKER_PREFIX in (task.get("comment") or ""):
+        return False
+
+    agent_file_id = file.get("agent_file_id")
+    if not agent_file_id:
+        return False
+
+    try:
+        data = await mythic_sdk.download_file(mythic=mythic, file_uuid=agent_file_id)
+    except Exception:
+        logger.opt(exception=True).debug(
+            "file finder: download failed for agent_file_id={}", agent_file_id
+        )
+        return False
+    if not data:
+        return False
+
+    body_bytes = data[:FILE_SIZE_CAP_BYTES]
+    if not _is_textual(body_bytes):
+        logger.debug(
+            "file finder: skipping non-textual or too-sparse file id={} size={}",
+            file.get("id"),
+            len(data),
+        )
+        return False
+
+    body = body_bytes.decode("utf-8", errors="replace")
+    if len(data) > FILE_SIZE_CAP_BYTES:
+        body += f"\n[file truncated from {len(data)} bytes for analyzer]"
+
+    user_message = _build_file_message(task, file, body)
+    finding = await _run_analyzer(
+        client,
+        session_key=f"file:{file.get('id')}",
+        user_message=user_message,
+    )
+    if finding is None:
+        return False
+
+    await write_finding(display_id=display_id, **finding)
+    logger.info(
+        "file finder: wrote {}/{} finding on task {} ({} bytes of {})",
+        finding["category"],
+        finding["severity"],
+        display_id,
+        len(body_bytes),
+        _decode_filename(file.get("filename_utf8")) or agent_file_id,
     )
     return True
 
@@ -746,10 +970,29 @@ async def startup(client: RuntimeClient) -> None:
         logger.opt(exception=True).warning("reactor seed failed — poll will self-heal")
     worker.state["known_task_ids"] = seed
 
+    keylog_seed: set[int] = set()
+    try:
+        rows = await fetch_recent_keylogs()
+        keylog_seed = {int(r["id"]) for r in rows if r.get("id") is not None}
+    except Exception:
+        logger.opt(exception=True).warning("keylog seed failed — poll will self-heal")
+    worker.state["known_keylog_ids"] = keylog_seed
+
+    file_seed: set[int] = set()
+    try:
+        rows = await fetch_recent_downloads()
+        file_seed = {int(r["id"]) for r in rows if r.get("id") is not None}
+    except Exception:
+        logger.opt(exception=True).warning("file seed failed — poll will self-heal")
+    worker.state["known_file_ids"] = file_seed
+
     logger.info(
-        "mythic-c2 reactor ready | operation={} | seeded {} completed tasks",
+        "mythic-c2 reactor ready | operation={} | "
+        "seeded {} tasks / {} keylogs / {} files",
         current_op,
         len(seed),
+        len(keylog_seed),
+        len(file_seed),
     )
 
 
@@ -798,6 +1041,73 @@ async def poll_and_analyze(client: RuntimeClient) -> None:
             )
             continue
         known.add(tid)
+
+
+@worker.every(seconds=TICK_SECONDS)
+async def poll_keylogs(client: RuntimeClient) -> None:
+    try:
+        rows = await fetch_recent_keylogs()
+    except Exception:
+        logger.opt(exception=True).warning("keylog finder: poll failed")
+        return
+
+    known: set[int] = worker.state["known_keylog_ids"]
+    fresh = [r for r in rows if int(r.get("id") or 0) and int(r["id"]) not in known]
+    if not fresh:
+        return
+
+    # Group by owning task so we analyze a task's keystrokes as one batch.
+    by_task: dict[int, tuple[dict[str, t.Any], list[dict[str, t.Any]]]] = {}
+    for row in fresh:
+        task = row.get("task") or {}
+        task_id = int(task.get("id") or 0)
+        if not task_id:
+            continue
+        bucket = by_task.setdefault(task_id, (task, []))
+        bucket[1].append(row)
+
+    logger.info(
+        "keylog finder: {} fresh row(s) across {} task(s)",
+        sum(len(v[1]) for v in by_task.values()),
+        len(by_task),
+    )
+    for _, (task, rows_for_task) in by_task.items():
+        try:
+            await analyze_keylog_batch(client, task, rows_for_task)
+        except Exception:
+            logger.opt(exception=True).warning(
+                "keylog finder: analyze failed for task display_id={}",
+                task.get("display_id"),
+            )
+            continue
+        known.update(int(r["id"]) for r in rows_for_task if r.get("id") is not None)
+
+
+@worker.every(seconds=TICK_SECONDS)
+async def poll_downloads(client: RuntimeClient) -> None:
+    mythic: Mythic = worker.state["mythic"]
+    try:
+        rows = await fetch_recent_downloads()
+    except Exception:
+        logger.opt(exception=True).warning("file finder: poll failed")
+        return
+
+    known: set[int] = worker.state["known_file_ids"]
+    fresh = [r for r in rows if int(r.get("id") or 0) and int(r["id"]) not in known]
+    if not fresh:
+        return
+
+    logger.info("file finder: {} fresh download(s) this tick", len(fresh))
+    for file in fresh:
+        fid = int(file["id"])
+        try:
+            await analyze_file(client, mythic, file)
+        except Exception:
+            logger.opt(exception=True).warning(
+                "file finder: analyze failed for file id={}", fid
+            )
+            continue
+        known.add(fid)
 
 
 @worker.every(seconds=CORRELATOR_TICK_SECONDS)
