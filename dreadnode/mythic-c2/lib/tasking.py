@@ -72,20 +72,28 @@ async def list_callback_commands(
     payload = rows[0].get("payload") or {}
     payloadtype = payload.get("payloadtype") or {}
     commands = payloadtype.get("commands") or []
-    return [
-        clean(
-            {
-                "cmd": c.get("cmd"),
-                "description": c.get("description"),
-                "required_params": [
-                    p.get("name")
-                    for p in (c.get("commandparameters") or [])
-                    if p.get("name")
-                ],
-            }
+    result_list: list[dict[str, Any]] = []
+    for c in commands:
+        # Mythic stores one commandparameter row per parameter-group presentation
+        # (String, File, etc.), so the same parameter name can appear multiple
+        # times across groups. Dedup while preserving encounter order.
+        required = list(
+            dict.fromkeys(
+                p.get("name")
+                for p in (c.get("commandparameters") or [])
+                if p.get("name")
+            )
         )
-        for c in commands
-    ]
+        result_list.append(
+            clean(
+                {
+                    "cmd": c.get("cmd"),
+                    "description": c.get("description"),
+                    "required_params": required,
+                }
+            )
+        )
+    return result_list
 
 
 async def get_command_details(

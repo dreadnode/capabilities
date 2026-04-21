@@ -111,7 +111,8 @@ async def list_callbacks(
                 display_id, host, user, domain, integrity_level, ip, external_ip,
                 os, architecture, pid, process_name, description, extra_info, sleep_info,
                 active, last_checkin, init_callback,
-                payload {{ os, uuid, description, payloadtype {{ name }} }}
+                payload {{ os, uuid, description, payloadtype {{ name }} }},
+                tags {{ source, data, tagtype {{ name, color, description }} }}
             }}
         }}
         """,
@@ -145,7 +146,8 @@ async def get_callback(
                     os, uuid, description,
                     payloadtype { name },
                     payloadc2profiles { c2profile { name, is_p2p } }
-                }
+                },
+                tags { source, data, tagtype { name, color, description } }
             }
         }
         """,
@@ -163,7 +165,8 @@ async def get_callback(
 _TASK_ATTRS = (
     "id,display_id,command_name,original_params,display_params,"
     "status,completed,timestamp,comment,"
-    "operator{username},callback{display_id,host}"
+    "operator{username},callback{display_id,host},"
+    "tags{source,data,tagtype{name,color,description}}"
 )
 
 
@@ -224,7 +227,8 @@ async def get_task(
                 id, display_id, command_name, original_params, display_params,
                 status, completed, timestamp, comment,
                 operator { username },
-                callback { display_id, host }
+                callback { display_id, host },
+                tags { source, data, tagtype { name, color, description } }
             }
         }
         """,
@@ -398,7 +402,8 @@ async def list_credentials(
                 id, type, realm, account, credential_text, comment, timestamp,
                 operator { username },
                 task { id, display_id, command_name,
-                       callback { display_id, host } }
+                       callback { display_id, host } },
+                tags { source, data, tagtype { name, color, description } }
             }
         }
         """,

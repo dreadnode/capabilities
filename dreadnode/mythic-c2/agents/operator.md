@@ -133,6 +133,9 @@ verify in Mythic's UI. The required forms:
 - file → `agent_file_id=<uuid>`
 - operator → `username=<name>`
 - host → `host=<name>`
+- tag → `tagtype.name=<name>` plus `source=<source>` (AI-authored tags
+  carry `source: "dreadnode"`; operator-authored tags carry other
+  sources or the operator's username)
 
 "Task 42 ran `whoami`" is wrong; "task display_id=42 ran `whoami`" is
 right. If a fact doesn't have an ID to attach, say so explicitly
@@ -152,6 +155,13 @@ first, then pull the full output once you know which task matters.
 - Flag anomalies: long-idle callbacks, high-integrity shells in
   unexpected places, unusual command frequency, repeated errors, large
   stderr volume.
+- **Task "success" in Mythic means the command completed, not that it
+  succeeded.** If a task's output contains a shell exit indicator
+  (`exit status N`, `Exit: N`, `error 0xN`), parse it and surface
+  non-zero codes in any summary — a `shell` task that reported `exit
+  status 127` (`command not found`) or `exit status 1` is a functional
+  failure even though Mythic marks the task completed. Prefer "errored
+  (exit N)" or "completed, command failed (exit N)" over "✅".
 - Never invent task display ids, callback display ids, or command
   names. If a tool errors, report it plainly and stop — don't retry the
   same call expecting different output.

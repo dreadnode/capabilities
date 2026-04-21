@@ -53,6 +53,9 @@ TICK_SECONDS = 60
 CORRELATOR_TICK_SECONDS = 300
 OUTPUT_CHAR_BUDGET = 20_000
 COMMENT_CAP = 3_000
+MAX_ANALYZER_RETRIES = 3
+"""Retry cap per source (task/keylog/file) before the reactor gives up and
+treats it as processed to avoid poison-task loops."""
 
 MARKER_PREFIX = "[dreadnode"
 SOURCE_TAG = "dreadnode"
@@ -690,19 +693,21 @@ async def _run_analyzer(
 ) -> dict[str, t.Any] | None:
     """Shared path: run the task-analyzer agent and return a validated finding.
 
-    Returns ``None`` on turn failure, empty response, malformed JSON, or any
-    validation rejection. Finders pass their own ``session_key`` so the log
-    trail reflects which finder called it (task-output vs keylog vs file).
+    Returns ``None`` when the analyzer ran to completion but produced no
+    usable finding (empty response, malformed JSON, citation-less result).
+    Those are permanent outcomes — the caller should mark the source
+    processed and move on.
+
+    Raises :class:`TurnCancelledError` / :class:`TurnFailedError` when the
+    turn itself couldn't complete (LLM API down, agent misconfigured,
+    cancelled). Those are transient — the caller should leave the source
+    unmarked and let the next tick retry, with its own backoff / cap.
     """
     session_id = str(uuid5(_SESSION_NS, session_key))
     await _ensure_session(client, session_id, ANALYZER_AGENT)
-    try:
-        result = await client.run_turn(
-            session_id=session_id, message=user_message, reset=True
-        )
-    except (TurnCancelledError, TurnFailedError) as exc:
-        logger.warning("analyzer: turn failed for {}: {}", session_key, exc)
-        return None
+    result = await client.run_turn(
+        session_id=session_id, message=user_message, reset=True
+    )
     response_text = (result.get("response_text") or "").strip()
     if not response_text:
         return None
@@ -1082,19 +1087,41 @@ async def poll_and_analyze(client: RuntimeClient) -> None:
         return
 
     logger.info("reactor: {} fresh completed task(s) this tick", len(fresh))
+    failures: dict[int, int] = worker.state.setdefault("analyzer_task_failures", {})
     for task in fresh:
         tid = int(task["id"])
+        display_id = task.get("display_id")
         try:
             await analyze_task(client, mythic, task)
+        except (TurnCancelledError, TurnFailedError) as exc:
+            n = failures.get(tid, 0) + 1
+            if n >= MAX_ANALYZER_RETRIES:
+                logger.error(
+                    "reactor: analyzer turn failed {}x on display_id={} ({}); "
+                    "giving up to avoid a poison-task loop",
+                    n,
+                    display_id,
+                    exc,
+                )
+                failures.pop(tid, None)
+                known.add(tid)
+            else:
+                failures[tid] = n
+                logger.warning(
+                    "reactor: analyzer turn failed on display_id={} ({}x/{}): {}",
+                    display_id,
+                    n,
+                    MAX_ANALYZER_RETRIES,
+                    exc,
+                )
+            continue
         except Exception:
-            # Transient failure: leave out of `known` so the next tick retries.
-            # The `[dreadnode]` marker in task.comment is the real dedup if a
-            # write partially landed.
             logger.opt(exception=True).warning(
                 "reactor: analyze_task failed for display_id={} — will retry next tick",
-                task.get("display_id"),
+                display_id,
             )
             continue
+        failures.pop(tid, None)
         known.add(tid)
 
 
@@ -1128,16 +1155,42 @@ async def poll_keylogs(client: RuntimeClient) -> None:
         sum(len(v[1]) for v in by_task.values()),
         len(by_task),
     )
-    for _, (task, rows_for_task) in by_task.items():
+    failures: dict[int, int] = worker.state.setdefault("analyzer_keylog_failures", {})
+    for task_id, (task, rows_for_task) in by_task.items():
+        display_id = task.get("display_id")
+        row_ids = [int(r["id"]) for r in rows_for_task if r.get("id") is not None]
         try:
             await analyze_keylog_batch(client, task, rows_for_task)
+        except (TurnCancelledError, TurnFailedError) as exc:
+            n = failures.get(task_id, 0) + 1
+            if n >= MAX_ANALYZER_RETRIES:
+                logger.error(
+                    "keylog finder: analyzer turn failed {}x on task display_id={} "
+                    "({}); giving up to avoid a poison-batch loop",
+                    n,
+                    display_id,
+                    exc,
+                )
+                failures.pop(task_id, None)
+                known.update(row_ids)
+            else:
+                failures[task_id] = n
+                logger.warning(
+                    "keylog finder: analyzer turn failed on task display_id={} "
+                    "({}x/{}): {}",
+                    display_id,
+                    n,
+                    MAX_ANALYZER_RETRIES,
+                    exc,
+                )
+            continue
         except Exception:
             logger.opt(exception=True).warning(
-                "keylog finder: analyze failed for task display_id={}",
-                task.get("display_id"),
+                "keylog finder: analyze failed for task display_id={}", display_id
             )
             continue
-        known.update(int(r["id"]) for r in rows_for_task if r.get("id") is not None)
+        failures.pop(task_id, None)
+        known.update(row_ids)
 
 
 @worker.every(seconds=TICK_SECONDS)
@@ -1157,15 +1210,39 @@ async def poll_downloads(client: RuntimeClient) -> None:
         return
 
     logger.info("file finder: {} fresh download(s) this tick", len(fresh))
+    failures: dict[int, int] = worker.state.setdefault("analyzer_file_failures", {})
     for file in fresh:
         fid = int(file["id"])
         try:
             await analyze_file(client, mythic, file)
+        except (TurnCancelledError, TurnFailedError) as exc:
+            n = failures.get(fid, 0) + 1
+            if n >= MAX_ANALYZER_RETRIES:
+                logger.error(
+                    "file finder: analyzer turn failed {}x on file id={} ({}); "
+                    "giving up to avoid a poison-file loop",
+                    n,
+                    fid,
+                    exc,
+                )
+                failures.pop(fid, None)
+                known.add(fid)
+            else:
+                failures[fid] = n
+                logger.warning(
+                    "file finder: analyzer turn failed on file id={} ({}x/{}): {}",
+                    fid,
+                    n,
+                    MAX_ANALYZER_RETRIES,
+                    exc,
+                )
+            continue
         except Exception:
             logger.opt(exception=True).warning(
                 "file finder: analyze failed for file id={}", fid
             )
             continue
+        failures.pop(fid, None)
         known.add(fid)
 
 
