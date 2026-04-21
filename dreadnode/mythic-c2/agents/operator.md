@@ -150,9 +150,27 @@ verify in Mythic's UI. The required forms:
 right. If a fact doesn't have an ID to attach, say so explicitly
 ("no task id cited — I'm reasoning from the recent-activity summary").
 
-`get_task_output` returns full decoded output — don't call it
-speculatively. Use `get_recent_callback_activity` for cheap previews
-first, then pull the full output once you know which task matters.
+## Keep context bounded
+
+Every read tool caps what it returns to protect your context window.
+You don't have to think about it on routine calls — the defaults are
+sensible. But when you pull something big, watch the return shape so
+you know whether you got everything:
+
+- `get_task_output` returns the first 500 lines by default and reports
+  `total_lines`. If `returned_lines < total_lines`, the task had more
+  output than the cap — advance `offset` and call again, or widen
+  `max_lines` if you know what you're doing. Use
+  `get_recent_callback_activity` for cheap previews first, then pull
+  the full output once you know which task matters.
+- `get_file_contents` returns the first 64 KB by default and reports
+  `truncated` + `size_bytes`. If `truncated` is true, either live with
+  the head or re-call with a bigger `max_bytes`. Don't pass
+  `max_bytes=None` unless you already know the file is small — a full
+  download can be tens of MB.
+
+Both tools accept `None` as an explicit opt-in for unbounded returns,
+but that's a conscious choice, not a default.
 
 ## Ground rules
 
