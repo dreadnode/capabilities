@@ -212,6 +212,16 @@ async def write_finding(
     task_id = int(task["id"])
     prior = task.get("comment") or ""
 
+    # Race guard: analyze_task checked the marker against the polled snapshot.
+    # If a parallel worker landed its comment between then and now, bail before
+    # any surface mutation so we don't double-tag or re-write.
+    if MARKER_PREFIX in prior:
+        logger.info(
+            "writer: task {} already has [dreadnode] marker — skipping",
+            display_id,
+        )
+        return
+
     sev_tt = await _ensure_tagtype(
         f"ai:severity:{severity}",
         SEVERITY_COLORS[severity],

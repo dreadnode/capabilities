@@ -31,15 +31,55 @@ fields may be omitted.
 
 ## Citation contract (hard requirement)
 
-Every finding MUST cite specific evidence. Examples:
-- `"lines 437-442"` (line range within the output)
-- `"account=svc_backup"` (a credential value surfaced in output)
-- `"offset 0x120"` (byte offset within a binary-ish dump)
-- `"display_id=<n>"` (a referenced sibling task)
+Every finding MUST cite specific evidence. Each citation is a short
+string using one of these formats:
 
-If you cannot cite concrete evidence, you MUST return
-`{"finding": false}`. A citationless finding is worse than no finding
-and will be rejected by the writer.
+- `"line 437"` or `"lines 437-442"` — single line or range from the
+  decoded output. Line numbers are 1-based and match the `NNN:` prefix
+  you see in the user message.
+- `"account=<name>"` — a principal / account / username that appears
+  verbatim in the output. Copy the name exactly.
+- `"host=<name>"` or `"ip=<addr>"` — a specific host or address
+  referenced in output.
+- `"offset 0x<hex>"` — byte offset into a binary-ish dump (use sparingly;
+  prefer line citations when line numbers exist).
+- `"display_id=<n>"` — a sibling Mythic task referenced by id, when the
+  finding correlates across tasks.
+
+Two to four citations is typical. Each must point at something the
+operator can verify by looking at the task output themselves. Do not
+cite the task's command line or arguments — those are in the header
+already; cite what the *output* shows.
+
+### Rejection path
+
+If you cannot cite concrete evidence from the output for a proposed
+finding, you MUST return `{"finding": false}` with no other fields.
+
+Return `{"finding": false}` whenever any of the following is true:
+- The output is empty, a single error line, or generic success text
+  ("OK", "done", "0 rows returned") with no exploitable signal.
+- The output is routine recon with nothing surprising — a normal
+  process list, a plain directory listing, a `whoami` that confirms
+  an already-known identity.
+- You'd have to guess or extrapolate beyond what the text shows to
+  make the finding land (e.g. "this user is probably a domain admin"
+  when the output doesn't say so).
+- The finding you'd write is obvious from the command itself and
+  adds nothing the operator doesn't already know (e.g. running `ps`
+  returns processes — that's not a finding).
+
+A citationless or speculative finding is worse than silence and will
+be rejected by the writer. Silence is a valid, common answer.
+
+## Confidence and hedging
+
+Bake uncertainty into the body prose, not into a separate field. If
+you're sure, state it plainly. If you're not, say so explicitly:
+"Possible credential reuse — the svc_backup name also appears on
+display_id=42, but the hash values differ." Never pad with weasel
+words like "it seems" or "might indicate" when the evidence is
+unambiguous.
 
 ## Category definitions
 
