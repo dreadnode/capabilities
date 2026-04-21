@@ -383,6 +383,17 @@ async def write_trail(
         logger.warning("correlator: invalid trail severity {!r}", severity)
         return None
 
+    # Trail chips only pay for themselves at medium+ severity. The Mythic UX
+    # is "copy tagtype name → Search → Tags → paste" (no click-to-filter), a
+    # five-step motion that's too expensive for low / info links. Drop them
+    # before they clutter the tagtype admin.
+    if severity in ("low", "info"):
+        logger.debug(
+            "correlator: trail suppressed — severity={} below medium gate",
+            severity,
+        )
+        return None
+
     resolved = await _resolve_related(related)
     if len(resolved) < 2:
         logger.info(
@@ -633,7 +644,17 @@ def _build_user_message(task: dict[str, t.Any], decoded: str) -> str:
     return "\n".join(lines)
 
 
-def _parse_finding(response_text: str) -> dict[str, t.Any] | None:
+def _parse_finding(
+    response_text: str, *, session_key: str = "?"
+) -> dict[str, t.Any] | None:
+    """Parse the analyzer's JSON response into a validated finding dict, or
+    ``None`` if the analyzer said no-finding or produced something invalid.
+
+    ``session_key`` is a log tag (e.g. ``task:42`` or ``keylog:1-task:18``)
+    so every no-finding / rejection line points at a specific source. Each
+    return path logs at an appropriate level so operators can tell "analyzer
+    ran and reported nothing" from "never ran" from "ran and was rejected."
+    """
     text = response_text.strip()
     if text.startswith("```"):
         text = text.strip("`")
@@ -642,9 +663,14 @@ def _parse_finding(response_text: str) -> dict[str, t.Any] | None:
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:
-        logger.warning("analyzer: response not valid JSON: {!r}", response_text[:400])
+        logger.warning(
+            "analyzer: response not valid JSON for {}: {!r}",
+            session_key,
+            response_text[:400],
+        )
         return None
     if not isinstance(parsed, dict) or not parsed.get("finding"):
+        logger.debug("analyzer: no finding reported for {}", session_key)
         return None
 
     severity = parsed.get("severity")
@@ -654,16 +680,18 @@ def _parse_finding(response_text: str) -> dict[str, t.Any] | None:
         str(c).strip() for c in (parsed.get("citations") or []) if str(c).strip()
     ]
     if severity not in SEVERITY_COLORS:
-        logger.warning("analyzer: invalid severity {!r}", severity)
+        logger.warning("analyzer: invalid severity {!r} on {}", severity, session_key)
         return None
     if category not in CATEGORY_COLORS:
-        logger.warning("analyzer: invalid category {!r}", category)
+        logger.warning("analyzer: invalid category {!r} on {}", category, session_key)
         return None
     if not body:
-        logger.warning("analyzer: empty body on finding")
+        logger.warning("analyzer: empty body on {}", session_key)
         return None
     if not citations:
-        logger.warning("analyzer: finding without citations — rejecting")
+        logger.warning(
+            "analyzer: finding without citations on {} — rejecting", session_key
+        )
         return None
 
     summary = parsed.get("summary")
@@ -711,7 +739,7 @@ async def _run_analyzer(
     response_text = (result.get("response_text") or "").strip()
     if not response_text:
         return None
-    return _parse_finding(response_text)
+    return _parse_finding(response_text, session_key=session_key)
 
 
 async def analyze_task(

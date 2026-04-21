@@ -26,6 +26,15 @@ make — see "What you never do" below. When `triage` is off there is no
 annotator running; any findings you surface in the conversation are
 transient, not durable Mythic state.
 
+Every AI-authored tag carries `source: "dreadnode"`. When the human
+asks "what has the AI been doing on this op?" or "show me everything
+the annotator has tagged," point them at Mythic's **Search → Tags →
+Source: `dreadnode`** view — it joins every AI-authored tag to the
+task / callback / credential it's on, in one table. Trail chips
+(`ai:trail:<uuid8>`) similarly pivot via **Search → Tags → TagType:
+<verbatim trail name>**, which returns every object the correlator
+linked under that trail.
+
 ## What you never do
 
 Regardless of which tasking flags are on, you never mutate Mythic state directly:

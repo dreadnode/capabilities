@@ -207,7 +207,7 @@ async def list_tasks(
 
 async def get_task(
     task_display_id: Annotated[int, "Task display ID"],
-) -> dict[str, Any] | None:
+) -> dict[str, Any]:
     """Look up a single task by display ID without pulling its output.
 
     Cheap metadata lookup — use when you need to know which command a task
@@ -218,7 +218,12 @@ async def get_task(
         task_display_id: The number shown in Mythic's UI for this task.
 
     Returns:
-        Task dict, or ``None`` if the task does not exist.
+        Task dict.
+
+    Raises:
+        LookupError: If no task has that display ID. Distinguishable from
+            right-id-no-data at the caller (FastMCP surfaces the raised
+            exception as a tool-call error).
     """
     result = await gql(
         """
@@ -236,7 +241,7 @@ async def get_task(
     )
     rows = result.get("task") or []
     if not rows:
-        return None
+        raise LookupError(f"task display_id={task_display_id} not found")
     return clean(rows[0])
 
 
@@ -244,7 +249,7 @@ async def get_task_output(
     task_display_id: Annotated[int, "Task display ID"],
     max_lines: Annotated[int | None, "Return at most N lines"] = None,
     offset: Annotated[int, "Skip N lines before returning"] = 0,
-) -> dict[str, Any] | None:
+) -> dict[str, Any]:
     """Get decoded task output with optional line paging.
 
     Output chunks are base64-decoded and concatenated in the order Mythic
@@ -258,21 +263,37 @@ async def get_task_output(
 
     Returns:
         Dict with ``task_id``, ``total_lines``, ``offset``, ``returned_lines``,
-        ``output``. ``None`` if the task has no output.
+        ``output``. A task that ran and produced no output returns a dict
+        with ``total_lines: 0`` and ``output: ""`` — that's the valid
+        "right id, no data" signal.
+
+    Raises:
+        LookupError: If no task has that display ID (Mythic returned no
+            rows at all). Distinguishable from a task with empty output.
     """
+    # Explicit existence check — the SDK returns an empty list for both
+    # "task doesn't exist" and "task exists but has no output", and we want
+    # those to surface differently. One extra cheap GraphQL call isolates it.
+    exists = await gql(
+        "query TaskExists($display_id: Int!) {"
+        "  task(where: {display_id: {_eq: $display_id}}, limit: 1) { id }"
+        "}",
+        {"display_id": task_display_id},
+    )
+    if not (exists.get("task") or []):
+        raise LookupError(f"task display_id={task_display_id} not found")
+
     client = await ensure_connected()
     responses = await mythic_sdk.get_all_task_and_subtask_output_by_id(
         mythic=client, task_display_id=task_display_id
     )
-    if not responses:
-        return None
 
     parts = [
         decode_b64(str(text))
-        for r in responses
+        for r in (responses or [])
         if (text := r.get("response_text") or r.get("response"))
     ]
-    lines = "\n".join(parts).split("\n")
+    lines = "\n".join(parts).split("\n") if parts else []
     stop = offset + max_lines if max_lines is not None else None
     sliced = lines[offset:stop]
 

@@ -43,7 +43,11 @@ async def list_callback_commands(
     Returns:
         Sorted list of ``{cmd, description, required_params}`` dicts.
         ``required_params`` is a list of parameter names marked required in
-        Mythic. Empty list if the callback doesn't exist.
+        Mythic. Empty list only if the callback's payload type genuinely
+        exposes no commands — a nonexistent callback raises.
+
+    Raises:
+        LookupError: If no callback has that display ID.
     """
     result = await gql(
         """
@@ -68,7 +72,7 @@ async def list_callback_commands(
     )
     rows = result.get("callback") or []
     if not rows:
-        return []
+        raise LookupError(f"callback display_id={callback_display_id} not found")
     payload = rows[0].get("payload") or {}
     payloadtype = payload.get("payloadtype") or {}
     commands = payloadtype.get("commands") or []
@@ -99,7 +103,7 @@ async def list_callback_commands(
 async def get_command_details(
     callback_display_id: Annotated[int, "Callback display ID"],
     command: Annotated[str, "Command name from list_callback_commands"],
-) -> dict[str, Any] | None:
+) -> dict[str, Any]:
     """Full parameter schema for one command on a callback's payload type.
 
     Call this after picking a command from :func:`list_callback_commands`
@@ -113,8 +117,11 @@ async def get_command_details(
 
     Returns:
         ``{cmd, description, help_cmd, parameters: [{name, cli_name, display_name,
-        description, type, required, default_value}]}``, or ``None`` if the
-        callback doesn't exist or the command isn't valid for its payload type.
+        description, type, required, default_value}]}``.
+
+    Raises:
+        LookupError: If the callback doesn't exist, or the command name isn't
+            valid for the callback's payload type.
     """
     result = await gql(
         """
@@ -145,12 +152,15 @@ async def get_command_details(
     )
     rows = result.get("callback") or []
     if not rows:
-        return None
+        raise LookupError(f"callback display_id={callback_display_id} not found")
     commands = ((rows[0].get("payload") or {}).get("payloadtype") or {}).get(
         "commands"
     ) or []
     if not commands:
-        return None
+        raise LookupError(
+            f"command {command!r} not valid for callback "
+            f"display_id={callback_display_id}'s payload type"
+        )
     c = commands[0]
     return clean(
         {
