@@ -30,6 +30,8 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import os
+import sys
 import typing as t
 from datetime import datetime, timezone
 from uuid import NAMESPACE_URL, uuid5
@@ -1121,5 +1123,15 @@ async def correlate(client: RuntimeClient) -> None:
         logger.info("correlator: wrote {} new trail(s) this tick", written)
 
 
+TRIAGE_ENV = "CAPABILITY_FLAG__MYTHIC_C2__TRIAGE"
+
+
 if __name__ == "__main__":
+    if os.environ.get(TRIAGE_ENV, "0") != "1":
+        logger.info(
+            "mythic-c2: triage flag off — annotator worker exiting cleanly. "
+            "Flip the capability's 'triage' flag on to enable AI analysis "
+            "of completed tasks, keylogs, downloads, and cross-object trails."
+        )
+        sys.exit(0)
     worker.run()

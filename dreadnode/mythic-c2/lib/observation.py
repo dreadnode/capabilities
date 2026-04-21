@@ -42,7 +42,9 @@ async def get_status() -> dict[str, Any]:
 
     Returns:
         Dict with ``current_operation``, ``username``, ``apollo`` (True when
-        Apollo tasking tools are registered alongside the observation surface).
+        Apollo tasking tools are registered alongside the observation surface),
+        and ``triage`` (True when the annotator worker is running and writing
+        AI findings onto task comments / tags / event log / ai:trail tags).
     """
     client = await ensure_connected()
     cfg = current_config()
@@ -52,6 +54,7 @@ async def get_status() -> dict[str, Any]:
         "current_operation": hook.get("current_operation", "unknown"),
         "username": hook.get("username", cfg["username"]),
         "apollo": os.environ.get("CAPABILITY_FLAG__MYTHIC_C2__APOLLO", "0") == "1",
+        "triage": os.environ.get("CAPABILITY_FLAG__MYTHIC_C2__TRIAGE", "0") == "1",
     }
 
 
