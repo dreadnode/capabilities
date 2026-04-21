@@ -31,7 +31,7 @@ mcp:
         MYTHIC_SERVER_IP: "${MYTHIC_SERVER_IP:-127.0.0.1}"
         MYTHIC_SERVER_PORT: "${MYTHIC_SERVER_PORT:-}"
         MYTHIC_USERNAME: "${MYTHIC_USERNAME:-mythic_admin}"
-        MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-99ad3KbWa7I2ZfI1l8bfiC6cLoBI45}"
+        MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-}"
         MYTHIC_API_TOKEN: "${MYTHIC_API_TOKEN:-}"
         MYTHIC_TIMEOUT: "${MYTHIC_TIMEOUT:-}"
         MYTHIC_DATA_DIR: "${MYTHIC_DATA_DIR:-}"
@@ -39,21 +39,12 @@ mcp:
 workers:
   task-annotator:
     command: "uv"
-    # TEMP: --with-editable points at local SDK dev tree to pick up worker
-    # logging + ERROR exit fix before the next dreadnode PyPI release.
-    # Revert to ["run", "${CAPABILITY_ROOT}/task_annotator.py"] before commit.
-    args:
-      [
-        "run",
-        "--with-editable",
-        "/Users/nick/code/dreadnode-tiger-bar/packages/sdk",
-        "${CAPABILITY_ROOT}/task_annotator.py",
-      ]
+    args: ["run", "${CAPABILITY_ROOT}/task_annotator.py"]
     env:
       MYTHIC_SERVER_IP: "${MYTHIC_SERVER_IP:-127.0.0.1}"
       MYTHIC_SERVER_PORT: "${MYTHIC_SERVER_PORT:-}"
       MYTHIC_USERNAME: "${MYTHIC_USERNAME:-mythic_admin}"
-      MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-99ad3KbWa7I2ZfI1l8bfiC6cLoBI45}"
+      MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-}"
       MYTHIC_API_TOKEN: "${MYTHIC_API_TOKEN:-}"
       MYTHIC_TIMEOUT: "${MYTHIC_TIMEOUT:-}"
 
