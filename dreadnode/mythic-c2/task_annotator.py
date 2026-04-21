@@ -48,13 +48,24 @@ from mythic.mythic_classes import Mythic
 # ── Constants ───────────────────────────────────────────────────────
 
 TICK_SECONDS = 60
+CORRELATOR_TICK_SECONDS = 300
 OUTPUT_CHAR_BUDGET = 20_000
 COMMENT_CAP = 3_000
 
 MARKER_PREFIX = "[dreadnode"
 SOURCE_TAG = "dreadnode"
+TRAIL_PREFIX = "ai:trail:"
+TRAIL_COLOR = "#283593"
+
 ANALYZER_AGENT = "task-analyzer"
+CORRELATOR_AGENT = "correlator"
 _SESSION_NS = uuid5(NAMESPACE_URL, "mythic-c2/task-output-finder")
+_CORRELATOR_NS = uuid5(NAMESPACE_URL, "mythic-c2/correlator")
+
+CORRELATOR_FINDINGS_LIMIT = 50
+CORRELATOR_CALLBACKS_LIMIT = 100
+CORRELATOR_CREDENTIALS_LIMIT = 100
+CORRELATOR_BODY_PREVIEW = 300
 
 COMPLETED_TASK_ATTRS = (
     "id,display_id,command_name,status,completed,timestamp,comment,"
@@ -165,6 +176,51 @@ async def _apply_task_tag(tagtype_id: int, *, task_id: int, note: str) -> None:
     )
 
 
+async def _apply_callback_tag(tagtype_id: int, *, callback_id: int, note: str) -> None:
+    await gql(
+        "mutation ApplyCallbackTag($tagtype_id: Int!, $callback_id: Int!, $data: jsonb!, $source: String!) {"
+        "  insert_tag_one(object: {"
+        '    tagtype_id: $tagtype_id, callback_id: $callback_id, data: $data, source: $source, url: ""'
+        "  }) { id }"
+        "}",
+        {
+            "tagtype_id": tagtype_id,
+            "callback_id": callback_id,
+            "data": {"note": note} if note else {},
+            "source": SOURCE_TAG,
+        },
+    )
+
+
+async def _apply_credential_tag(
+    tagtype_id: int, *, credential_id: int, note: str
+) -> None:
+    await gql(
+        "mutation ApplyCredentialTag($tagtype_id: Int!, $credential_id: Int!, $data: jsonb!, $source: String!) {"
+        "  insert_tag_one(object: {"
+        '    tagtype_id: $tagtype_id, credential_id: $credential_id, data: $data, source: $source, url: ""'
+        "  }) { id }"
+        "}",
+        {
+            "tagtype_id": tagtype_id,
+            "credential_id": credential_id,
+            "data": {"note": note} if note else {},
+            "source": SOURCE_TAG,
+        },
+    )
+
+
+async def _callback_by_display_id(display_id: int) -> dict[str, t.Any] | None:
+    data = await gql(
+        "query GetCallback($display_id: Int!) {"
+        "  callback(where: {display_id: {_eq: $display_id}}, limit: 1) { id display_id }"
+        "}",
+        {"display_id": display_id},
+    )
+    rows = data.get("callback") or []
+    return rows[0] if rows else None
+
+
 async def _create_event_log(message: str, level: str) -> None:
     await gql(
         "mutation CreateEventLog($message: String!, $level: String!) {"
@@ -251,6 +307,303 @@ async def write_finding(
     )
 
 
+# ── Trail writer (cross-object correlator) ─────────────────────────
+
+
+async def _existing_trails() -> set[str]:
+    data = await gql(
+        "query TrailTagTypes($prefix: String!) {"
+        "  tagtype(where: {name: {_like: $prefix}}) { name }"
+        "}",
+        {"prefix": f"{TRAIL_PREFIX}%"},
+    )
+    return {row["name"] for row in (data.get("tagtype") or [])}
+
+
+def _trail_uuid8(resolved: list[tuple[str, int]]) -> str:
+    sig = json.dumps(sorted(resolved), separators=(",", ":"))
+    return uuid5(NAMESPACE_URL, sig).hex[:8]
+
+
+async def _resolve_related(
+    related: list[dict[str, t.Any]],
+) -> list[tuple[str, int]]:
+    resolved: list[tuple[str, int]] = []
+    for item in related:
+        kind = item.get("kind")
+        if kind == "task":
+            display_id = int(item.get("display_id") or 0)
+            if not display_id:
+                continue
+            task = await _task_by_display_id(display_id)
+            if task is not None:
+                resolved.append(("task", int(task["id"])))
+        elif kind == "callback":
+            display_id = int(item.get("display_id") or 0)
+            if not display_id:
+                continue
+            cb = await _callback_by_display_id(display_id)
+            if cb is not None:
+                resolved.append(("callback", int(cb["id"])))
+        elif kind == "credential":
+            cred_id = int(item.get("id") or 0)
+            if cred_id:
+                resolved.append(("credential", cred_id))
+    # De-duplicate (same kind/id listed twice) while preserving order
+    seen: set[tuple[str, int]] = set()
+    out: list[tuple[str, int]] = []
+    for pair in resolved:
+        if pair in seen:
+            continue
+        seen.add(pair)
+        out.append(pair)
+    return out
+
+
+async def write_trail(
+    *,
+    related: list[dict[str, t.Any]],
+    severity: str,
+    body: str,
+    summary: str | None,
+) -> str | None:
+    """Link ≥2 related objects under one ``ai:trail:<uuid8>`` tag.
+
+    Resolves display_ids to primary ids, keys the tagtype off the sorted
+    related-set so the same link is idempotent across ticks, applies the
+    tag to every object, and drops one event-log entry. Returns the
+    trail uuid, or ``None`` if the trail was dedup-skipped or under-sized.
+    """
+    if severity not in SEVERITY_COLORS:
+        logger.warning("correlator: invalid trail severity {!r}", severity)
+        return None
+
+    resolved = await _resolve_related(related)
+    if len(resolved) < 2:
+        logger.info(
+            "correlator: trail collapsed to <2 objects after resolve — skipping"
+        )
+        return None
+
+    trail_id = _trail_uuid8(resolved)
+    name = f"{TRAIL_PREFIX}{trail_id}"
+    description = (summary or body)[:240]
+    tagtype_id = await _ensure_tagtype(name, TRAIL_COLOR, description)
+
+    for kind, rid in resolved:
+        try:
+            if kind == "task":
+                await _apply_task_tag(tagtype_id, task_id=rid, note="trail")
+            elif kind == "callback":
+                await _apply_callback_tag(tagtype_id, callback_id=rid, note="trail")
+            elif kind == "credential":
+                await _apply_credential_tag(tagtype_id, credential_id=rid, note="trail")
+        except Exception:
+            logger.opt(exception=True).warning(
+                "correlator: tag apply failed for {}={} on trail {}",
+                kind,
+                rid,
+                trail_id,
+            )
+
+    if summary:
+        level = "warning" if severity in ("critical", "high") else "info"
+        await _create_event_log(f"[dreadnode] trail {trail_id}: {summary}", level=level)
+
+    logger.info(
+        "correlator: wrote trail {} over {} objects ({})",
+        trail_id,
+        len(resolved),
+        ", ".join(f"{k}={i}" for k, i in resolved),
+    )
+    return trail_id
+
+
+# ── Correlator dispatch ─────────────────────────────────────────────
+
+
+async def _fetch_findings_for_correlator() -> list[dict[str, t.Any]]:
+    data = await gql(
+        "query FindingsOnTasks($prefix: String!, $limit: Int!) {"
+        "  task(where: {comment: {_like: $prefix}}, "
+        "       order_by: {id: desc}, limit: $limit) {"
+        "    id display_id command_name comment"
+        "    callback { display_id host user }"
+        "  }"
+        "}",
+        {"prefix": f"{MARKER_PREFIX}%", "limit": CORRELATOR_FINDINGS_LIMIT},
+    )
+    return data.get("task") or []
+
+
+async def _fetch_active_callbacks_for_correlator() -> list[dict[str, t.Any]]:
+    data = await gql(
+        "query ActiveCallbacks($limit: Int!) {"
+        "  callback(where: {active: {_eq: true}}, limit: $limit) {"
+        "    id display_id host user integrity_level pid process_name domain"
+        "  }"
+        "}",
+        {"limit": CORRELATOR_CALLBACKS_LIMIT},
+    )
+    return data.get("callback") or []
+
+
+async def _fetch_credentials_for_correlator() -> list[dict[str, t.Any]]:
+    data = await gql(
+        "query AllCredentials($limit: Int!) {"
+        "  credential(order_by: {id: desc}, limit: $limit) {"
+        "    id type realm account credential_text comment"
+        "    task { display_id callback { display_id host } }"
+        "  }"
+        "}",
+        {"limit": CORRELATOR_CREDENTIALS_LIMIT},
+    )
+    return data.get("credential") or []
+
+
+def _build_correlator_message(
+    findings: list[dict[str, t.Any]],
+    callbacks: list[dict[str, t.Any]],
+    credentials: list[dict[str, t.Any]],
+    existing_trail_names: set[str],
+) -> str:
+    parts: list[str] = [
+        "Correlate findings, callbacks, and credentials for the current "
+        "Mythic operation. Each entry below includes its identifier — use "
+        "those exact values when you propose trails."
+    ]
+
+    if existing_trail_names:
+        parts.append("")
+        parts.append(
+            f"Existing trails ({len(existing_trail_names)}) — already tagged; "
+            "do NOT re-propose the same related-set (the writer will dedup "
+            "these anyway, but you waste tokens):"
+        )
+        parts.extend(f"  - {name}" for name in sorted(existing_trail_names))
+
+    parts.append("")
+    parts.append(f"Findings ({len(findings)}) — prior AI comments on tasks:")
+    for r in findings:
+        body_preview = (r.get("comment") or "").replace("\n", " ")[
+            :CORRELATOR_BODY_PREVIEW
+        ]
+        cb = r.get("callback") or {}
+        parts.append(
+            f"  task display_id={r.get('display_id')} "
+            f"cmd={r.get('command_name')} "
+            f"callback={cb.get('display_id')}@{cb.get('host')}/"
+            f"{cb.get('user')} : {body_preview}"
+        )
+
+    parts.append("")
+    parts.append(f"Active callbacks ({len(callbacks)}):")
+    for cb in callbacks:
+        parts.append(
+            f"  callback display_id={cb.get('display_id')} "
+            f"host={cb.get('host')} user={cb.get('user')} "
+            f"domain={cb.get('domain')} integrity={cb.get('integrity_level')} "
+            f"process={cb.get('process_name')} pid={cb.get('pid')}"
+        )
+
+    parts.append("")
+    parts.append(f"Credentials ({len(credentials)}):")
+    for c in credentials:
+        task = c.get("task") or {}
+        cb = task.get("callback") or {}
+        text_preview = (c.get("credential_text") or "")[:80]
+        parts.append(
+            f"  credential id={c.get('id')} type={c.get('type')} "
+            f"account={c.get('account')} realm={c.get('realm')} "
+            f"text={text_preview!r} "
+            f"from task={task.get('display_id')} "
+            f"callback={cb.get('display_id')}@{cb.get('host')}"
+        )
+
+    return "\n".join(parts)
+
+
+def _parse_trails(response_text: str) -> list[dict[str, t.Any]]:
+    text = response_text.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.lower().startswith("json"):
+            text = text[4:].lstrip()
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        logger.warning("correlator: response not valid JSON: {!r}", response_text[:400])
+        return []
+    if isinstance(parsed, dict) and isinstance(parsed.get("trails"), list):
+        return parsed["trails"]
+    return []
+
+
+async def run_correlator(client: RuntimeClient) -> int:
+    findings = await _fetch_findings_for_correlator()
+    callbacks = await _fetch_active_callbacks_for_correlator()
+    credentials = await _fetch_credentials_for_correlator()
+
+    non_empty = sum(1 for s in (findings, callbacks, credentials) if s)
+    if non_empty < 2:
+        logger.debug(
+            "correlator: only {} source(s) non-empty — skipping tick", non_empty
+        )
+        return 0
+
+    existing = await _existing_trails()
+    user_message = _build_correlator_message(findings, callbacks, credentials, existing)
+
+    session_id = str(_CORRELATOR_NS)
+    await _ensure_session(client, session_id, CORRELATOR_AGENT)
+
+    try:
+        result = await client.run_turn(
+            session_id=session_id, message=user_message, reset=True
+        )
+    except (TurnCancelledError, TurnFailedError) as exc:
+        logger.warning("correlator: turn failed: {}", exc)
+        return 0
+
+    trails = _parse_trails((result.get("response_text") or "").strip())
+    if not trails:
+        return 0
+
+    written = 0
+    for trail in trails:
+        related = trail.get("related") or []
+        severity = trail.get("severity")
+        body = (trail.get("body") or "").strip()
+        summary_raw = trail.get("summary")
+        summary = (
+            summary_raw.strip()
+            if isinstance(summary_raw, str) and summary_raw.strip()
+            else None
+        )
+        if not body or severity not in SEVERITY_COLORS or not related:
+            logger.warning(
+                "correlator: dropping malformed trail proposal: "
+                "severity={!r} body_len={} related_len={}",
+                severity,
+                len(body),
+                len(related) if isinstance(related, list) else -1,
+            )
+            continue
+        try:
+            tid = await write_trail(
+                related=related,
+                severity=severity,
+                body=body,
+                summary=summary,
+            )
+        except Exception:
+            logger.opt(exception=True).warning("correlator: write_trail raised")
+            continue
+        if tid:
+            written += 1
+    return written
+
+
 # ── Analyzer dispatch ───────────────────────────────────────────────
 
 
@@ -319,10 +672,10 @@ def _parse_finding(response_text: str) -> dict[str, t.Any] | None:
     }
 
 
-async def _ensure_session(client: RuntimeClient, session_id: str) -> None:
+async def _ensure_session(client: RuntimeClient, session_id: str, agent: str) -> None:
     try:
         await client.create_session(
-            capability="mythic-c2", agent=ANALYZER_AGENT, session_id=session_id
+            capability="mythic-c2", agent=agent, session_id=session_id
         )
     except Exception as exc:
         msg = str(exc).lower()
@@ -343,7 +696,7 @@ async def analyze_task(
     user_message = _build_user_message(task, decoded)
 
     session_id = str(uuid5(_SESSION_NS, f"task:{task['id']}"))
-    await _ensure_session(client, session_id)
+    await _ensure_session(client, session_id, ANALYZER_AGENT)
 
     try:
         result = await client.run_turn(
@@ -445,6 +798,17 @@ async def poll_and_analyze(client: RuntimeClient) -> None:
             )
             continue
         known.add(tid)
+
+
+@worker.every(seconds=CORRELATOR_TICK_SECONDS)
+async def correlate(client: RuntimeClient) -> None:
+    try:
+        written = await run_correlator(client)
+    except Exception:
+        logger.opt(exception=True).warning("correlator: tick failed")
+        return
+    if written:
+        logger.info("correlator: wrote {} new trail(s) this tick", written)
 
 
 if __name__ == "__main__":
