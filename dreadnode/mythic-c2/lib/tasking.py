@@ -1,0 +1,171 @@
+"""Generic Mythic tasking tools — payload-type agnostic.
+
+Registered onto the shared FastMCP instance only when the ``tasking``
+capability flag is on. Works for any payload type Mythic knows about
+(Apollo, Poseidon, Merlin, Athena, Freyja, Atlas, Apfell, Medusa, Tetanus,
+etc.) because the tasking RPC (``issue_task_and_waitfor_task_output``) is
+generic — the payload type only constrains which ``command`` names are
+valid for a given callback.
+
+This module is not a replacement for ``apollo.py``. ``apollo.py`` stays
+as the Apollo-specific orchestration layer — multi-step workflows like
+``sharphound_and_download`` and ``powershell_script`` that aren't single
+Mythic commands. Use ``tasking`` for one-shot generic tasking; turn on
+``apollo`` when you need Apollo-specific workflows.
+"""
+
+from __future__ import annotations
+
+from typing import Annotated, Any
+
+from fastmcp import FastMCP
+from mythic import mythic as mythic_sdk
+
+from .mythic_api import clean, current_config, ensure_connected, gql, truncate
+
+
+async def list_callback_commands(
+    callback_display_id: Annotated[int, "Callback display ID"],
+) -> list[dict[str, Any]]:
+    """List the commands available for a callback's payload type.
+
+    Mirrors the Mythic task-bar autocomplete: lookup is by payload type, so
+    every Apollo callback shares one catalog and every Poseidon callback
+    shares another. Call this before ``issue_task`` to discover valid
+    ``command`` names and their parameter schemas.
+
+    Args:
+        callback_display_id: The number shown in Mythic's UI for the callback.
+
+    Returns:
+        Sorted list of ``{cmd, description, help_cmd, parameters}`` dicts.
+        ``parameters`` is a list of ``{name, cli_name, display_name, description,
+        type, required, default_value}`` entries in Mythic's UI display order.
+        Empty list if the callback doesn't exist.
+    """
+    result = await gql(
+        """
+        query CallbackCommands($display_id: Int!) {
+            callback(where: {display_id: {_eq: $display_id}}, limit: 1) {
+                payload {
+                    payloadtype {
+                        name
+                        commands(where: {deleted: {_eq: false}}, order_by: {cmd: asc}) {
+                            cmd
+                            description
+                            help_cmd
+                            commandparameters(order_by: {ui_position: asc}) {
+                                name
+                                cli_name
+                                display_name
+                                description
+                                type
+                                required
+                                default_value
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        """,
+        {"display_id": callback_display_id},
+    )
+    rows = result.get("callback") or []
+    if not rows:
+        return []
+    payload = rows[0].get("payload") or {}
+    payloadtype = payload.get("payloadtype") or {}
+    commands = payloadtype.get("commands") or []
+    return [
+        clean(
+            {
+                "cmd": c.get("cmd"),
+                "description": c.get("description"),
+                "help_cmd": c.get("help_cmd"),
+                "parameters": [
+                    clean(
+                        {
+                            "name": p.get("name"),
+                            "cli_name": p.get("cli_name"),
+                            "display_name": p.get("display_name"),
+                            "description": p.get("description"),
+                            "type": p.get("type"),
+                            "required": p.get("required"),
+                            "default_value": p.get("default_value"),
+                        }
+                    )
+                    for p in (c.get("commandparameters") or [])
+                ],
+            }
+        )
+        for c in commands
+    ]
+
+
+async def issue_task(
+    callback_display_id: Annotated[int, "Callback display ID"],
+    command: Annotated[
+        str,
+        "Command name valid for the callback's payload type — use list_callback_commands to discover",
+    ],
+    parameters: Annotated[
+        str | dict[str, Any],
+        "Command arguments — typically a dict keyed by parameter name; some commands accept a plain string",
+    ] = "",
+    timeout: Annotated[
+        int | None, "Task timeout in seconds; uses Mythic default if unset"
+    ] = None,
+) -> str:
+    """Issue one command against a callback and return the task output.
+
+    Payload-type agnostic. ``command`` must be valid for the callback's
+    payload type (see ``list_callback_commands``). Raises RuntimeError on
+    transport / auth failure. A successful task with no output returns a
+    short "no output" message rather than raising — that's a valid command
+    result, not a failure.
+
+    Args:
+        callback_display_id: The number shown in Mythic's UI.
+        command: Command name (payload-type specific — e.g. ``shell`` on
+            Poseidon, ``powershell`` on Apollo).
+        parameters: Either a dict keyed by parameter name, or a plain
+            string for commands that take one positional argument.
+        timeout: Override Mythic's default timeout (seconds).
+
+    Returns:
+        Decoded command output, truncated if it exceeds
+        :data:`lib.mythic_api.MAX_OUTPUT_CHARS`.
+    """
+    client = await ensure_connected()
+    cfg = current_config()
+    effective_timeout = timeout if timeout is not None else cfg["timeout"]
+    try:
+        output_bytes = await mythic_sdk.issue_task_and_waitfor_task_output(
+            mythic=client,
+            command_name=command,
+            parameters=parameters,
+            callback_display_id=callback_display_id,
+            timeout=effective_timeout,
+        )
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to task '{command}' on callback {callback_display_id}: {exc}"
+        ) from exc
+
+    if not output_bytes:
+        return f"Command '{command}' returned no output."
+
+    text = str(
+        output_bytes.decode() if isinstance(output_bytes, bytes) else output_bytes
+    )
+    return truncate(text)
+
+
+_TOOLS = [list_callback_commands, issue_task]
+
+
+def register(mcp: FastMCP) -> None:
+    """Register every generic tasking tool onto the provided FastMCP instance."""
+    for fn in _TOOLS:
+        mcp.tool(fn)

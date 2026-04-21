@@ -11,8 +11,14 @@ description: >
   severity/category tags, and the operation event log.
 
 flags:
+  tasking:
+    description: Register the generic payload-type-agnostic tasking surface (``issue_task`` + ``list_callback_commands``). Works for any Mythic payload type (Apollo, Poseidon, Merlin, etc.). Off by default — pull-mode chat runs observation-only.
+    default: false
   apollo:
-    description: Register the Apollo post-exploitation tasking tools alongside the observation surface. Off by default — pull-mode chat runs observation-only.
+    description: Register Apollo-specific orchestration helpers (multi-step workflows that aren't single Mythic commands, e.g. ``sharphound_and_download``, ``powershell_script``). Independent of ``tasking`` — both can be on. Off by default.
+    default: false
+  triage:
+    description: Run the annotator worker that reviews completed tasks, keylogs, and downloads in the background and writes AI findings onto Mythic (task comments, severity/category tags, event log, cross-object ai:trail tags). Off by default — worker exits cleanly on boot when unset.
     default: false
 
 mcp:
@@ -22,10 +28,10 @@ mcp:
       args: ["run", "${CAPABILITY_ROOT}/mcp_server.py"]
       init_timeout: 30
       env:
-        MYTHIC_SERVER_IP: "${MYTHIC_SERVER_IP:-}"
+        MYTHIC_SERVER_IP: "${MYTHIC_SERVER_IP:-127.0.0.1}"
         MYTHIC_SERVER_PORT: "${MYTHIC_SERVER_PORT:-}"
-        MYTHIC_USERNAME: "${MYTHIC_USERNAME:-}"
-        MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-}"
+        MYTHIC_USERNAME: "${MYTHIC_USERNAME:-mythic_admin}"
+        MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-99ad3KbWa7I2ZfI1l8bfiC6cLoBI45}"
         MYTHIC_API_TOKEN: "${MYTHIC_API_TOKEN:-}"
         MYTHIC_TIMEOUT: "${MYTHIC_TIMEOUT:-}"
         MYTHIC_DATA_DIR: "${MYTHIC_DATA_DIR:-}"
@@ -33,12 +39,21 @@ mcp:
 workers:
   task-annotator:
     command: "uv"
-    args: ["run", "${CAPABILITY_ROOT}/task_annotator.py"]
+    # TEMP: --with-editable points at local SDK dev tree to pick up worker
+    # logging + ERROR exit fix before the next dreadnode PyPI release.
+    # Revert to ["run", "${CAPABILITY_ROOT}/task_annotator.py"] before commit.
+    args:
+      [
+        "run",
+        "--with-editable",
+        "/Users/nick/code/dreadnode-tiger-bar/packages/sdk",
+        "${CAPABILITY_ROOT}/task_annotator.py",
+      ]
     env:
-      MYTHIC_SERVER_IP: "${MYTHIC_SERVER_IP:-}"
+      MYTHIC_SERVER_IP: "${MYTHIC_SERVER_IP:-127.0.0.1}"
       MYTHIC_SERVER_PORT: "${MYTHIC_SERVER_PORT:-}"
-      MYTHIC_USERNAME: "${MYTHIC_USERNAME:-}"
-      MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-}"
+      MYTHIC_USERNAME: "${MYTHIC_USERNAME:-mythic_admin}"
+      MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-99ad3KbWa7I2ZfI1l8bfiC6cLoBI45}"
       MYTHIC_API_TOKEN: "${MYTHIC_API_TOKEN:-}"
       MYTHIC_TIMEOUT: "${MYTHIC_TIMEOUT:-}"
 

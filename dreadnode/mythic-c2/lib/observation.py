@@ -41,10 +41,12 @@ async def get_status() -> dict[str, Any]:
     context the agent needs to orient itself.
 
     Returns:
-        Dict with ``current_operation``, ``username``, ``apollo`` (True when
-        Apollo tasking tools are registered alongside the observation surface),
-        and ``triage`` (True when the annotator worker is running and writing
-        AI findings onto task comments / tags / event log / ai:trail tags).
+        Dict with ``current_operation``, ``username``, ``tasking`` (True when
+        the generic payload-type-agnostic tasking tools are registered),
+        ``apollo`` (True when Apollo-specific orchestration helpers are
+        registered on top of ``tasking``), and ``triage`` (True when the
+        annotator worker is running and writing AI findings onto task
+        comments / tags / event log / ai:trail tags).
     """
     client = await ensure_connected()
     cfg = current_config()
@@ -53,6 +55,7 @@ async def get_status() -> dict[str, Any]:
     return {
         "current_operation": hook.get("current_operation", "unknown"),
         "username": hook.get("username", cfg["username"]),
+        "tasking": os.environ.get("CAPABILITY_FLAG__MYTHIC_C2__TASKING", "0") == "1",
         "apollo": os.environ.get("CAPABILITY_FLAG__MYTHIC_C2__APOLLO", "0") == "1",
         "triage": os.environ.get("CAPABILITY_FLAG__MYTHIC_C2__TRIAGE", "0") == "1",
     }

@@ -26,10 +26,11 @@ import pytest
 from lib import mythic_api
 
 
-def _fresh_mcp(monkeypatch, *, apollo: bool):
-    """Reimport mcp_server.py with a fresh apollo flag so the gate re-evaluates."""
+def _fresh_mcp(monkeypatch, *, tasking: bool = False, apollo: bool = False):
+    """Reimport mcp_server.py with fresh flag state so gates re-evaluate."""
+    monkeypatch.setenv("CAPABILITY_FLAG__MYTHIC_C2__TASKING", "1" if tasking else "0")
     monkeypatch.setenv("CAPABILITY_FLAG__MYTHIC_C2__APOLLO", "1" if apollo else "0")
-    for name in ("mcp_server", "lib.observation", "lib.apollo"):
+    for name in ("mcp_server", "lib.observation", "lib.tasking", "lib.apollo"):
         sys.modules.pop(name, None)
     mythic_api.reset_connection()
     return importlib.import_module("mcp_server")
@@ -155,6 +156,11 @@ _EXPECTED_OBSERVATION = {
     "search",
 }
 
+_EXPECTED_TASKING = {
+    "issue_task",
+    "list_callback_commands",
+}
+
 _EXPECTED_APOLLO_SAMPLE = {
     "execute",
     "stage_file",
@@ -179,22 +185,42 @@ _EXPECTED_APOLLO_SAMPLE = {
 }
 
 
-class TestApolloFlagGating:
+class TestFlagGating:
     @pytest.mark.asyncio
     async def test_default_exposes_only_observation_tools(self, monkeypatch):
-        module = _fresh_mcp(monkeypatch, apollo=False)
+        module = _fresh_mcp(monkeypatch)
         tools = await module.mcp.list_tools()
         names = {t.name for t in tools}
         assert _EXPECTED_OBSERVATION.issubset(names)
+        assert _EXPECTED_TASKING.isdisjoint(names)
         assert _EXPECTED_APOLLO_SAMPLE.isdisjoint(names)
         assert "publish_advisory" not in names
 
     @pytest.mark.asyncio
-    async def test_flag_on_registers_apollo(self, monkeypatch):
+    async def test_tasking_flag_registers_generic_tasking(self, monkeypatch):
+        module = _fresh_mcp(monkeypatch, tasking=True)
+        tools = await module.mcp.list_tools()
+        names = {t.name for t in tools}
+        assert _EXPECTED_OBSERVATION.issubset(names)
+        assert _EXPECTED_TASKING.issubset(names)
+        assert _EXPECTED_APOLLO_SAMPLE.isdisjoint(names)
+
+    @pytest.mark.asyncio
+    async def test_apollo_flag_registers_apollo_without_tasking(self, monkeypatch):
         module = _fresh_mcp(monkeypatch, apollo=True)
         tools = await module.mcp.list_tools()
         names = {t.name for t in tools}
         assert _EXPECTED_OBSERVATION.issubset(names)
+        assert _EXPECTED_APOLLO_SAMPLE.issubset(names)
+        assert _EXPECTED_TASKING.isdisjoint(names)
+
+    @pytest.mark.asyncio
+    async def test_both_flags_register_both_surfaces(self, monkeypatch):
+        module = _fresh_mcp(monkeypatch, tasking=True, apollo=True)
+        tools = await module.mcp.list_tools()
+        names = {t.name for t in tools}
+        assert _EXPECTED_OBSERVATION.issubset(names)
+        assert _EXPECTED_TASKING.issubset(names)
         assert _EXPECTED_APOLLO_SAMPLE.issubset(names)
 
 

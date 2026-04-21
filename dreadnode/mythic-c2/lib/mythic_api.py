@@ -19,6 +19,35 @@ from mythic import mythic as mythic_sdk, mythic_utilities
 from mythic.mythic_classes import Mythic
 
 
+def _patch_mythic_for_gql4() -> None:
+    """mythic==0.2.10 was written for gql 3.x, where ``gql(query)`` returned a
+    ``graphql.DocumentNode``. In gql 4.0 it returns a ``GraphQLRequest`` wrapper
+    around the DocumentNode, and the SDK's ``get_operation_name(query_data)``
+    raises ``AttributeError: 'GraphQLRequest' object has no attribute 'definitions'``
+    on any Mythic call.
+
+    We can't pin the worker back to gql 3.5.3 without fighting dreadnode>=2.0's
+    websockets>=14 requirement (see the ``fix(mythic-c2): drop redundant gql dep``
+    commit). This shim is idempotent on both gql versions: if ``graphql_data`` is
+    already a DocumentNode we use it directly; if it's a GraphQLRequest we unwrap
+    to ``.document``.
+
+    Remove once ``mythic`` ships a release that supports gql 4.0 natively.
+    """
+
+    async def _get_operation_name(graphql_data: Any) -> str:
+        doc = getattr(graphql_data, "document", graphql_data)
+        definitions = getattr(doc, "definitions", None) or []
+        if definitions and getattr(definitions[0], "name", None):
+            return definitions[0].name.value
+        return ""
+
+    mythic_utilities.get_operation_name = _get_operation_name
+
+
+_patch_mythic_for_gql4()
+
+
 MAX_OUTPUT_CHARS = 1_048_576
 """Cap on Apollo command output — head+tail trimmed past this."""
 
