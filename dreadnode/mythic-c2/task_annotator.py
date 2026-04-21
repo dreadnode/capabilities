@@ -955,47 +955,98 @@ async def analyze_file(
 
 worker = Worker(name="reactor")
 
+_bootstrap_lock = asyncio.Lock()
+
+
+async def _ensure_bootstrapped() -> Mythic | None:
+    """Lazily connect to Mythic and seed known-ID sets on the first success.
+
+    Called by every poll tick instead of ``on_startup`` so a transient Mythic
+    outage (container restart, credential rotation, network blip) doesn't
+    terminally wedge the reactor. Returns ``None`` when Mythic is unreachable
+    — the caller is expected to log and return so the next tick tries again.
+
+    Idempotent via ``_bootstrap_lock``: once one tick seeds state, every
+    subsequent call returns the cached Mythic client.
+    """
+    mythic = worker.state.get("mythic")
+    if mythic is not None:
+        return mythic
+
+    async with _bootstrap_lock:
+        mythic = worker.state.get("mythic")
+        if mythic is not None:
+            return mythic
+
+        try:
+            mythic = await ensure_connected()
+        except Exception as exc:
+            logger.warning(
+                "reactor: Mythic unreachable ({}) — retrying on next tick", exc
+            )
+            return None
+
+        seed_tasks: set[int] = set()
+        try:
+            completed = await fetch_completed(mythic)
+            seed_tasks = {int(t_["id"]) for t_ in completed if t_.get("id") is not None}
+        except Exception:
+            logger.opt(exception=True).warning(
+                "reactor seed (tasks) failed — poll will self-heal"
+            )
+
+        seed_keylogs: set[int] = set()
+        try:
+            rows = await fetch_recent_keylogs()
+            seed_keylogs = {int(r["id"]) for r in rows if r.get("id") is not None}
+        except Exception:
+            logger.opt(exception=True).warning(
+                "reactor seed (keylogs) failed — poll will self-heal"
+            )
+
+        seed_files: set[int] = set()
+        try:
+            rows = await fetch_recent_downloads()
+            seed_files = {int(r["id"]) for r in rows if r.get("id") is not None}
+        except Exception:
+            logger.opt(exception=True).warning(
+                "reactor seed (downloads) failed — poll will self-heal"
+            )
+
+        current_op = "unknown"
+        try:
+            me = await mythic_sdk.get_me(mythic=mythic)
+            current_op = (
+                (me or {}).get("meHook", {}).get("current_operation", "unknown")
+            )
+        except Exception:
+            logger.opt(exception=True).debug("reactor: get_me failed at bootstrap")
+
+        worker.state["known_task_ids"] = seed_tasks
+        worker.state["known_keylog_ids"] = seed_keylogs
+        worker.state["known_file_ids"] = seed_files
+        worker.state["mythic"] = mythic
+
+        logger.info(
+            "mythic-c2 reactor connected | operation={} | "
+            "seeded {} tasks / {} keylogs / {} files",
+            current_op,
+            len(seed_tasks),
+            len(seed_keylogs),
+            len(seed_files),
+        )
+        return mythic
+
 
 @worker.on_startup
 async def startup(client: RuntimeClient) -> None:
-    mythic = await ensure_connected()
-    worker.state["mythic"] = mythic
-
-    me = await mythic_sdk.get_me(mythic=mythic)
-    current_op = (me or {}).get("meHook", {}).get("current_operation", "unknown")
-
-    seed: set[int] = set()
-    try:
-        completed = await fetch_completed(mythic)
-        seed = {int(t_["id"]) for t_ in completed if t_.get("id") is not None}
-    except Exception:
-        logger.opt(exception=True).warning("reactor seed failed — poll will self-heal")
-    worker.state["known_task_ids"] = seed
-
-    keylog_seed: set[int] = set()
-    try:
-        rows = await fetch_recent_keylogs()
-        keylog_seed = {int(r["id"]) for r in rows if r.get("id") is not None}
-    except Exception:
-        logger.opt(exception=True).warning("keylog seed failed — poll will self-heal")
-    worker.state["known_keylog_ids"] = keylog_seed
-
-    file_seed: set[int] = set()
-    try:
-        rows = await fetch_recent_downloads()
-        file_seed = {int(r["id"]) for r in rows if r.get("id") is not None}
-    except Exception:
-        logger.opt(exception=True).warning("file seed failed — poll will self-heal")
-    worker.state["known_file_ids"] = file_seed
-
-    logger.info(
-        "mythic-c2 reactor ready | operation={} | "
-        "seeded {} tasks / {} keylogs / {} files",
-        current_op,
-        len(seed),
-        len(keylog_seed),
-        len(file_seed),
-    )
+    """Non-fatal startup. Mythic connect is deferred to the first poll tick so
+    a transient outage doesn't exit the reactor terminally."""
+    worker.state["mythic"] = None
+    worker.state["known_task_ids"] = set()
+    worker.state["known_keylog_ids"] = set()
+    worker.state["known_file_ids"] = set()
+    logger.info("mythic-c2 reactor starting — Mythic connect will happen on first tick")
 
 
 @worker.on_shutdown
@@ -1014,7 +1065,9 @@ async def shutdown(client: RuntimeClient) -> None:
 
 @worker.every(seconds=TICK_SECONDS)
 async def poll_and_analyze(client: RuntimeClient) -> None:
-    mythic: Mythic = worker.state["mythic"]
+    mythic = await _ensure_bootstrapped()
+    if mythic is None:
+        return
     try:
         completed = await fetch_completed(mythic)
     except Exception:
@@ -1047,6 +1100,8 @@ async def poll_and_analyze(client: RuntimeClient) -> None:
 
 @worker.every(seconds=TICK_SECONDS)
 async def poll_keylogs(client: RuntimeClient) -> None:
+    if await _ensure_bootstrapped() is None:
+        return
     try:
         rows = await fetch_recent_keylogs()
     except Exception:
@@ -1087,7 +1142,9 @@ async def poll_keylogs(client: RuntimeClient) -> None:
 
 @worker.every(seconds=TICK_SECONDS)
 async def poll_downloads(client: RuntimeClient) -> None:
-    mythic: Mythic = worker.state["mythic"]
+    mythic = await _ensure_bootstrapped()
+    if mythic is None:
+        return
     try:
         rows = await fetch_recent_downloads()
     except Exception:
@@ -1114,6 +1171,8 @@ async def poll_downloads(client: RuntimeClient) -> None:
 
 @worker.every(seconds=CORRELATOR_TICK_SECONDS)
 async def correlate(client: RuntimeClient) -> None:
+    if await _ensure_bootstrapped() is None:
+        return
     try:
         written = await run_correlator(client)
     except Exception:

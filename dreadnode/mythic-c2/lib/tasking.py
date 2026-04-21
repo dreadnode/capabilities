@@ -27,21 +27,23 @@ from .mythic_api import clean, current_config, ensure_connected, gql, truncate
 async def list_callback_commands(
     callback_display_id: Annotated[int, "Callback display ID"],
 ) -> list[dict[str, Any]]:
-    """List the commands available for a callback's payload type.
+    """Slim catalog of commands available for a callback's payload type.
 
     Mirrors the Mythic task-bar autocomplete: lookup is by payload type, so
     every Apollo callback shares one catalog and every Poseidon callback
-    shares another. Call this before ``issue_task`` to discover valid
-    ``command`` names and their parameter schemas.
+    shares another. Returns just ``cmd``, ``description``, and the names of
+    required parameters so the LLM can pick a command without reading the
+    full parameter schema for 40+ commands. Once a command is picked, call
+    :func:`get_command_details` for the full parameter schema before
+    :func:`issue_task`.
 
     Args:
         callback_display_id: The number shown in Mythic's UI for the callback.
 
     Returns:
-        Sorted list of ``{cmd, description, help_cmd, parameters}`` dicts.
-        ``parameters`` is a list of ``{name, cli_name, display_name, description,
-        type, required, default_value}`` entries in Mythic's UI display order.
-        Empty list if the callback doesn't exist.
+        Sorted list of ``{cmd, description, required_params}`` dicts.
+        ``required_params`` is a list of parameter names marked required in
+        Mythic. Empty list if the callback doesn't exist.
     """
     result = await gql(
         """
@@ -53,15 +55,8 @@ async def list_callback_commands(
                         commands(where: {deleted: {_eq: false}}, order_by: {cmd: asc}) {
                             cmd
                             description
-                            help_cmd
-                            commandparameters(order_by: {ui_position: asc}) {
+                            commandparameters(where: {required: {_eq: true}}) {
                                 name
-                                cli_name
-                                display_name
-                                description
-                                type
-                                required
-                                default_value
                             }
                         }
                     }
@@ -82,25 +77,94 @@ async def list_callback_commands(
             {
                 "cmd": c.get("cmd"),
                 "description": c.get("description"),
-                "help_cmd": c.get("help_cmd"),
-                "parameters": [
-                    clean(
-                        {
-                            "name": p.get("name"),
-                            "cli_name": p.get("cli_name"),
-                            "display_name": p.get("display_name"),
-                            "description": p.get("description"),
-                            "type": p.get("type"),
-                            "required": p.get("required"),
-                            "default_value": p.get("default_value"),
-                        }
-                    )
+                "required_params": [
+                    p.get("name")
                     for p in (c.get("commandparameters") or [])
+                    if p.get("name")
                 ],
             }
         )
         for c in commands
     ]
+
+
+async def get_command_details(
+    callback_display_id: Annotated[int, "Callback display ID"],
+    command: Annotated[str, "Command name from list_callback_commands"],
+) -> dict[str, Any] | None:
+    """Full parameter schema for one command on a callback's payload type.
+
+    Call this after picking a command from :func:`list_callback_commands`
+    and before :func:`issue_task`. Returns every parameter with its type,
+    default value, required flag, and description — the information the LLM
+    needs to build a correct ``parameters`` dict.
+
+    Args:
+        callback_display_id: The number shown in Mythic's UI for the callback.
+        command: Exact command name (case-sensitive) from ``list_callback_commands``.
+
+    Returns:
+        ``{cmd, description, help_cmd, parameters: [{name, cli_name, display_name,
+        description, type, required, default_value}]}``, or ``None`` if the
+        callback doesn't exist or the command isn't valid for its payload type.
+    """
+    result = await gql(
+        """
+        query CommandDetails($display_id: Int!, $command: String!) {
+            callback(where: {display_id: {_eq: $display_id}}, limit: 1) {
+                payload {
+                    payloadtype {
+                        commands(where: {cmd: {_eq: $command}, deleted: {_eq: false}}, limit: 1) {
+                            cmd
+                            description
+                            help_cmd
+                            commandparameters(order_by: {ui_position: asc}) {
+                                name
+                                cli_name
+                                display_name
+                                description
+                                type
+                                required
+                                default_value
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        """,
+        {"display_id": callback_display_id, "command": command},
+    )
+    rows = result.get("callback") or []
+    if not rows:
+        return None
+    commands = ((rows[0].get("payload") or {}).get("payloadtype") or {}).get(
+        "commands"
+    ) or []
+    if not commands:
+        return None
+    c = commands[0]
+    return clean(
+        {
+            "cmd": c.get("cmd"),
+            "description": c.get("description"),
+            "help_cmd": c.get("help_cmd"),
+            "parameters": [
+                clean(
+                    {
+                        "name": p.get("name"),
+                        "cli_name": p.get("cli_name"),
+                        "display_name": p.get("display_name"),
+                        "description": p.get("description"),
+                        "type": p.get("type"),
+                        "required": p.get("required"),
+                        "default_value": p.get("default_value"),
+                    }
+                )
+                for p in (c.get("commandparameters") or [])
+            ],
+        }
+    )
 
 
 async def issue_task(
@@ -162,7 +226,7 @@ async def issue_task(
     return truncate(text)
 
 
-_TOOLS = [list_callback_commands, issue_task]
+_TOOLS = [list_callback_commands, get_command_details, issue_task]
 
 
 def register(mcp: FastMCP) -> None:

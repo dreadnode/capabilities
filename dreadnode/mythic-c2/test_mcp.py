@@ -159,6 +159,7 @@ _EXPECTED_OBSERVATION = {
 _EXPECTED_TASKING = {
     "issue_task",
     "list_callback_commands",
+    "get_command_details",
 }
 
 _EXPECTED_APOLLO_SAMPLE = {

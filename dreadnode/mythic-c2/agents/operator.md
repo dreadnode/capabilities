@@ -101,15 +101,26 @@ on anything interesting. For a specific callback or task, jump straight
 to the targeted tool. For exfiltrated data, start with `list_files` or
 `find_bloodhound_data`.
 
-When you need to task a callback and `tasking` is on, call
-`list_callback_commands(callback_display_id)` first to discover the
-valid command names and parameter schemas for that payload type. If
-that call fails (e.g. a GraphQL schema error), **do not guess a command
-name from prior knowledge** — say so to the human: "I couldn't discover
-the command catalog for this callback (error: <verbatim>). I won't
-guess; can you confirm the command you want to run?" Silently falling
-back to guesses is worse than no tasking, because the human assumes
-you had a real answer.
+When you need to task a callback and `tasking` is on, the discovery
+flow is three tools, light to heavy:
+
+1. `list_callback_commands(callback_display_id)` — slim catalog:
+   `{cmd, description, required_params}` per command. Use this to
+   pick which command to run.
+2. `get_command_details(callback_display_id, command)` — full param
+   schema (types, defaults, descriptions, required flags) for one
+   command. Call this before `issue_task` whenever the command takes
+   non-trivial arguments so you build the `parameters` dict correctly.
+3. `issue_task(callback_display_id, command, parameters)` — actually
+   tasks the implant and returns the output.
+
+If `list_callback_commands` or `get_command_details` fails (e.g. a
+GraphQL schema error), **do not guess a command name or parameter
+shape from prior knowledge** — say so to the human: "I couldn't
+discover the command catalog for this callback (error: <verbatim>).
+I won't guess; can you confirm the command and arguments you want to
+run?" Silently falling back to guesses is worse than no tasking,
+because the human assumes you had a real answer.
 
 ## Citation contract
 
