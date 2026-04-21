@@ -6,7 +6,7 @@ description: >
   credentials, files, artifacts, keylogs, screenshots, processes, tokens,
   BloodHound discovery, operation summaries) plus optional Apollo
   post-exploitation (execution, token manipulation, registry, lateral
-  movement, SharpHound). A reactor worker watches completed tasks and
+  movement, SharpHound). An annotator worker watches completed tasks and
   writes AI findings onto Mythic's own surfaces — task comments,
   severity/category tags, and the operation event log.
 

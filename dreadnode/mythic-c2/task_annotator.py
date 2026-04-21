@@ -7,7 +7,7 @@
 #   "loguru>=0.7",
 # ]
 # ///
-"""mythic-c2 reactor — subprocess worker that watches completed tasks
+"""mythic-c2 annotator — subprocess worker that watches completed tasks
 and writes AI findings onto Mythic's own surfaces.
 
 Each tick:
@@ -54,7 +54,7 @@ CORRELATOR_TICK_SECONDS = 300
 OUTPUT_CHAR_BUDGET = 20_000
 COMMENT_CAP = 3_000
 MAX_ANALYZER_RETRIES = 3
-"""Retry cap per source (task/keylog/file) before the reactor gives up and
+"""Retry cap per source (task/keylog/file) before the annotator gives up and
 treats it as processed to avoid poison-task loops."""
 
 MARKER_PREFIX = "[dreadnode"
@@ -986,7 +986,7 @@ async def analyze_file(
 # ── Worker lifecycle ────────────────────────────────────────────────
 
 
-worker = Worker(name="reactor")
+worker = Worker(name="annotator")
 
 _bootstrap_lock = asyncio.Lock()
 
@@ -996,7 +996,7 @@ async def _ensure_bootstrapped() -> Mythic | None:
 
     Called by every poll tick instead of ``on_startup`` so a transient Mythic
     outage (container restart, credential rotation, network blip) doesn't
-    terminally wedge the reactor. Returns ``None`` when Mythic is unreachable
+    terminally wedge the annotator. Returns ``None`` when Mythic is unreachable
     — the caller is expected to log and return so the next tick tries again.
 
     Idempotent via ``_bootstrap_lock``: once one tick seeds state, every
@@ -1015,7 +1015,7 @@ async def _ensure_bootstrapped() -> Mythic | None:
             mythic = await ensure_connected()
         except Exception as exc:
             logger.warning(
-                "reactor: Mythic unreachable ({}) — retrying on next tick", exc
+                "annotator: Mythic unreachable ({}) — retrying on next tick", exc
             )
             return None
 
@@ -1025,7 +1025,7 @@ async def _ensure_bootstrapped() -> Mythic | None:
             seed_tasks = {int(t_["id"]) for t_ in completed if t_.get("id") is not None}
         except Exception:
             logger.opt(exception=True).warning(
-                "reactor seed (tasks) failed — poll will self-heal"
+                "annotator seed (tasks) failed — poll will self-heal"
             )
 
         seed_keylogs: set[int] = set()
@@ -1034,7 +1034,7 @@ async def _ensure_bootstrapped() -> Mythic | None:
             seed_keylogs = {int(r["id"]) for r in rows if r.get("id") is not None}
         except Exception:
             logger.opt(exception=True).warning(
-                "reactor seed (keylogs) failed — poll will self-heal"
+                "annotator seed (keylogs) failed — poll will self-heal"
             )
 
         seed_files: set[int] = set()
@@ -1043,7 +1043,7 @@ async def _ensure_bootstrapped() -> Mythic | None:
             seed_files = {int(r["id"]) for r in rows if r.get("id") is not None}
         except Exception:
             logger.opt(exception=True).warning(
-                "reactor seed (downloads) failed — poll will self-heal"
+                "annotator seed (downloads) failed — poll will self-heal"
             )
 
         current_op = "unknown"
@@ -1053,7 +1053,7 @@ async def _ensure_bootstrapped() -> Mythic | None:
                 (me or {}).get("meHook", {}).get("current_operation", "unknown")
             )
         except Exception:
-            logger.opt(exception=True).debug("reactor: get_me failed at bootstrap")
+            logger.opt(exception=True).debug("annotator: get_me failed at bootstrap")
 
         worker.state["known_task_ids"] = seed_tasks
         worker.state["known_keylog_ids"] = seed_keylogs
@@ -1061,7 +1061,7 @@ async def _ensure_bootstrapped() -> Mythic | None:
         worker.state["mythic"] = mythic
 
         logger.info(
-            "mythic-c2 reactor connected | operation={} | "
+            "mythic-c2 annotator connected | operation={} | "
             "seeded {} tasks / {} keylogs / {} files",
             current_op,
             len(seed_tasks),
@@ -1074,12 +1074,14 @@ async def _ensure_bootstrapped() -> Mythic | None:
 @worker.on_startup
 async def startup(client: RuntimeClient) -> None:
     """Non-fatal startup. Mythic connect is deferred to the first poll tick so
-    a transient outage doesn't exit the reactor terminally."""
+    a transient outage doesn't exit the annotator terminally."""
     worker.state["mythic"] = None
     worker.state["known_task_ids"] = set()
     worker.state["known_keylog_ids"] = set()
     worker.state["known_file_ids"] = set()
-    logger.info("mythic-c2 reactor starting — Mythic connect will happen on first tick")
+    logger.info(
+        "mythic-c2 annotator starting — Mythic connect will happen on first tick"
+    )
 
 
 @worker.on_shutdown
@@ -1093,7 +1095,9 @@ async def shutdown(client: RuntimeClient) -> None:
     try:
         await asyncio.wait_for(session.close(), timeout=3)
     except (TimeoutError, Exception):
-        logger.opt(exception=True).debug("reactor shutdown: mythic client close failed")
+        logger.opt(exception=True).debug(
+            "annotator shutdown: mythic client close failed"
+        )
 
 
 @worker.every(seconds=TICK_SECONDS)
@@ -1104,7 +1108,7 @@ async def poll_and_analyze(client: RuntimeClient) -> None:
     try:
         completed = await fetch_completed(mythic)
     except Exception:
-        logger.opt(exception=True).warning("reactor: poll failed")
+        logger.opt(exception=True).warning("annotator: poll failed")
         return
 
     known: set[int] = worker.state["known_task_ids"]
@@ -1114,7 +1118,7 @@ async def poll_and_analyze(client: RuntimeClient) -> None:
     if not fresh:
         return
 
-    logger.info("reactor: {} fresh completed task(s) this tick", len(fresh))
+    logger.info("annotator: {} fresh completed task(s) this tick", len(fresh))
     failures: dict[int, int] = worker.state.setdefault("analyzer_task_failures", {})
     for task in fresh:
         tid = int(task["id"])
@@ -1125,7 +1129,7 @@ async def poll_and_analyze(client: RuntimeClient) -> None:
             n = failures.get(tid, 0) + 1
             if n >= MAX_ANALYZER_RETRIES:
                 logger.error(
-                    "reactor: analyzer turn failed {}x on display_id={} ({}); "
+                    "annotator: analyzer turn failed {}x on display_id={} ({}); "
                     "giving up to avoid a poison-task loop",
                     n,
                     display_id,
@@ -1136,7 +1140,7 @@ async def poll_and_analyze(client: RuntimeClient) -> None:
             else:
                 failures[tid] = n
                 logger.warning(
-                    "reactor: analyzer turn failed on display_id={} ({}x/{}): {}",
+                    "annotator: analyzer turn failed on display_id={} ({}x/{}): {}",
                     display_id,
                     n,
                     MAX_ANALYZER_RETRIES,
@@ -1145,7 +1149,7 @@ async def poll_and_analyze(client: RuntimeClient) -> None:
             continue
         except Exception:
             logger.opt(exception=True).warning(
-                "reactor: analyze_task failed for display_id={} — will retry next tick",
+                "annotator: analyze_task failed for display_id={} — will retry next tick",
                 display_id,
             )
             continue
