@@ -15,8 +15,21 @@ import json
 import os
 from typing import Any, TypedDict
 
+import ssl as _ssl
+
+import aiohttp
+from gql.transport.aiohttp import AIOHTTPTransport
 from mythic import mythic as mythic_sdk, mythic_utilities
 from mythic.mythic_classes import Mythic
+
+
+def _permissive_ssl_context() -> _ssl.SSLContext:
+    """Build an SSL context that trusts self-signed / CERT_NONE hosts. Matches
+    the context mythic's ``get_ws_transport`` already uses."""
+    ctx = _ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = _ssl.CERT_NONE
+    return ctx
 
 
 def _patch_mythic_for_gql4() -> None:
@@ -45,7 +58,87 @@ def _patch_mythic_for_gql4() -> None:
     mythic_utilities.get_operation_name = _get_operation_name
 
 
+def _patch_mythic_for_selfsigned_certs() -> None:
+    """mythic==0.2.10's HTTP helpers build an ``aiohttp.ClientSession`` with
+    the default connector and pass ``ssl=False`` at request time. aiohttp
+    3.13+'s TCPConnector resolves its conn_key from the URL scheme before the
+    request-level override is consulted, so an https URL still attempts a
+    verifying handshake — fatal on Mythic's self-signed cert. The error
+    message's ``ssl:True`` is the conn_key display, not our request value.
+
+    mythic's ``get_ws_transport`` already uses an explicit CERT_NONE context
+    and works. We mirror that: override the 5 HTTP helpers to construct a
+    ``TCPConnector(ssl=<permissive_ctx>)`` so conn_key and request agree,
+    and swap ``get_http_transport`` to pass the same context.
+
+    Remove once mythic or gql fixes the conn_key/request-level ssl divergence.
+    """
+    ctx = _permissive_ssl_context()
+
+    def _session_with_ctx() -> aiohttp.ClientSession:
+        return aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ctx))
+
+    async def _http_post(mythic: Mythic, data: dict, url: str) -> dict:
+        async with _session_with_ctx() as session:
+            async with session.post(
+                url,
+                json=data,
+                headers=mythic_utilities.get_headers(mythic),
+                ssl=ctx,
+            ) as resp:
+                return await resp.json()
+
+    async def _http_post_form(mythic: Mythic, data: aiohttp.FormData, url: str) -> dict:
+        async with _session_with_ctx() as session:
+            async with session.post(
+                url,
+                data=data,
+                headers=mythic_utilities.get_headers(mythic),
+                ssl=ctx,
+            ) as resp:
+                return await resp.json()
+
+    async def _http_get_dictionary(mythic: Mythic, url: str) -> dict:
+        async with _session_with_ctx() as session:
+            async with session.get(
+                url, headers=mythic_utilities.get_headers(mythic), ssl=ctx
+            ) as resp:
+                return await resp.json()
+
+    async def _http_get(mythic: Mythic, url: str) -> bytes:
+        async with _session_with_ctx() as session:
+            async with session.get(
+                url, headers=mythic_utilities.get_headers(mythic), ssl=ctx
+            ) as resp:
+                return await resp.content.read()
+
+    async def _http_get_chunked(
+        mythic: Mythic, url: str, chunk_size: int = 512000
+    ) -> Any:
+        async with _session_with_ctx() as session:
+            async with session.get(
+                url, headers=mythic_utilities.get_headers(mythic), ssl=ctx
+            ) as resp:
+                async for chunk in resp.content.iter_chunked(abs(chunk_size)):
+                    yield chunk
+
+    async def _get_http_transport(mythic: Mythic) -> AIOHTTPTransport:
+        return AIOHTTPTransport(
+            url=f"{mythic.http}{mythic.server_ip}:{mythic.server_port}/graphql/",
+            headers=mythic_utilities.get_headers(mythic),
+            ssl=ctx,
+        )
+
+    mythic_utilities.http_post = _http_post
+    mythic_utilities.http_post_form = _http_post_form
+    mythic_utilities.http_get_dictionary = _http_get_dictionary
+    mythic_utilities.http_get = _http_get
+    mythic_utilities.http_get_chunked = _http_get_chunked
+    mythic_utilities.get_http_transport = _get_http_transport
+
+
 _patch_mythic_for_gql4()
+_patch_mythic_for_selfsigned_certs()
 
 
 MAX_OUTPUT_CHARS = 1_048_576
