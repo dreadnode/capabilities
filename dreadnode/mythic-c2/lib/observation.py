@@ -247,18 +247,25 @@ async def get_task(
 
 async def get_task_output(
     task_display_id: Annotated[int, "Task display ID"],
-    max_lines: Annotated[int | None, "Return at most N lines"] = None,
+    max_lines: Annotated[
+        int | None,
+        "Cap on returned lines (default 500). Pass None for unbounded — risks dumping hundreds of KB into context on big outputs; prefer paging with offset instead.",
+    ] = 500,
     offset: Annotated[int, "Skip N lines before returning"] = 0,
 ) -> dict[str, Any]:
     """Get decoded task output with optional line paging.
 
     Output chunks are base64-decoded and concatenated in the order Mythic
     stored them, then split into lines so you can page through very large
-    outputs without pulling it all.
+    outputs without pulling it all. Returns ``total_lines`` so the caller
+    can tell whether there's more than what ``max_lines`` let through and
+    advance ``offset`` on the next call.
 
     Args:
         task_display_id: The task whose output you want.
-        max_lines: Cap on returned lines.
+        max_lines: Cap on returned lines (default 500). ``None`` is
+            unbounded — avoid unless you've already filtered to a small
+            task or you're feeding the output into a size-aware consumer.
         offset: Skip N lines before ``max_lines`` applies.
 
     Returns:
@@ -333,7 +340,10 @@ async def get_recent_callback_activity(
         display_id = task.get("display_id")
         if not isinstance(display_id, int):
             continue
-        output = await get_task_output(task_display_id=display_id)
+        # Internal caller — keep the full body so the preview-char trim
+        # below sees head+tail of the real output, not head+tail of the
+        # first N lines.
+        output = await get_task_output(task_display_id=display_id, max_lines=None)
         body = output["output"] if output else ""
         if len(body) <= preview_chars:
             preview = body
@@ -558,8 +568,8 @@ async def get_file_contents(
     ] = True,
     max_bytes: Annotated[
         int | None,
-        "Cap on bytes returned in ``content`` (size/hashes reflect the full file)",
-    ] = None,
+        "Cap on bytes returned in ``content`` (default 65536 ≈ 64 KB). Pass None for unbounded — a full agent download can be tens of MB, enough to blow context on a single call. Size/hashes always reflect the full file.",
+    ] = 65_536,
 ) -> dict[str, Any] | None:
     """Download a file by its Mythic ``agent_file_id`` and return the contents.
 
@@ -567,12 +577,16 @@ async def get_file_contents(
     ``encoding="utf-8"``. On decode failure, or when ``as_text`` is False,
     returns base64-encoded bytes with ``encoding="base64"`` so an agent can
     still hash or forward it. ``size_bytes``, ``md5``, and ``sha256`` always
-    reflect the full file even when ``content`` is truncated.
+    reflect the full file even when ``content`` is truncated — use
+    ``truncated`` + ``size_bytes`` to decide whether to re-call with a
+    bigger ``max_bytes``.
 
     Args:
         agent_file_id: The opaque UUID returned by ``list_files`` and friends.
         as_text: Try UTF-8 decoding first.
-        max_bytes: Truncate ``content`` to this many bytes.
+        max_bytes: Truncate ``content`` to this many bytes (default 65536).
+            ``None`` is unbounded — avoid unless you already know the file
+            is small.
 
     Returns:
         Dict with ``agent_file_id``, ``size_bytes``, ``returned_bytes``,
