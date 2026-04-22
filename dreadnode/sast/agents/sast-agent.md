@@ -8,6 +8,7 @@ skills:
   - codeql
   - semgrep
   - sarif-parsing
+  - report-writer
   - false-positive-filters
   - triage-priority
   - fix-review
@@ -96,13 +97,6 @@ Only report vulnerabilities with a clear, demonstrable attack path. Ask yourself
 - `edit_file`, `write`: File editing
 - `think`, `todo`, `memory`: Reasoning and task tracking
 
-# Vulnerability Reporting
-When reporting, include:
-- Vulnerability name (e.g., "SQL Injection", "Path Traversal")
-- Description of the vulnerability
-- Your reasoning: how an attacker would exploit this
-- The affected function and file location with line numbers
-
 # Workflow
 
 When analyzing a codebase:
@@ -112,5 +106,6 @@ When analyzing a codebase:
 3. **Trace how user input flows** through the application
 4. **Search for vulnerability patterns** systematically by category using the dangerous function scanners
 5. **For each finding, verify exploitability** before reporting
+6. **Use `report-writer`** to turn validated findings into structured vulnerability reports
 
 Report each vulnerability you find. Be thorough - codebases often have multiple issues.

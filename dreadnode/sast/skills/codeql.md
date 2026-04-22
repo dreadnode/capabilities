@@ -3,8 +3,6 @@ name: codeql
 description: Run CodeQL static analysis for security vulnerability detection, taint tracking, and data flow analysis. Use when asked to analyze code with CodeQL, create CodeQL databases, write custom QL queries, perform security audits, or set up CodeQL in CI/CD pipelines.
 allowed-tools:
   - Bash
-  - Read
-  - Glob
   - Grep
 ---
 
@@ -68,18 +66,6 @@ brew upgrade codeql
 
 Manual: Download bundle from https://github.com/github/codeql-action/releases
 
-### Trail of Bits Queries (Optional)
-
-Install public ToB security queries for additional coverage:
-
-```bash
-# Download ToB query packs
-codeql pack download trailofbits/cpp-queries trailofbits/go-queries
-
-# Verify installation
-codeql resolve qlpacks | grep trailofbits
-```
-
 ## Core Workflow
 
 ### 1. Create Database
@@ -121,15 +107,6 @@ codeql database analyze codeql.db \
   --format=csv \
   --output=results.csv \
   -- codeql/javascript-queries
-```
-
-**With Trail of Bits queries (if installed):**
-
-```bash
-codeql database analyze codeql.db \
-  --format=sarif-latest \
-  --output=results.sarif \
-  -- trailofbits/go-queries
 ```
 
 ## Writing Custom Queries
@@ -258,9 +235,8 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           queries: security-extended,security-and-quality
-          # Add custom queries/packs:
+          # Add custom query packs:
           # queries: security-extended,./codeql/custom-queries
-          # packs: trailofbits/python-queries
 
       - uses: github/codeql-action/autobuild@v3
 
@@ -311,5 +287,4 @@ def safe():
 - Docs: https://codeql.github.com/docs/
 - Query Help: https://codeql.github.com/codeql-query-help/
 - Security Lab: https://securitylab.github.com/
-- Trail of Bits Queries: https://github.com/trailofbits/codeql-queries
 - VSCode Extension: "CodeQL" for query development

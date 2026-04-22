@@ -23,6 +23,7 @@ Skills provide specialized knowledge and workflows that the SAST agent can refer
 - **codeql** - CodeQL query writing and analysis guidance
 - **semgrep** - Semgrep rule usage and pattern matching
 - **sarif-parsing** - Parse and analyze SARIF (Static Analysis Results Interchange Format) output
+- **report-writer** - Convert validated findings into concise, evidence-driven vulnerability reports
 
 ### Security Domains
 
