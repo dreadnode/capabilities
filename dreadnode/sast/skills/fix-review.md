@@ -34,8 +34,6 @@ Differential analysis to verify commits address security findings without introd
 - Greenfield development with no prior audit
 - Documentation-only changes
 
----
-
 ## Rationalizations (Do Not Skip)
 
 | Rationalization | Why It's Wrong | Required Action |
@@ -66,8 +64,6 @@ Differential analysis to verify commits address security findings without introd
 | PARTIALLY_FIXED | Some aspects addressed, others remain |
 | NOT_ADDRESSED | No relevant changes found |
 | CANNOT_DETERMINE | Insufficient context to verify |
-
----
 
 ## Workflow
 

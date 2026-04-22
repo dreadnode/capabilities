@@ -1,6 +1,9 @@
 ---
 name: file-construction-libraries
 description: Reference of Python libraries for constructing PoC input files (TIFF, PE, ELF, OLE, ASN.1, PLY). Use when building proof-of-concept exploits that require crafted binary or structured files.
+allowed-tools:
+  - Read
+  - Grep
 ---
 
 # File Construction Libraries
@@ -19,6 +22,10 @@ Reference of pre-installed Python libraries for constructing PoC input files.
 - General file I/O (use standard Python)
 - Simple text file manipulation
 - When the target format isn't listed below
+
+## Core Principle
+
+Use libraries to generate a valid skeleton first, then corrupt only the fields relevant to the target parser behavior. This produces PoC files that are structurally plausible and easier to reason about than fully hand-packed byte streams.
 
 ## Available Libraries
 

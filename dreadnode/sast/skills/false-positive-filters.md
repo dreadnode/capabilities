@@ -41,6 +41,8 @@ These are informational findings, not exploitable vulnerabilities:
 | Outdated dependencies | Need specific CVE with exploit path |
 | Generic coding style issues | Not security relevant |
 
+If one of these becomes exploitable in the current context, it stops being informational and must be re-evaluated through `fp-check`.
+
 ## Common False Positives by Category
 
 ### SQL Injection

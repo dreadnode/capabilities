@@ -78,6 +78,14 @@ allowed-tools:  # Optional: restrict to specific tools
 
 Supporting files (references, workflows, examples) are kept in subdirectories alongside the main skill file.
 
+## Style Standard
+
+Local SAST skills should follow the same general pattern where it makes sense:
+- a short scope statement after the title
+- explicit `When to Use` and `When NOT to Use`
+- workflow or reference sections separated from policy sections
+- clear handoff boundaries when an imported Trail of Bits skill is authoritative
+
 ## Integration with SAST Agent
 
 The skills complement the agent's core capabilities:

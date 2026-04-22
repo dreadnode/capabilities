@@ -19,6 +19,19 @@ allowed-tools:
 
 Pre-PR code review workflow that validates formatting, types, logic, security, and documentation on the current branch's changes.
 
+## When to Use
+
+- Reviewing Python changes on the current branch before opening or updating a PR
+- Checking whether a branch is ready for review
+- Running a combined formatting, typing, logic, security, and documentation pass
+
+## When NOT to Use
+
+- Reviewing security remediation against an existing audit baseline (use `fix-review`)
+- Full vulnerability discovery across an entire codebase (use SAST analysis workflows)
+- Non-Python repositories or branches with no Python changes
+- Documentation-only changes where formatting, typing, and runtime checks are irrelevant
+
 ## Workflow
 
 Run these steps sequentially. Fix issues as you find them before moving to the next step.
@@ -156,3 +169,4 @@ After completing all steps, provide a summary:
 - If ruff or pyright config exists in `pyproject.toml` or config files, respect those settings.
 - When in doubt about a fix, report it rather than changing it.
 - Group related fixes into logical chunks so the user can review them easily.
+- Treat security findings with the same evidence standard as the rest of the SAST capability: explain the code path, the impact, and the recommended fix clearly.
