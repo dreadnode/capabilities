@@ -24,7 +24,7 @@ Use this skill when:
 ## When NOT to Use
 
 Do NOT use for:
-- Finding specific code vulnerabilities (use semgrep, codeql)
+- Finding specific code vulnerabilities (use semgrep, codeql, variant-analysis)
 - Penetration testing or active exploitation
 - Compliance checklist validation
 - Post-incident forensics

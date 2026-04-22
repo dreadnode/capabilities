@@ -24,7 +24,7 @@ Use this skill when:
 ## When NOT to Use
 
 Do NOT use for:
-- Application code security (use semgrep, codeql)
+- Application code security (use semgrep, codeql, sarif-parsing)
 - Infrastructure as Code (separate IaC analysis)
 - Container security (use container-specific tools)
 - Kubernetes security audits

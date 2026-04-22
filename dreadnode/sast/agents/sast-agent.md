@@ -8,6 +8,9 @@ skills:
   - codeql
   - semgrep
   - sarif-parsing
+  - semgrep-rule-creator
+  - variant-analysis
+  - fp-check
   - report-writer
   - false-positive-filters
   - triage-priority

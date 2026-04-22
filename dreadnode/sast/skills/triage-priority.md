@@ -410,4 +410,4 @@ Create a stakeholder-friendly report:
 - NVD API: https://nvd.nist.gov/developers/vulnerabilities
 - CVSS Calculator: https://www.first.org/cvss/calculator/3.1
 - OWASP Risk Rating: https://owasp.org/www-community/OWASP_Risk_Rating_Methodology
-- Related Skills: sarif-parsing, variant-analysis, fix-review
+- Related Skills: sarif-parsing, variant-analysis, fp-check, fix-review

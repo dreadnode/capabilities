@@ -2,8 +2,15 @@
 
 This directory contains security analysis skills for the SAST capability.
 
-Note: Several skills are available in the trailofbits capability and not duplicated here:
-audit-context-building, differential-review, entry-point-analyzer, semgrep-rule-creator, sharp-edges, variant-analysis
+This capability imports several Trail of Bits skills directly so the SAST agent can use the more specialized implementations without duplicating them locally.
+
+Imported Trail of Bits skills:
+- `codeql`
+- `semgrep`
+- `sarif-parsing`
+- `semgrep-rule-creator`
+- `variant-analysis`
+- `fp-check`
 
 ## Overview
 
@@ -17,12 +24,18 @@ Skills provide specialized knowledge and workflows that the SAST agent can refer
 - **fix-review** - Verify fix commits address audit findings without introducing bugs
 - **triage-priority** - Prioritize vulnerability findings by exploitability and impact
 - **false-positive-filters** - Filters to avoid reporting false positives during security analysis
+- **fp-check** - Imported Trail of Bits exploitability verification workflow for confirming true vs false positives
 
 ### Static Analysis Tools
 
-- **codeql** - CodeQL query writing and analysis guidance
-- **semgrep** - Semgrep rule usage and pattern matching
-- **sarif-parsing** - Parse and analyze SARIF (Static Analysis Results Interchange Format) output
+- **codeql** - Imported Trail of Bits CodeQL workflow for database creation, modeling, and analysis
+- **semgrep** - Imported Trail of Bits Semgrep scan orchestration
+- **sarif-parsing** - Imported Trail of Bits SARIF parsing and processing guidance
+- **semgrep-rule-creator** - Imported Trail of Bits workflow for authoring Semgrep rules
+- **variant-analysis** - Imported Trail of Bits workflow for hunting bug variants
+- **codeql-handoff** - Local pointer to the imported `codeql` skill
+- **semgrep-handoff** - Local pointer to the imported `semgrep` skill
+- **sarif-parsing-handoff** - Local pointer to the imported `sarif-parsing` skill
 - **report-writer** - Convert validated findings into concise, evidence-driven vulnerability reports
 
 ### Security Domains
@@ -41,7 +54,7 @@ Skills provide specialized knowledge and workflows that the SAST agent can refer
 
 Once skills support is available in the SDK, the agent will automatically:
 
-1. Discover all `.md` files in this directory on startup
+1. Discover local `.md` files in this directory and imported skill directories on startup
 2. Parse YAML frontmatter to extract name and description
 3. Add skills to the system prompt under `<available_skills>`
 4. Provide a `view_skill(name)` tool for the agent to access detailed content
@@ -77,3 +90,5 @@ The skills complement the agent's core capabilities:
 - **Instructions** define the overall agent behavior and goals
 
 Skills enable the agent to leverage security expertise without bloating the core prompt, maintaining focus while having deep knowledge available on demand.
+
+For static-analysis domains where Trail of Bits ships a deeper workflow, the local SAST wrappers act only as handoffs and the imported Trail of Bits skills are the authoritative implementations.

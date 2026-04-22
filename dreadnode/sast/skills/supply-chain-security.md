@@ -24,7 +24,7 @@ Use this skill when:
 ## When NOT to Use
 
 Do NOT use for:
-- Source code vulnerability scanning (use semgrep or codeql)
+- Source code vulnerability scanning (use semgrep, codeql, or sarif-parsing)
 - Runtime security monitoring
 - Infrastructure security audits
 - Network security analysis

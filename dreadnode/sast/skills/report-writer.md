@@ -7,7 +7,7 @@ description: Write structured vulnerability reports from validated SAST findings
 
 Converts validated SAST findings into structured vulnerability reports.
 
-**This skill writes reports. It does NOT validate findings.** If the issue has not been confirmed with source-to-sink reasoning, concrete code evidence, and a plausible attacker path, stop and validate first.
+**This skill writes reports. It does NOT validate findings.** If the issue has not been confirmed with source-to-sink reasoning, concrete code evidence, and a plausible attacker path, stop and validate first using `fp-check` or equivalent verification.
 
 ## Pre-Report Gate
 

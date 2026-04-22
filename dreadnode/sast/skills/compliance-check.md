@@ -23,7 +23,7 @@ Use this skill when:
 ## When NOT to Use
 
 Do NOT use for:
-- General security vulnerability scanning (use semgrep, codeql)
+- General security vulnerability scanning (use semgrep, codeql, sarif-parsing)
 - Business logic analysis
 - Performance optimization
 - Functional testing

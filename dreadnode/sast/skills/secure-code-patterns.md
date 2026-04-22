@@ -652,4 +652,4 @@ rg "innerHTML|document.write|eval\(" . -t js
 - CWE Top 25: https://cwe.mitre.org/top25/
 - NIST Secure Coding: https://www.nist.gov/itl/ssd/software-quality-group/secure-coding
 - SEI CERT Coding Standards: https://wiki.sei.cmu.edu/confluence/display/seccode
-- Related Skills: semgrep, codeql, sharp-edges
+- Related Skills: semgrep, codeql, semgrep-rule-creator, sharp-edges

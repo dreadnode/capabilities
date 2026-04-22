@@ -9,6 +9,17 @@ description: >
   Go, C/C++, and C#/.NET codebases. Includes CodeQL integration and specialized
   skills for threat modeling, compliance checking, and variant analysis.
 
+agents:
+  - agents/
+skills:
+  - skills/
+  - ../../trailofbits/static-analysis/skills/
+  - ../../trailofbits/semgrep-rule-creator/skills/
+  - ../../trailofbits/variant-analysis/skills/
+  - ../../trailofbits/fp-check/skills/
+tools:
+  - tools/
+
 author:
   name: Dreadnode
   url: https://github.com/dreadnode
