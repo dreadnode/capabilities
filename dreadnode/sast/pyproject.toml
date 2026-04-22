@@ -1,0 +1,24 @@
+[project]
+name = "sast-capability"
+version = "1.0.0"
+description = "SAST capability for autonomous vulnerability discovery"
+requires-python = ">=3.10"
+
+dependencies = [
+    # File construction libraries for PoC building
+    "Pillow>=10.0.0",
+    "tifffile>=2023.0.0",
+    "lief>=0.14.0",
+    "pefile>=2023.0.0",
+    "olefile>=0.46",
+    "construct>=2.10.0",
+    "plyfile>=1.0.0",
+    "asn1crypto>=1.5.0",
+    "pyasn1>=0.5.0",
+]
+
+# Note: External tool requirements
+# - ripgrep (rg): Required for fast file/content search
+#   Install: brew install ripgrep (macOS), apt install ripgrep (Linux)
+# - git: Required for git operations (usually pre-installed)
+# - codeql: Optional, auto-installed by CodeQLTool if missing
