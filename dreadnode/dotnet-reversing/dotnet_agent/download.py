@@ -74,7 +74,15 @@ async def download_nuget_package(
                 io.BytesIO(data) as buffer,
                 zipfile.ZipFile(buffer) as zip_file,
             ):
-                zip_file.extractall(extract_dir)
+                resolved_base = extract_dir.resolve()
+                for member in zip_file.namelist():
+                    dest = (extract_dir / member).resolve()
+                    if not dest.is_relative_to(resolved_base):
+                        logger.warning(
+                            f"Skipping zip entry with path traversal: {member}"
+                        )
+                        continue
+                    zip_file.extract(member, extract_dir)
 
             logger.info(f"Extracted to {extract_dir}")
 

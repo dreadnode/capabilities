@@ -16,3 +16,8 @@ keywords:
   - reversing
   - decompilation
   - ilspy
+
+dependencies:
+  python:
+    - "aiohttp>=3.10.0"
+    - "loguru>=0.7.0"

@@ -4,33 +4,41 @@
 Provides decompilation, type/method listing, reference searching,
 and call flow analysis for .NET assemblies (.dll, .exe).
 
+Dependencies (.NET runtime, ILSpy libraries) are automatically
+installed on first use via bootstrap.
+
 Order matters for .NET interop imports — pythonnet must be loaded
 before CLR references are added.
 """
 
-import typing as t
-from pathlib import Path
+# =============================================================================
+# Bootstrap - MUST be first before any pythonnet imports
+# =============================================================================
+from dotnet_agent.bootstrap import ensure_dependencies, get_ilspy_lib_dir
 
-from loguru import logger
-from pythonnet import load  # type: ignore[import-untyped]
+# Install .NET and ILSpy if not present (no-op if already installed)
+ensure_dependencies()
+
+# =============================================================================
+# Now safe to import pythonnet
+# =============================================================================
+import typing as t  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+from loguru import logger  # noqa: E402
+from pythonnet import load  # type: ignore[import-untyped]  # noqa: E402
 
 load("coreclr")
 
 import clr  # type: ignore[import-untyped] # noqa: E402
 import sys  # noqa: E402
 
-# ILSpy DLLs — bootstrap installs them to ~/.dreadnode/dotnet-agent/lib/
-LIB_DIR = Path(
-    __import__("os").environ.get(
-        "DOTNET_TOOLS_LIB_DIR",
-        str(Path.home() / ".dreadnode" / "dotnet-agent" / "lib"),
-    )
-)
-
+# Load ILSpy assemblies from bootstrap location
+LIB_DIR = get_ilspy_lib_dir()
 sys.path.append(str(LIB_DIR))
 
-clr.AddReference("ICSharpCode.Decompiler")
-clr.AddReference("Mono.Cecil")
+clr.AddReference(str(LIB_DIR / "ICSharpCode.Decompiler.dll"))
+clr.AddReference(str(LIB_DIR / "Mono.Cecil.dll"))
 
 from ICSharpCode.Decompiler import DecompilerSettings  # type: ignore[import-not-found] # noqa: E402
 from ICSharpCode.Decompiler.CSharp import CSharpDecompiler  # type: ignore[import-not-found] # noqa: E402
@@ -44,8 +52,43 @@ from Mono.Cecil import AssemblyDefinition  # type: ignore[import-not-found] # no
 # ---------------------------------------------------------------------------
 
 
+def _all_types(module: t.Any) -> t.Iterator[t.Any]:
+    """Yield all types in a module, including nested types (recursive)."""
+    for top_type in module.Types:
+        yield top_type
+        yield from _nested_types(top_type)
+
+
+def _nested_types(type_def: t.Any) -> t.Iterator[t.Any]:
+    """Recursively yield all nested types within a type."""
+    for nested in type_def.NestedTypes:
+        yield nested
+        yield from _nested_types(nested)
+
+
 def _shorten_dotnet_name(name: str) -> str:
     return name.split(" ")[-1].split("(")[0]
+
+
+def _extract_type_name(name: str) -> str:
+    """Extract type name from a method FullName or return as-is if already a type.
+
+    Handles formats like:
+      'System.Void MyNamespace.MyClass::Method(System.String)' -> 'MyNamespace.MyClass'
+      'MyNamespace.MyClass/NestedType' -> 'MyNamespace.MyClass/NestedType'
+      'MyNamespace.MyClass' -> 'MyNamespace.MyClass'
+    """
+    # If it contains '::' it's a method signature — extract the type before '::'
+    if "::" in name:
+        # Strip return type prefix (everything before the last space before '::')
+        before_method = name.split("::")[0]
+        # Return type is space-separated prefix: "System.Void MyNamespace.MyClass"
+        type_part = before_method.split(" ")[-1]
+        return type_part
+    # If it has a space and parens, it might be a method without '::'
+    if " " in name and "(" in name:
+        return name.split(" ")[-1].split("(")[0]
+    return name
 
 
 def _get_decompiler(path: str) -> CSharpDecompiler:
@@ -69,7 +112,7 @@ def _find_references(assembly: t.Any, search: str) -> list[str]:
     using_methods: set[str] = set()
     for module in assembly.Modules:
         methods = []
-        for module_type in module.Types:
+        for module_type in _all_types(module):
             for method in module_type.Methods:
                 methods.append(method)
 
@@ -141,10 +184,40 @@ def decompile_module(path: str) -> str:
 
 
 def decompile_type(path: str, type_name: str) -> str:
-    """Decompile a specific type and return the decompiled code."""
+    """Decompile a specific type and return the decompiled code.
+
+    Accepts either a plain type name (e.g. 'MyNamespace.MyClass') or a
+    method FullName (e.g. 'System.Void MyNamespace.MyClass::Method(...)').
+    In the latter case, the owning type is extracted automatically.
+
+    Falls back to Mono.Cecil token-based decompilation if ILSpy cannot
+    resolve the type by name (e.g. nested types with '/' vs '+' mismatch).
+    """
     logger.info(f"decompile_type({path}, {type_name})")
-    full_type_name = FullTypeName(type_name)
-    return _get_decompiler(path).DecompileTypeAsString(full_type_name)  # type: ignore[no-any-return]
+    type_name = _extract_type_name(type_name)
+
+    # Try direct ILSpy lookup first
+    try:
+        full_type_name = FullTypeName(type_name)
+        return _get_decompiler(path).DecompileTypeAsString(full_type_name)  # type: ignore[no-any-return]
+    except Exception:
+        pass
+
+    # Fallback: find the type via Mono.Cecil and decompile by metadata token.
+    # Handles nested type naming mismatches (Cecil uses '/', ILSpy uses '+')
+    # and cases where the name came from search_for_references output.
+    assembly = AssemblyDefinition.ReadAssembly(path)
+    search = type_name.lower().replace("/", ".").replace("+", ".")
+    for module in assembly.Modules:
+        for module_type in _all_types(module):
+            candidate = module_type.FullName.lower().replace("/", ".").replace("+", ".")
+            if candidate == search:
+                return _decompile_token(path, module_type.MetadataToken)
+
+    raise ValueError(
+        f"Type '{type_name}' not found in {path}. "
+        f"Use dotnet_list_types to see available types."
+    )
 
 
 def decompile_methods(path: str, method_names: list[str]) -> dict[str, str]:
@@ -156,7 +229,7 @@ def decompile_methods(path: str, method_names: list[str]) -> dict[str, str]:
     assembly = AssemblyDefinition.ReadAssembly(path)
     methods: dict[str, str] = {}
     for module in assembly.Modules:
-        for module_type in module.Types:
+        for module_type in _all_types(module):
             for method in module_type.Methods:
                 method_name = _shorten_dotnet_name(method.FullName).lower()
                 if method_name in flexible_method_names:
@@ -173,7 +246,7 @@ def list_namespaces(path: str) -> list[str]:
 
     namespaces: set[str] = set()
     for module in assembly.Modules:
-        for module_type in module.Types:
+        for module_type in _all_types(module):
             if "." in module_type.FullName:
                 namespace = ".".join(module_type.FullName.split(".")[:-1])
                 namespaces.add(namespace)
@@ -190,7 +263,7 @@ def list_types_in_namespace(path: str, namespace: str) -> list[str]:
 
     types: list[str] = []
     for module in assembly.Modules:
-        for module_type in module.Types:
+        for module_type in _all_types(module):
             if namespace == "<root>":
                 if "." not in module_type.FullName or (
                     module_type.FullName.count(".") == 1
@@ -212,7 +285,7 @@ def list_methods_in_type(path: str, type_name: str) -> list[str]:
 
     methods: list[str] = []
     for module in assembly.Modules:
-        for module_type in module.Types:
+        for module_type in _all_types(module):
             if module_type.FullName == type_name:
                 methods.extend([method.Name for method in module_type.Methods])
                 break
@@ -227,7 +300,7 @@ def list_types(path: str) -> list[str]:
     return [
         module_type.FullName
         for module in assembly.Modules
-        for module_type in module.Types
+        for module_type in _all_types(module)
     ]
 
 
@@ -237,7 +310,7 @@ def list_methods(path: str) -> list[str]:
     assembly = AssemblyDefinition.ReadAssembly(path)
     methods: list[str] = []
     for module in assembly.Modules:
-        for module_type in module.Types:
+        for module_type in _all_types(module):
             methods.extend([method.FullName for method in module_type.Methods])
     return methods
 
@@ -258,12 +331,12 @@ def search_by_name(path: str, search: str) -> dict[str, list[str]]:
     search_lower = search.lower()
 
     for module in assembly.Modules:
-        for module_type in module.Types:
+        for module_type in _all_types(module):
             if search_lower in module_type.FullName.lower():
                 results["types"].append(module_type.FullName)
 
     for module in assembly.Modules:
-        for module_type in module.Types:
+        for module_type in _all_types(module):
             for method in module_type.Methods:
                 if search_lower in method.FullName.lower():
                     results["methods"].append(method.FullName)
