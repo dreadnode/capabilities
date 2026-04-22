@@ -11,6 +11,7 @@ Imported Trail of Bits skills:
 - `semgrep-rule-creator`
 - `variant-analysis`
 - `fp-check`
+- `supply-chain-risk-auditor`
 
 ## Overview
 
@@ -25,6 +26,7 @@ Skills provide specialized knowledge and workflows that the SAST agent can refer
 - **triage-priority** - Prioritize vulnerability findings by exploitability and impact
 - **false-positive-filters** - Filters to avoid reporting false positives during security analysis
 - **fp-check** - Imported Trail of Bits exploitability verification workflow for confirming true vs false positives
+- **supply-chain-risk-auditor** - Imported Trail of Bits dependency-risk workflow for maintainer, ecosystem, and takeover risk
 
 ### Static Analysis Tools
 
@@ -38,8 +40,8 @@ Skills provide specialized knowledge and workflows that the SAST agent can refer
 ### Security Domains
 
 - **threat-modeling** - Systematic threat identification and risk assessment
-- **supply-chain-security** - Analyze dependencies and supply chain risks
-- **ci-cd-security** - CI/CD pipeline security analysis
+- **supply-chain-security** - Lightweight SCA/SBOM guidance; use `supply-chain-risk-auditor` for dependency-risk assessment
+- **ci-cd-security** - CI/CD pipeline security analysis, scoped to workflow trust boundaries and secret handling
 - **compliance-check** - Security compliance verification
 - **secure-code-patterns** - Reference patterns for secure coding
 

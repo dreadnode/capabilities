@@ -16,6 +16,7 @@ skills:
   - triage-priority
   - fix-review
   - file-construction-libraries
+  - supply-chain-risk-auditor
   - threat-modeling
   - supply-chain-security
   - ci-cd-security
