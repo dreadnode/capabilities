@@ -231,7 +231,7 @@ See `references/bug-detection.md` for comprehensive detection patterns and examp
 
 **differential-review:** For initial security review of changes (before audit)
 
-**issue-writer:** To format findings into formal audit reports
+**report-writer:** To format validated findings into formal audit reports
 
 **audit-context-building:** For deep context when analyzing complex fixes
 

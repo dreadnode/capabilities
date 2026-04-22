@@ -30,7 +30,7 @@ Use this skill when:
 Do NOT use this skill for:
 - Initial vulnerability discovery (use audit-context-building or static analysis skills)
 - Deep technical analysis of specific vulnerabilities (use variant-analysis)
-- Writing vulnerability reports (use issue-writer after prioritization)
+- Writing vulnerability reports (use report-writer after prioritization)
 - Fixing vulnerabilities (use fix-review after prioritization)
 
 ## Core Prioritization Framework

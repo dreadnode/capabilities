@@ -11,6 +11,8 @@ allowed-tools:
 
 Check findings against these filters before reporting to avoid common false positives.
 
+**This skill filters findings. It does NOT validate exploitability end-to-end.** If a finding survives these filters but still needs proof, continue with `fp-check`.
+
 ## When to Use
 
 - Before calling `report_vulnerability`
@@ -24,7 +26,7 @@ Check findings against these filters before reporting to avoid common false posi
 - When the vulnerability is clearly exploitable
 - For informational/low findings that should be `highlight_for_review` instead
 
-## DO NOT Report as Vulnerabilities
+## Informational, Not Vulnerabilities
 
 These are informational findings, not exploitable vulnerabilities:
 
@@ -100,7 +102,7 @@ These are informational findings, not exploitable vulnerabilities:
 
 **Check:** Is the URL user-controlled? Can internal services be reached?
 
-## Verification Checklist
+## Filter Checklist
 
 Before reporting, confirm:
 
