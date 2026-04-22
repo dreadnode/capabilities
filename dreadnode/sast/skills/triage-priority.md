@@ -276,25 +276,7 @@ For LOW/INFORMATIONAL findings that won't be fixed:
 
 ## Tool Integration
 
-### With Semgrep
-
-```bash
-# Run Semgrep with metadata for triage
-semgrep --config auto --json -o findings.json .
-
-# Extract high-severity findings
-jq '.results[] | select(.extra.severity == "ERROR")' findings.json
-```
-
-### With CodeQL
-
-```bash
-# Export CodeQL results with CVE mapping
-codeql database analyze db/ --format=sarif-latest --output=results.sarif
-
-# Parse for CVE identifiers
-jq '.runs[].results[].ruleId' results.sarif | grep -oP 'CVE-\d{4}-\d+' | sort -u
-```
+Consume outputs from the imported `semgrep`, `codeql`, and `sarif-parsing` skills rather than re-running scanner workflows inline here.
 
 ### With EPSS API
 

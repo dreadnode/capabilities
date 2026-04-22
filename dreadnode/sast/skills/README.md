@@ -33,9 +33,6 @@ Skills provide specialized knowledge and workflows that the SAST agent can refer
 - **sarif-parsing** - Imported Trail of Bits SARIF parsing and processing guidance
 - **semgrep-rule-creator** - Imported Trail of Bits workflow for authoring Semgrep rules
 - **variant-analysis** - Imported Trail of Bits workflow for hunting bug variants
-- **codeql-handoff** - Local pointer to the imported `codeql` skill
-- **semgrep-handoff** - Local pointer to the imported `semgrep` skill
-- **sarif-parsing-handoff** - Local pointer to the imported `sarif-parsing` skill
 - **report-writer** - Convert validated findings into concise, evidence-driven vulnerability reports
 
 ### Security Domains
@@ -91,4 +88,4 @@ The skills complement the agent's core capabilities:
 
 Skills enable the agent to leverage security expertise without bloating the core prompt, maintaining focus while having deep knowledge available on demand.
 
-For static-analysis domains where Trail of Bits ships a deeper workflow, the local SAST wrappers act only as handoffs and the imported Trail of Bits skills are the authoritative implementations.
+For static-analysis domains where Trail of Bits ships a deeper workflow, the imported Trail of Bits skills are the authoritative implementations.

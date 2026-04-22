@@ -5,25 +5,25 @@ description: Write structured vulnerability reports from validated SAST findings
 
 # Vulnerability Report Writer
 
-Converts validated SAST findings into structured vulnerability reports.
+Converts validated findings into structured vulnerability reports.
 
-**This skill writes reports. It does NOT validate findings.** If the issue has not been confirmed with source-to-sink reasoning, concrete code evidence, and a plausible attacker path, stop and validate first using `fp-check` or equivalent verification.
+**This skill writes reports. It does NOT validate findings.** If the finding has not been verified with concrete code evidence, source-to-sink reasoning, and a plausible attacker path, stop and validate first using `fp-check`.
 
 ## Pre-Report Gate
 
 Before writing, confirm ALL of the following. If any fail, halt and state what is missing:
 
-1. **Exploitability confirmed?** The finding has a concrete attacker-controlled source reaching a dangerous sink or security boundary failure.
-2. **Evidence grounded?** The report cites actual files, functions, line numbers, data flow, or tool output. Do not rely on vague pattern matches alone.
-3. **Impact demonstrated?** The report explains what an attacker gains in practice, not just the bug class.
-4. **False positives checked?** The finding was cross-checked against sanitization, validation, authorization, or framework protections.
-5. **Scope appropriate?** The issue is materially actionable and not a best-practice nit or speculative hardening note.
+1. **Reproduced?** The claim is validated with source-to-sink reasoning or equivalent concrete evidence, not just a pattern match.
+2. **Ground truth?** Evidence comes from actual files, functions, line numbers, code snippets, or tool output you can explain.
+3. **Escalated?** The report pursues the maximum demonstrable impact supported by the code path.
+4. **Scope confirmed?** The issue is materially actionable and not merely a best-practice gap or theoretical hardening note.
+5. **Not a known FP?** The finding was checked against sanitization, validation, permission checks, framework protections, and other false-positive patterns.
 
-If uncertain on impact, state: "Impact needs stronger demonstration. Consider: [specific escalation path]"
+If uncertain on escalation, state: "Impact may not be fully demonstrated. Consider: [specific escalation path]"
 
 ## Report Structure
 
-Every report should contain these sections in order.
+Every report must contain these sections in order.
 
 ### Title
 
@@ -33,15 +33,19 @@ Be concrete. Bad: "Potential SQL injection". Good: "SQL Injection in `build_user
 
 ### Summary
 
-One paragraph. A reviewer reading only this should understand:
+One paragraph. A reviewer reading only this should understand the finding without reading the rest.
+
+Include:
 - Vulnerability class and CWE
 - Affected file(s), function(s), and entry point(s)
-- Attacker-controlled input
+- Attacker-controlled input or violated trust boundary
 - Concrete impact
 
 ### Description
 
-Explain the technical root cause in 2-4 paragraphs:
+Technical root cause. 2-4 paragraphs. Do NOT repeat the summary or PoC steps.
+
+Explain:
 - Where tainted input enters
 - How it propagates
 - What sink or trust boundary it reaches
@@ -49,9 +53,33 @@ Explain the technical root cause in 2-4 paragraphs:
 
 If any part of the chain is inferred rather than observed directly, say so explicitly.
 
-### Evidence
+### Proof of Concept
 
-Include precise references:
+#### Prerequisites
+
+State any setup requirements:
+- repository or branch context
+- build/runtime assumptions
+- language or framework assumptions
+- privilege requirements, if any
+
+If no setup beyond reading the code is required, say so.
+
+#### Reproduction Steps
+
+Numbered steps. Each step must include:
+- What the reviewer should inspect
+- The relevant file/function/line references
+- What the reviewer should observe and why it matters
+
+Rules:
+- One variable per step so the reader can attribute each conclusion
+- Do not rely on a raw scanner hit without interpretation
+- If a step depends on deployment assumptions, state them explicitly
+
+#### Evidence
+
+For each claim, include precise references:
 - File path and line numbers
 - Relevant function names
 - Key code snippets or tool findings summarized in your own words
@@ -62,7 +90,7 @@ Rules:
 - Do not claim exploitability from a matcher hit alone
 - Tie each piece of evidence to the attacker path
 
-### Exploitation Path
+#### Exploitation Path
 
 Spell out the attacker workflow step by step:
 1. Source of attacker control
@@ -78,9 +106,11 @@ For defense-sensitive findings, explicitly note the missing control:
 - permission check
 - cryptographic verification
 
+For multi-step findings, explain the causal chain so the reviewer can follow why step 1 enables step 2.
+
 ### Impact
 
-State demonstrated or strongly supported impact, not hypothetical maximum impact.
+Concrete demonstrated impact. State what an attacker can achieve, not what "could" happen.
 
 Prefer BEFORE vs AFTER framing:
 - **Before:** attacker can submit arbitrary template text
@@ -97,7 +127,7 @@ Recommendations should be implementation-oriented, not generic policy advice.
 
 ### References
 
-Keep to relevant grounding:
+Ground-truth only. Keep to relevant grounding:
 - CWE
 - OWASP or language/framework guidance
 - Vendor or library documentation if the bug depends on specific behavior
@@ -106,5 +136,6 @@ Keep to relevant grounding:
 
 - Concise
 - Technical
+- Factual
 - Evidence-driven
-- One vulnerability per report unless chaining is required to show impact
+- One vulnerability per report unless chaining is required to demonstrate impact
