@@ -13,11 +13,6 @@ agents:
   - agents/
 skills:
   - skills/
-  - ../../trailofbits/static-analysis/skills/
-  - ../../trailofbits/semgrep-rule-creator/skills/
-  - ../../trailofbits/variant-analysis/skills/
-  - ../../trailofbits/fp-check/skills/
-  - ../../trailofbits/supply-chain-risk-auditor/skills/
 tools:
   - tools/
 
