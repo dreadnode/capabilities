@@ -3093,12 +3093,443 @@ def generate_agentic_attack(params: dict) -> dict:
 
     return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
 
+# Image / traditional ML adversarial attacks
+
+_IMAGE_ATTACK_DEFS: dict[str, dict] = {
+    "hopskipjump_attack": {
+        "function": "hopskipjump_attack",
+        "default_iterations": 1000,
+        "extra_defaults": {
+            "norm": '"l2"',
+            "theta": 0.01,
+        },
+    },
+    "simba_attack": {
+        "function": "simba_attack",
+        "default_iterations": 10000,
+        "extra_defaults": {
+            "theta": 0.1,
+            "num_masks": 500,
+            "norm": '"l2"',
+        },
+    },
+    "nes_attack": {
+        "function": "nes_attack",
+        "default_iterations": 100,
+        "extra_defaults": {
+            "learning_rate": 0.01,
+            "num_samples": 64,
+            "sigma": 0.001,
+        },
+    },
+    "zoo_attack": {
+        "function": "zoo_attack",
+        "default_iterations": 1000,
+        "extra_defaults": {
+            "learning_rate": 0.01,
+            "num_samples": 128,
+            "epsilon": 0.01,
+        },
+    },
+}
+
+IMAGE_ATTACK_ALIASES: dict[str, str] = {}
+for _canon, _def in _IMAGE_ATTACK_DEFS.items():
+    IMAGE_ATTACK_ALIASES[_canon] = _canon
+    short = _canon.removesuffix("_attack")
+    if short != _canon:
+        IMAGE_ATTACK_ALIASES[short] = _canon
+IMAGE_ATTACK_ALIASES["hsj"] = "hopskipjump_attack"
+IMAGE_ATTACK_ALIASES["hop_skip_jump"] = "hopskipjump_attack"
+
+
+def _build_image_imports(attack_func: str) -> str:
+    """Build imports for image attack scripts."""
+    lines = [
+        "import asyncio",
+        "import os",
+        "import sys",
+        "import traceback",
+        "from pathlib import Path",
+        "",
+        "import dreadnode as dn",
+        "from dreadnode import task",
+        "from dreadnode.core.types.image import Image",
+        "from dreadnode.airt.image import {}".format(attack_func),
+        "from dreadnode.scorers.image import image_distance",
+        "from dreadnode.airt.assessment import Assessment",
+    ]
+    return "\n".join(lines)
+
+
+def _build_image_target(target_config: dict) -> str:
+    """Build the scorer/target function for image attacks.
+
+    Generates a @task that calls the target ML API with an image and returns
+    a classification confidence score. The attack optimizes to minimize
+    confidence in the original class (untargeted) or maximize confidence
+    in a target class (targeted).
+    """
+    target_url = _safe_str(target_config["target_url"])
+    auth_type = target_config.get("auth_type", "none")
+    auth_env_var = target_config.get("auth_env_var", "TARGET_API_KEY")
+    request_format = target_config.get("request_format", "base64_json")
+    response_confidence_path = target_config.get("response_confidence_path", "$.confidence")
+    original_class = target_config.get("original_class", "")
+    image_field = target_config.get("image_field", "image")
+
+    # Auth header
+    if auth_type == "bearer":
+        auth_code = '    _api_key = os.environ.get("{}", "")\n    headers["Authorization"] = f"Bearer {{_api_key}}"'.format(auth_env_var)
+    elif auth_type == "api_key":
+        auth_code = '    _api_key = os.environ.get("{}", "")\n    headers["X-API-Key"] = _api_key'.format(auth_env_var)
+    elif auth_type == "aws_sigv4":
+        auth_code = (
+            "    # AWS SigV4 auth — uses boto3 session\n"
+            "    import boto3\n"
+            "    from botocore.auth import SigV4Auth\n"
+            "    from botocore.awsrequest import AWSRequest\n"
+            "    _session = boto3.Session()\n"
+            "    _credentials = _session.get_credentials().get_frozen_credentials()"
+        )
+    else:
+        auth_code = "    pass  # No auth configured"
+
+    # Request body construction
+    if request_format == "base64_json":
+        send_code = (
+            '    img_b64 = image.to_base64()\n'
+            '    body = {{"{field}": img_b64}}\n'
+            '    if ORIGINAL_CLASS:\n'
+            '        body["original_class"] = ORIGINAL_CLASS\n'
+            '    async with httpx.AsyncClient(timeout=120.0) as client:\n'
+            '        resp = await client.post(TARGET_URL, json=body, headers=headers)\n'
+            '        resp.raise_for_status()\n'
+            '        data = resp.json()'
+        ).format(field=_safe_str(image_field))
+    elif request_format == "numpy_json":
+        send_code = (
+            '    arr = image.to_numpy().tolist()\n'
+            '    body = {{"{field}": arr}}\n'
+            '    if ORIGINAL_CLASS:\n'
+            '        body["original_class"] = ORIGINAL_CLASS\n'
+            '    async with httpx.AsyncClient(timeout=120.0) as client:\n'
+            '        resp = await client.post(TARGET_URL, json=body, headers=headers)\n'
+            '        resp.raise_for_status()\n'
+            '        data = resp.json()'
+        ).format(field=_safe_str(image_field))
+    elif request_format == "sagemaker":
+        send_code = (
+            '    import numpy as np\n'
+            '    arr = image.to_numpy()\n'
+            '    # SageMaker expects {"instances": [{"features": [...]}]} or raw CSV\n'
+            '    payload = {"instances": [{"features": arr.flatten().tolist()}]}\n'
+            '    async with httpx.AsyncClient(timeout=120.0) as client:\n'
+            '        resp = await client.post(TARGET_URL, json=payload, headers=headers)\n'
+            '        resp.raise_for_status()\n'
+            '        data = resp.json()'
+        )
+    else:
+        send_code = (
+            '    img_bytes = image.to_base64()\n'
+            '    body = {{"{field}": img_bytes}}\n'
+            '    async with httpx.AsyncClient(timeout=120.0) as client:\n'
+            '        resp = await client.post(TARGET_URL, json=body, headers=headers)\n'
+            '        resp.raise_for_status()\n'
+            '        data = resp.json()'
+        ).format(field=_safe_str(image_field))
+
+    # Confidence extraction
+    confidence_extract = (
+        '    from jsonpath_ng.ext import parse as jp_parse\n'
+        '    matches = jp_parse("{}").find(data)\n'
+        '    if matches:\n'
+        '        confidence = float(matches[0].value)\n'
+        '    else:\n'
+        '        # Fallback: try common response shapes\n'
+        '        if isinstance(data, dict):\n'
+        '            confidence = float(data.get("confidence", data.get("score", data.get("prediction", 0.5))))\n'
+        '        elif isinstance(data, list) and data:\n'
+        '            confidence = float(data[0]) if isinstance(data[0], (int, float)) else 0.5\n'
+        '        else:\n'
+        '            confidence = 0.5'
+    ).format(_safe_str(response_confidence_path))
+
+    return '''\
+@task
+async def classify_image(image: Image) -> float:
+    """Send image to target ML API and return classification confidence.
+
+    Returns the confidence score for the original class. The attack
+    optimizer will try to MINIMIZE this (fool the classifier).
+    """
+    import httpx
+
+    headers = {{"Content-Type": "application/json"}}
+{auth_code}
+
+{send_code}
+
+{confidence_extract}
+
+    return confidence
+'''.format(
+        auth_code=auth_code,
+        send_code=send_code,
+        confidence_extract=confidence_extract,
+    )
+
+
+_IMAGE_ATTACK_TEMPLATE = '''\
+async def main():
+    output_dir = Path.home() / "workspace" / "airt"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load the input image
+    print(f"Loading image: {{IMAGE_PATH}}")
+    original = Image(IMAGE_PATH)
+    print(f"  Shape: {{original.shape}}, Mode: {{original.mode}}")
+
+    # Build objective: combine API confidence scorer with distance constraint
+    objective = {{
+        "api_confidence": classify_image,
+        "perturbation": image_distance(original, norm=NORM),
+    }}
+
+    assessment = Assessment(
+{assessment_kwargs}
+    )
+    await assessment.register()
+    print(f"Assessment registered: {{assessment.assessment_id or 'local-only'}}")
+    sys.stdout.flush()
+
+    async with assessment.trace():
+        try:
+            print(f"Attack: {attack_name}")
+            print(f"Target: {{TARGET_URL}}")
+            print(f"Original class: {{ORIGINAL_CLASS or 'auto-detect'}}")
+            print(f"Norm: {{NORM}}")
+            print(f"Max iterations: {{MAX_ITERATIONS}}")
+            sys.stdout.flush()
+
+            study = {attack_func}(
+                {attack_params}
+            )
+            result = await study.run()
+
+            # Save adversarial image
+            adversarial_path = output_dir / "adversarial_{{0}}.png".format(
+                Path(IMAGE_PATH).stem
+            )
+            if result.best_trial and result.best_trial.candidate:
+                adv_img = result.best_trial.candidate
+                adv_pil = adv_img.to_pil()
+                adv_pil.save(str(adversarial_path))
+                print(f"\\n--- RESULTS ---")
+                print(f"  Adversarial image saved: {{adversarial_path}}")
+                print(f"  Best score: {{result.best_trial.get_directional_score()}}")
+                print(f"--- end ---")
+            else:
+                print(f"\\n--- RESULTS ---")
+                print(f"  No successful adversarial found in {{MAX_ITERATIONS}} iterations")
+                print(f"--- end ---")
+            sys.stdout.flush()
+
+        except Exception as e:
+            print(f"\\nERROR: {{e}}")
+            traceback.print_exc()
+            await assessment.fail(str(e))
+            sys.exit(1)
+
+    print(f"\\nAssessment complete.")
+    sys.stdout.flush()
+
+asyncio.run(main())
+
+try:
+    dn.shutdown()
+except Exception:
+    pass
+'''
+
+
+def generate_image_attack(params: dict) -> dict:
+    """Generate a workflow script for image/traditional ML adversarial attacks.
+
+    Supports HopSkipJump, SimBA, NES, and ZOO attacks against ML model APIs.
+    The target is an HTTP endpoint that accepts images and returns predictions.
+    """
+    attack_type = params.get("attack_type", "hopskipjump")
+    target_url = params.get("target_url", "")
+    image_path = params.get("image_path", "")
+    auth_type = params.get("auth_type", "none")
+    auth_env_var = params.get("auth_env_var", "TARGET_API_KEY")
+    request_format = params.get("request_format", "base64_json")
+    response_confidence_path = params.get("response_confidence_path", "$.confidence")
+    original_class = params.get("original_class", "")
+    image_field = params.get("image_field", "image")
+    norm = params.get("norm", "l2")
+    n_iterations = params.get("n_iterations")
+    assessment_name = params.get("assessment_name", "")
+
+    if not target_url:
+        return {"error": "target_url is required (HTTP endpoint for the ML model)"}
+    if not image_path:
+        return {"error": "image_path is required (path to input image to perturb)"}
+
+    # Resolve attack
+    key = attack_type.strip().lower().replace("-", "_").replace(" ", "_")
+    canon = IMAGE_ATTACK_ALIASES.get(key)
+    if not canon:
+        return {"error": "Unknown image attack: '{}'. Available: {}".format(
+            attack_type, ", ".join(sorted(IMAGE_ATTACK_ALIASES.keys()))
+        )}
+    atk_def = _IMAGE_ATTACK_DEFS[canon]
+    attack_func = atk_def["function"]
+
+    if n_iterations is None:
+        n_iterations = atk_def["default_iterations"]
+
+    # Build script
+    imports = _build_image_imports(attack_func)
+    configure = _build_configure()
+
+    # Config section
+    config_lines = [
+        '# -- CONFIG --',
+        'TARGET_URL = "{}"'.format(_safe_str(target_url)),
+        'IMAGE_PATH = "{}"'.format(_safe_str(image_path)),
+        'ORIGINAL_CLASS = "{}"'.format(_safe_str(original_class)),
+        'NORM = "{}"'.format(_safe_str(norm)),
+        'MAX_ITERATIONS = {}'.format(n_iterations),
+        '',
+        'print("=" * 60)',
+        'print("IMAGE ATTACK CONFIGURATION")',
+        'print("=" * 60)',
+        'print(f"  Target URL: {TARGET_URL}")',
+        'print(f"  Image:      {IMAGE_PATH}")',
+        'print("  Attack:     {}")'.format(canon),
+        'print(f"  Norm:       {NORM}")',
+        'print(f"  Max iter:   {MAX_ITERATIONS}")',
+        'print("=" * 60)',
+        'sys.stdout.flush()',
+    ]
+    config_section = "\n".join(config_lines)
+
+    target_code = _build_image_target({
+        "target_url": target_url,
+        "auth_type": auth_type,
+        "auth_env_var": auth_env_var,
+        "request_format": request_format,
+        "response_confidence_path": response_confidence_path,
+        "original_class": original_class,
+        "image_field": image_field,
+    })
+
+    # Build attack params
+    if canon == "hopskipjump_attack":
+        attack_params_str = "source=original,\n                objective=objective,\n                max_iterations=MAX_ITERATIONS"
+        for k, v in atk_def.get("extra_defaults", {}).items():
+            if k != "norm":
+                attack_params_str += ",\n                {}={}".format(k, v)
+        attack_params_str += ',\n                norm=NORM'
+    else:
+        attack_params_str = "original=original,\n                objective=objective,\n                max_iterations=MAX_ITERATIONS"
+        for k, v in atk_def.get("extra_defaults", {}).items():
+            if k != "norm":
+                attack_params_str += ",\n                {}={}".format(k, v)
+        if "norm" in atk_def.get("extra_defaults", {}):
+            attack_params_str += ',\n                norm=NORM'
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = "image_{}_{}.py".format(canon.removesuffix("_attack"), timestamp)
+    assessment_name = assessment_name or "{} Image Attack".format(canon)
+
+    assessment_kwargs = (
+        '    name="{}",\n'
+        '    description="Image attack: {} on {{TARGET_URL}}",\n'
+        '    workflow_run_id="{}",\n'
+        '    target_config={{"url": TARGET_URL, "type": "ml_classifier"}},\n'
+        '    attacker_config={{"attack": "{}"}},\n'
+        '    attack_manifest=[{{"attack": "{}", "iterations": MAX_ITERATIONS}}],'
+    ).format(
+        _safe_str(assessment_name),
+        canon,
+        _safe_str(filename),
+        canon,
+        canon,
+    )
+
+    body = _IMAGE_ATTACK_TEMPLATE.format(
+        assessment_kwargs=assessment_kwargs,
+        attack_func=attack_func,
+        attack_name=canon,
+        attack_params=attack_params_str,
+    )
+
+    script = "\n".join([imports, configure, config_section, "", target_code, body])
+
+    # Syntax check
+    try:
+        compile(script, "image_workflow.py", "exec")
+    except SyntaxError as e:
+        return {"error": "Generated script has syntax error: {} (line {}). This is a bug in the tool.".format(
+            e.msg, e.lineno
+        )}
+
+    # Save
+    WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
+    filepath = WORKFLOWS_DIR / filename
+    filepath.write_text(script)
+
+    # Update metadata
+    metadata = {}
+    if METADATA_FILE.exists():
+        try:
+            metadata = json.loads(METADATA_FILE.read_text())
+        except Exception:
+            pass
+    metadata[filename] = {
+        "description": "Image Attack: {} vs {}".format(canon, target_url),
+        "saved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "size_bytes": len(script.encode()),
+    }
+    METADATA_FILE.write_text(json.dumps(metadata, indent=2))
+
+    result_lines = [
+        "Image attack workflow generated and saved.",
+        "",
+        "File: {}".format(filepath),
+        "Workflow filename: {}".format(filename),
+        "",
+        ">>> NEXT STEP: call execute_workflow(filename=\"{}\") to run this attack <<<".format(filename),
+        "",
+        "Config:",
+        "  Mode: Image/ML Adversarial Attack",
+        "  Attack: {}".format(canon),
+        "  Target URL: {}".format(target_url),
+        "  Image: {}".format(image_path),
+        "  Original class: {}".format(original_class or "auto-detect"),
+        "  Auth: {} ({})".format(auth_type, auth_env_var),
+        "  Request format: {}".format(request_format),
+        "  Norm: {}".format(norm),
+        "  Iterations: {}".format(n_iterations),
+    ]
+
+    if not params.get("generate_only"):
+        exec_output = _auto_execute_workflow(filename)
+        result_lines.append(exec_output)
+
+    return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
+
+
 # stdin/stdout JSON dispatch
 
 METHODS = {
     "generate_attack": generate_attack,
     "generate_category_attack": generate_category_attack,
     "generate_agentic_attack": generate_agentic_attack,
+    "generate_image_attack": generate_image_attack,
 }
 
 def main() -> None:

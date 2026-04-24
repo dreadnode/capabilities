@@ -285,3 +285,97 @@ def generate_agentic_attack(
         params["assessment_name"] = assessment_name
 
     return _call_runner("generate_agentic_attack", params)
+
+
+@tool
+def generate_image_attack(
+    attack_type: t.Annotated[
+        str,
+        "Image attack type: hopskipjump (or hsj), simba, nes, zoo. "
+        "These are traditional ML adversarial attacks that perturb images "
+        "to fool classifiers.",
+    ],
+    target_url: t.Annotated[
+        str,
+        "HTTP endpoint URL for the target ML model API. "
+        "Must accept image input and return predictions with confidence scores.",
+    ],
+    image_path: t.Annotated[
+        str,
+        "Path to the input image to perturb (PNG, JPG, etc.). "
+        "Can be a local file path or URL.",
+    ],
+    auth_type: t.Annotated[
+        str,
+        "Auth scheme: 'none', 'bearer', 'api_key', or 'aws_sigv4'",
+    ] = "none",
+    auth_env_var: t.Annotated[
+        str,
+        "Env var name for the auth credential (e.g., TARGET_API_KEY)",
+    ] = "TARGET_API_KEY",
+    request_format: t.Annotated[
+        str,
+        "How to send the image: 'base64_json' (base64 in JSON body), "
+        "'numpy_json' (numpy array in JSON), 'sagemaker' (SageMaker format)",
+    ] = "base64_json",
+    response_confidence_path: t.Annotated[
+        str,
+        "JSONPath to the confidence/score value in the API response. "
+        "Examples: '$.confidence', '$.predictions[0].score', '$.predictions[0]'",
+    ] = "$.confidence",
+    original_class: t.Annotated[
+        str,
+        "The original/correct class label. If provided, the attack tries "
+        "to make the model predict a different class.",
+    ] = "",
+    image_field: t.Annotated[
+        str,
+        "JSON field name for the image data in the request body",
+    ] = "image",
+    norm: t.Annotated[
+        str,
+        "Distance norm for perturbation: 'l0', 'l1', 'l2', or 'linf'",
+    ] = "l2",
+    n_iterations: t.Annotated[int | None, "Max iterations for the attack"] = None,
+    assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
+) -> str:
+    """Generate and execute an image adversarial attack against an ML model API.
+
+    Attacks a deployed ML classification model by perturbing input images
+    to fool the classifier. Supports HopSkipJump (decision-boundary),
+    SimBA (score-based), NES (gradient estimation), and ZOO (zeroth-order
+    optimization) attacks.
+
+    The target must be an HTTP endpoint that accepts images and returns
+    classification predictions with confidence scores. Works with
+    SageMaker, custom Flask/FastAPI APIs, or any REST endpoint.
+
+    Example: Attack a fraud detection model deployed on SageMaker:
+      generate_image_attack(
+          attack_type="hopskipjump",
+          target_url="https://runtime.sagemaker.us-west-2.amazonaws.com/endpoints/my-model/invocations",
+          image_path="~/test_image.png",
+          auth_type="aws_sigv4",
+          request_format="sagemaker",
+          response_confidence_path="$.predictions[0]",
+      )
+    """
+    params: dict[str, t.Any] = {
+        "attack_type": attack_type,
+        "target_url": target_url,
+        "image_path": image_path,
+        "auth_type": auth_type,
+        "auth_env_var": auth_env_var,
+        "request_format": request_format,
+        "response_confidence_path": response_confidence_path,
+        "image_field": image_field,
+        "norm": norm,
+    }
+    if original_class:
+        params["original_class"] = original_class
+    if n_iterations is not None:
+        params["n_iterations"] = n_iterations
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+
+    return _call_runner("generate_image_attack", params)
