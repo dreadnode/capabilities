@@ -3673,14 +3673,17 @@ async def main():
         sys.exit(1)
     sys.stdout.flush()
 
-    async with Assessment(
+    assessment = Assessment(
         name="{assessment_name}",
         description="Tabular attack: {canon} on {{API_URL}}",
         workflow_run_id="{filename}",
         target_config={{"url": API_URL, "type": "ml_classifier"}},
         attacker_config={{"attack": "{canon}"}},
         attack_manifest=[{{"attack": "{canon}", "domain": "adversarial_ml", "input_modality": "tabular", "iterations": MAX_ITERATIONS}}],
-    ) as assessment:
+    )
+    await assessment.register()
+
+    try:
         study = {attack_func}(
             {source_arg}=original,
             objective=objective,
@@ -3724,6 +3727,9 @@ async def main():
             print(f"  No successful adversarial found in {{MAX_ITERATIONS}} iterations")
             print(f"--- end ---")
         sys.stdout.flush()
+    except Exception as e:
+        await assessment.fail(str(e))
+        raise
 
     print(f"\\nAssessment complete.")
     sys.stdout.flush()
