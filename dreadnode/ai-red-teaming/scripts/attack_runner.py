@@ -3639,10 +3639,18 @@ def query_api(features_array: np.ndarray) -> dict:
     return resp.json()
 
 
-def objective(candidate: np.ndarray) -> float:
+def objective(candidate) -> float:
     """Score a candidate: higher = closer to adversarial goal."""
     try:
-        result = query_api(candidate)
+        # Handle both ndarray and Image candidates
+        if hasattr(candidate, "to_numpy"):
+            arr = candidate.to_numpy().flatten()
+        elif hasattr(candidate, "flatten"):
+            arr = candidate.flatten()
+        else:
+            arr = np.array(candidate, dtype=np.float32).flatten()
+
+        result = query_api(arr)
         preds = result.get("predictions", [result])
         pred = preds[0] if isinstance(preds, list) else preds
         if "fraud_probability" in pred:
@@ -3654,6 +3662,18 @@ def objective(candidate: np.ndarray) -> float:
                 score = 1 - pred["confidence"]
         else:
             score = float(pred.get("class") == TARGET_CLASS)
+
+        # Set target_input/target_output on the current trial span for trace visibility
+        try:
+            from opentelemetry import trace as _trace
+            _span = _trace.get_current_span()
+            if _span and _span.is_recording():
+                import json as _json
+                _span.set_attribute("dreadnode.airt.target_input", _json.dumps({{"features": arr.tolist()[:10], "total_features": len(arr)}}))
+                _span.set_attribute("dreadnode.airt.target_output", _json.dumps(pred))
+        except Exception:
+            pass
+
         return float(score)
     except Exception as e:
         print(f"API error: {{e}}")
