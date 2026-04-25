@@ -291,90 +291,100 @@ def generate_agentic_attack(
 def generate_image_attack(
     attack_type: t.Annotated[
         str,
-        "Image attack type: hopskipjump (or hsj), simba, nes, zoo. "
-        "These are traditional ML adversarial attacks that perturb images "
-        "to fool classifiers.",
-    ],
-    target_url: t.Annotated[
+        "ML adversarial attack type: hopskipjump (or hsj), simba, nes, zoo. "
+        "These are black-box attacks that perturb inputs to fool classifiers.",
+    ] = "hopskipjump",
+    input_type: t.Annotated[
         str,
-        "HTTP endpoint URL for the target ML model API. "
-        "Must accept image input and return predictions with confidence scores.",
-    ],
-    image_path: t.Annotated[
-        str,
-        "Path to the input image to perturb (PNG, JPG, etc.). "
-        "Can be a local file path or URL.",
-    ],
-    auth_type: t.Annotated[
-        str,
-        "Auth scheme: 'none', 'bearer', 'api_key', or 'aws_sigv4'",
-    ] = "none",
-    auth_env_var: t.Annotated[
-        str,
-        "Env var name for the auth credential (e.g., TARGET_API_KEY)",
-    ] = "TARGET_API_KEY",
-    request_format: t.Annotated[
-        str,
-        "How to send the image: 'base64_json' (base64 in JSON body), "
-        "'numpy_json' (numpy array in JSON), 'sagemaker' (SageMaker format)",
-    ] = "base64_json",
-    response_confidence_path: t.Annotated[
-        str,
-        "JSONPath to the confidence/score value in the API response. "
-        "Examples: '$.confidence', '$.predictions[0].score', '$.predictions[0]'",
-    ] = "$.confidence",
-    original_class: t.Annotated[
-        str,
-        "The original/correct class label. If provided, the attack tries "
-        "to make the model predict a different class.",
-    ] = "",
-    image_field: t.Annotated[
-        str,
-        "JSON field name for the image data in the request body",
+        "Input data type: 'image' (load from URL, perturb pixels) or "
+        "'tabular' (feature array + API endpoint)",
     ] = "image",
+    # --- Image-specific params ---
+    image_url: t.Annotated[
+        str,
+        "URL of the source image (for input_type='image'). "
+        "Can also be a local file path.",
+    ] = "",
+    # --- Tabular-specific params ---
+    features: t.Annotated[
+        list[float] | None,
+        "Source feature array (for input_type='tabular'), e.g. [0.1, -0.5, ...]",
+    ] = None,
+    api_url: t.Annotated[
+        str,
+        "Target classifier API URL (for input_type='tabular'). "
+        "Expects POST with JSON body {instances: [{features: [...]}]} "
+        "and returns {predictions: [{class: int, confidence: float}]}",
+    ] = "",
+    api_key: t.Annotated[str, "API key for x-api-key header (optional)"] = "",
+    target_class: t.Annotated[
+        int, "Class to flip TO (adversarial target), e.g. 1 for fraud"
+    ] = 1,
+    original_class: t.Annotated[
+        int | str,
+        "Original class of the source input, e.g. 0 for legitimate",
+    ] = 0,
+    # --- Common params ---
     norm: t.Annotated[
         str,
-        "Distance norm for perturbation: 'l0', 'l1', 'l2', or 'linf'",
+        "Distance norm for perturbation: 'l1', 'l2', or 'linf'",
     ] = "l2",
-    n_iterations: t.Annotated[int | None, "Max iterations for the attack"] = None,
+    max_iterations: t.Annotated[int | None, "Max attack iterations"] = None,
+    goal: t.Annotated[str, "Attack goal description"] = "",
     assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
 ) -> str:
-    """Generate and execute an image adversarial attack against an ML model API.
+    """Generate and execute an adversarial ML attack workflow.
 
-    Attacks a deployed ML classification model by perturbing input images
-    to fool the classifier. Supports HopSkipJump (decision-boundary),
-    SimBA (score-based), NES (gradient estimation), and ZOO (zeroth-order
-    optimization) attacks.
+    Supports both image and tabular (numeric feature array) inputs.
+    For image attacks, provide image_url. For tabular attacks, provide
+    features array + api_url (+ optional api_key).
 
-    The target must be an HTTP endpoint that accepts images and returns
-    classification predictions with confidence scores. Works with
-    SageMaker, custom Flask/FastAPI APIs, or any REST endpoint.
+    Uses the Dreadnode SDK's black-box adversarial samplers (HopSkipJump,
+    SimBA, NES, ZOO) integrated with the Study pipeline for full OTEL
+    tracing and platform visibility. Results appear in the platform
+    under AI Red Teaming with adversarial ML metrics.
 
-    Example: Attack a fraud detection model deployed on SageMaker:
+    Examples:
+      # Tabular: attack a fraud detection API
       generate_image_attack(
           attack_type="hopskipjump",
-          target_url="https://runtime.sagemaker.us-west-2.amazonaws.com/endpoints/my-model/invocations",
-          image_path="~/test_image.png",
-          auth_type="aws_sigv4",
-          request_format="sagemaker",
-          response_confidence_path="$.predictions[0]",
+          input_type="tabular",
+          features=[0.0, -1.36, ...],  # 30 feature values
+          api_url="https://my-api.com/predict",
+          api_key="...",
+          target_class=1,
+          original_class=0,
+      )
+
+      # Image: attack an image classifier
+      generate_image_attack(
+          attack_type="simba",
+          input_type="image",
+          image_url="https://example.com/cat.png",
       )
     """
     params: dict[str, t.Any] = {
         "attack_type": attack_type,
-        "target_url": target_url,
-        "image_path": image_path,
-        "auth_type": auth_type,
-        "auth_env_var": auth_env_var,
-        "request_format": request_format,
-        "response_confidence_path": response_confidence_path,
-        "image_field": image_field,
-        "norm": norm,
+        "input_type": input_type,
     }
-    if original_class:
+    if image_url:
+        params["image_url"] = image_url
+    if features:
+        params["features"] = features
+    if api_url:
+        params["api_url"] = api_url
+    if api_key:
+        params["api_key"] = api_key
+    if target_class != 1:
+        params["target_class"] = target_class
+    if original_class not in (0, "0", ""):
         params["original_class"] = original_class
-    if n_iterations is not None:
-        params["n_iterations"] = n_iterations
+    if norm != "l2":
+        params["norm"] = norm
+    if max_iterations is not None:
+        params["max_iterations"] = max_iterations
+    if goal:
+        params["goal"] = goal
     if assessment_name:
         params["assessment_name"] = assessment_name
 

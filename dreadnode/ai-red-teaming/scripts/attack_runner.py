@@ -3354,11 +3354,15 @@ except Exception:
 
 
 def generate_image_attack(params: dict) -> dict:
-    """Generate a workflow script for image/traditional ML adversarial attacks.
+    """Generate a workflow script for adversarial ML attacks.
 
-    Supports HopSkipJump, SimBA, NES, and ZOO attacks against ML model APIs.
-    The target is an HTTP endpoint that accepts images and returns predictions.
+    Routes to image or tabular attack generation based on input_type param.
+    Supports HopSkipJump, SimBA, NES, and ZOO attacks.
     """
+    # Route tabular requests to the dedicated generator
+    if params.get("input_type") == "tabular":
+        return generate_tabular_attack(params)
+
     attack_type = params.get("attack_type", "hopskipjump")
     target_url = params.get("target_url", "")
     image_path = params.get("image_path", "")
@@ -3523,6 +3527,287 @@ def generate_image_attack(params: dict) -> dict:
     return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
 
 
+# Tabular / feature-array adversarial attacks
+
+
+def _build_tabular_imports(attack_func: str) -> str:
+    """Generate imports for tabular adversarial attacks."""
+    lines = [
+        "import asyncio",
+        "import os",
+        "import sys",
+        "import traceback",
+        "",
+        "import numpy as np",
+        "import httpx",
+        "import dreadnode as dn",
+        "from dreadnode.airt.image import {}".format(attack_func),
+        "from dreadnode.airt.assessment import Assessment",
+    ]
+    return "\n".join(lines)
+
+
+def generate_tabular_attack(params: dict) -> dict:
+    """Generate a workflow script for tabular adversarial ML attacks.
+
+    Perturbs a numeric feature array to flip a classifier's prediction.
+    Requires: features array, api_url (target endpoint), and optionally api_key.
+    """
+    attack_type = params.get("attack_type", "hopskipjump")
+    features = params.get("features", [])
+    api_url = params.get("api_url", "")
+    api_key = params.get("api_key", "")
+    target_class = params.get("target_class", 1)
+    original_class = params.get("original_class", 0)
+    norm = params.get("norm", "l2")
+    max_iterations = params.get("max_iterations")
+    goal = params.get("goal", "Evade classifier via adversarial perturbation")
+    goal_category = params.get("goal_category", "adversarial_evasion")
+    assessment_name = params.get("assessment_name", "")
+
+    if not features:
+        return {"error": "features is required (list of float values for the source input)"}
+    if not api_url:
+        return {"error": "api_url is required (target classifier API endpoint)"}
+
+    # Resolve attack
+    key = attack_type.strip().lower().replace("-", "_").replace(" ", "_")
+    canon = IMAGE_ATTACK_ALIASES.get(key) or ATTACK_ALIASES.get(key)
+    if not canon or canon not in _IMAGE_ATTACK_DEFS:
+        return {"error": "Unknown attack: '{}'. Available: {}".format(
+            attack_type, ", ".join(sorted(_IMAGE_ATTACK_DEFS.keys()))
+        )}
+    atk_def = _IMAGE_ATTACK_DEFS[canon]
+    attack_func = atk_def["function"]
+
+    if max_iterations is None:
+        max_iterations = atk_def["default_iterations"]
+
+    source_arg = "source" if canon == "hopskipjump_attack" else "original"
+
+    # Build extra attack kwargs
+    extra_lines = []
+    for k, v in atk_def.get("extra_defaults", {}).items():
+        if k != "norm":
+            extra_lines.append("        {}={},".format(k, v))
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = "tabular_{}_{}.py".format(canon.removesuffix("_attack"), timestamp)
+    assessment_name = assessment_name or "Tabular {} Attack".format(canon)
+
+    imports = _build_tabular_imports(attack_func)
+    configure = _build_configure()
+
+    script = '''{imports}
+
+{configure}
+
+# -- Source features --
+original = np.array({features}, dtype=np.float32)
+
+# -- Target API --
+API_URL = "{api_url}"
+API_KEY = "{api_key}"
+API_HEADERS = {{"Content-Type": "application/json"}}
+if API_KEY:
+    API_HEADERS["x-api-key"] = API_KEY
+
+TARGET_CLASS = {target_class}
+ORIGINAL_CLASS = {original_class}
+NORM = "{norm}"
+MAX_ITERATIONS = {max_iterations}
+
+print("=" * 60)
+print("TABULAR ATTACK CONFIGURATION")
+print("=" * 60)
+print(f"  Target API: {{API_URL}}")
+print(f"  Features:   {{len(original)}} dimensions")
+print("  Attack:     {canon}")
+print(f"  Norm:       {{NORM}}")
+print(f"  Max iter:   {{MAX_ITERATIONS}}")
+print(f"  Original:   class {{ORIGINAL_CLASS}}")
+print(f"  Target:     class {{TARGET_CLASS}}")
+print("=" * 60)
+sys.stdout.flush()
+
+
+def query_api(features_array: np.ndarray) -> dict:
+    """Send features to target API and return prediction."""
+    payload = {{"instances": [{{"features": features_array.tolist()}}]}}
+    resp = httpx.post(API_URL, json=payload, headers=API_HEADERS, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def objective(candidate: np.ndarray) -> float:
+    """Score a candidate: higher = closer to adversarial goal."""
+    try:
+        result = query_api(candidate)
+        preds = result.get("predictions", [result])
+        pred = preds[0] if isinstance(preds, list) else preds
+        if "fraud_probability" in pred:
+            score = pred["fraud_probability"] if TARGET_CLASS == 1 else (1 - pred["fraud_probability"])
+        elif "confidence" in pred:
+            if pred.get("class") == TARGET_CLASS:
+                score = pred["confidence"]
+            else:
+                score = 1 - pred["confidence"]
+        else:
+            score = float(pred.get("class") == TARGET_CLASS)
+        return float(score)
+    except Exception as e:
+        print(f"API error: {{e}}")
+        return 0.0
+
+
+async def main():
+    # Verify API connectivity
+    print("\\nVerifying API connectivity...")
+    try:
+        baseline = query_api(original)
+        preds = baseline.get("predictions", [baseline])
+        pred = preds[0] if isinstance(preds, list) else preds
+        print(f"  Baseline prediction: {{pred}}")
+    except Exception as e:
+        print(f"ERROR: Cannot reach API: {{e}}")
+        sys.exit(1)
+    sys.stdout.flush()
+
+    async with Assessment(
+        name="{assessment_name}",
+        description="Tabular attack: {canon} on {{API_URL}}",
+        workflow_run_id="{filename}",
+        target_config={{"url": API_URL, "type": "ml_classifier"}},
+        attacker_config={{"attack": "{canon}"}},
+        attack_manifest=[{{"attack": "{canon}", "domain": "adversarial_ml", "input_modality": "tabular", "iterations": MAX_ITERATIONS}}],
+    ) as assessment:
+        study = {attack_func}(
+            {source_arg}=original,
+            objective=objective,
+            max_iterations=MAX_ITERATIONS,
+{extra_kwargs}
+        )
+        study.airt_assessment_id = assessment.assessment_id
+        study.airt_attack_domain = "adversarial_ml"
+        study.airt_goal = "{goal}"
+        study.airt_goal_category = "{goal_category}"
+        study.airt_input_modality = "tabular"
+        study.airt_distance_norm = NORM
+        study.airt_original_class = str(ORIGINAL_CLASS)
+        result = await assessment.run(study)
+
+        # Report results
+        if result and result.best_trial:
+            best = result.best_trial
+            adv = best.candidate
+            if isinstance(adv, np.ndarray):
+                distance = float(np.linalg.norm(adv - original))
+                try:
+                    adv_result = query_api(adv)
+                    adv_pred = adv_result.get("predictions", [adv_result])[0]
+                    adv_class = adv_pred.get("class", "unknown")
+                except Exception:
+                    adv_class = "unknown"
+                print(f"\\n--- RESULTS ---")
+                print(f"  Original class: {{ORIGINAL_CLASS}}")
+                print(f"  Adversarial class: {{adv_class}}")
+                print(f"  L2 distance: {{distance:.4f}}")
+                print(f"  Score: {{best.score:.4f}}")
+                print(f"  Class flip: {{'YES' if adv_class == TARGET_CLASS else 'NO'}}")
+                print(f"--- end ---")
+            else:
+                print(f"\\n--- RESULTS ---")
+                print(f"  Best score: {{best.score:.4f}}")
+                print(f"--- end ---")
+        else:
+            print(f"\\n--- RESULTS ---")
+            print(f"  No successful adversarial found in {{MAX_ITERATIONS}} iterations")
+            print(f"--- end ---")
+        sys.stdout.flush()
+
+    print(f"\\nAssessment complete.")
+    sys.stdout.flush()
+
+
+asyncio.run(main())
+
+try:
+    dn.shutdown()
+except Exception:
+    pass
+'''.format(
+        imports=imports,
+        configure=configure,
+        features=repr(features),
+        api_url=_safe_str(api_url),
+        api_key=_safe_str(api_key),
+        target_class=target_class,
+        original_class=original_class,
+        norm=_safe_str(norm),
+        max_iterations=max_iterations,
+        canon=canon,
+        attack_func=attack_func,
+        source_arg=source_arg,
+        extra_kwargs="\n".join(extra_lines),
+        assessment_name=_safe_str(assessment_name),
+        filename=_safe_str(filename),
+        goal=_safe_str(goal),
+        goal_category=_safe_str(goal_category),
+    )
+
+    # Syntax check
+    try:
+        compile(script, "tabular_workflow.py", "exec")
+    except SyntaxError as e:
+        return {"error": "Generated script has syntax error: {} (line {}). This is a bug in the tool.".format(
+            e.msg, e.lineno
+        )}
+
+    # Save
+    WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
+    filepath = WORKFLOWS_DIR / filename
+    filepath.write_text(script)
+
+    # Update metadata
+    metadata = {}
+    if METADATA_FILE.exists():
+        try:
+            metadata = json.loads(METADATA_FILE.read_text())
+        except Exception:
+            pass
+    metadata[filename] = {
+        "description": "Tabular Attack: {} vs {}".format(canon, api_url),
+        "saved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "size_bytes": len(script.encode()),
+    }
+    METADATA_FILE.write_text(json.dumps(metadata, indent=2))
+
+    result_lines = [
+        "Tabular attack workflow generated and saved.",
+        "",
+        "File: {}".format(filepath),
+        "Workflow filename: {}".format(filename),
+        "",
+        ">>> NEXT STEP: call execute_workflow(filename=\"{}\") to run this attack <<<".format(filename),
+        "",
+        "Config:",
+        "  Mode: Tabular/ML Adversarial Attack",
+        "  Attack: {}".format(canon),
+        "  Target API: {}".format(api_url),
+        "  Features: {} dimensions".format(len(features)),
+        "  Original class: {}".format(original_class),
+        "  Target class: {}".format(target_class),
+        "  Norm: {}".format(norm),
+        "  Iterations: {}".format(max_iterations),
+    ]
+
+    if not params.get("generate_only"):
+        exec_output = _auto_execute_workflow(filename)
+        result_lines.append(exec_output)
+
+    return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
+
+
 # stdin/stdout JSON dispatch
 
 METHODS = {
@@ -3530,6 +3815,7 @@ METHODS = {
     "generate_category_attack": generate_category_attack,
     "generate_agentic_attack": generate_agentic_attack,
     "generate_image_attack": generate_image_attack,
+    "generate_tabular_attack": generate_tabular_attack,
 }
 
 def main() -> None:
