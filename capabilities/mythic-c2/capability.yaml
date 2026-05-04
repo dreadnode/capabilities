@@ -1,0 +1,62 @@
+schema: 1
+name: mythic-c2
+version: "2.1.0"
+description: >
+  Mythic C2 integration. Read-only observation (callbacks, tasks,
+  credentials, files, artifacts, keylogs, screenshots, processes, tokens,
+  BloodHound discovery, operation summaries) plus optional Apollo
+  post-exploitation (execution, token manipulation, registry, lateral
+  movement, SharpHound). An annotator worker watches completed tasks and
+  writes AI findings onto Mythic's own surfaces — task comments,
+  severity/category tags, and the operation event log.
+
+flags:
+  tasking:
+    description: Register the generic payload-type-agnostic tasking surface (``issue_task`` + ``list_callback_commands``). Works for any Mythic payload type (Apollo, Poseidon, Merlin, etc.). Off by default — pull-mode chat runs observation-only.
+    default: false
+  apollo:
+    description: Register Apollo-specific orchestration helpers (multi-step workflows that aren't single Mythic commands, e.g. ``sharphound_and_download``, ``powershell_script``). Independent of ``tasking`` — both can be on. Off by default.
+    default: false
+  triage:
+    description: Run the annotator worker that reviews completed tasks, keylogs, and downloads in the background and writes AI findings onto Mythic (task comments, severity/category tags, event log, cross-object ai:trail tags). Off by default — worker exits cleanly on boot when unset.
+    default: false
+
+mcp:
+  servers:
+    mythic:
+      command: "uv"
+      args: ["run", "${CAPABILITY_ROOT}/mcp_server.py"]
+      init_timeout: 30
+      env:
+        MYTHIC_SERVER_IP: "${MYTHIC_SERVER_IP:-127.0.0.1}"
+        MYTHIC_SERVER_PORT: "${MYTHIC_SERVER_PORT:-}"
+        MYTHIC_USERNAME: "${MYTHIC_USERNAME:-mythic_admin}"
+        MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-}"
+        MYTHIC_API_TOKEN: "${MYTHIC_API_TOKEN:-}"
+        MYTHIC_TIMEOUT: "${MYTHIC_TIMEOUT:-}"
+        MYTHIC_DATA_DIR: "${MYTHIC_DATA_DIR:-}"
+
+workers:
+  task-annotator:
+    command: "uv"
+    args: ["run", "${CAPABILITY_ROOT}/task_annotator.py"]
+    env:
+      MYTHIC_SERVER_IP: "${MYTHIC_SERVER_IP:-127.0.0.1}"
+      MYTHIC_SERVER_PORT: "${MYTHIC_SERVER_PORT:-}"
+      MYTHIC_USERNAME: "${MYTHIC_USERNAME:-mythic_admin}"
+      MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-}"
+      MYTHIC_API_TOKEN: "${MYTHIC_API_TOKEN:-}"
+      MYTHIC_TIMEOUT: "${MYTHIC_TIMEOUT:-}"
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - c2
+  - mythic
+  - post-exploitation
+  - implant
+  - read-only
+  - reporting

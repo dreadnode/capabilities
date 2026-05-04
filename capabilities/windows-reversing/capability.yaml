@@ -1,0 +1,54 @@
+schema: 1
+name: windows-reversing
+version: "0.1.0"
+description: >
+  Windows native PE reversing (.exe/.dll, x86/x64) on macOS and Linux.
+  Static triage (pefile, entropy, imports/exports, MITRE capa tags,
+  obfuscated strings via FLOSS), Ghidra headless decompilation with
+  cached projects, and Qiling-based PE emulation with one-shot
+  anti-debug bypass hooks for crackmes, CTF challenges, and packed
+  binaries — no Windows host required.
+
+mcp:
+  servers:
+    pe-triage:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/pe_triage.py"
+      init_timeout: 120
+    ghidra:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/ghidra.py"
+      init_timeout: 120
+    qiling:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/qiling.py"
+      init_timeout: 120
+
+checks:
+  - name: uv
+    command: 'command -v uv >/dev/null 2>&1'
+  - name: java-17-for-ghidra
+    command: 'command -v java >/dev/null 2>&1 && java -version 2>&1 | grep -Eq "version \"(1[7-9]|[2-9][0-9])"'
+  - name: git-for-capa-rules
+    command: 'command -v git >/dev/null 2>&1'
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - windows
+  - reversing
+  - pe
+  - malware-analysis
+  - ghidra
+  - qiling
+  - anti-debug
+  - ctf

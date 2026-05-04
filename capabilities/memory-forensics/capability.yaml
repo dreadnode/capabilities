@@ -1,0 +1,35 @@
+schema: 1
+name: memory-forensics
+version: "0.1.0"
+description: >
+  Memory forensics and DFIR triage via Volatility3. Curated tools for
+  process enumeration, network artifacts, code injection, credential
+  extraction, registry analysis, and YARA over memory images, plus
+  playbooks for triage, injection / credential / persistence hunts,
+  and YARA-based IoC sweeping.
+
+mcp:
+  servers:
+    volatility:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/volatility.py"
+      init_timeout: 60
+
+checks:
+  - name: uv
+    command: 'command -v uv >/dev/null 2>&1'
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - forensics
+  - dfir
+  - memory-forensics
+  - volatility
+  - incident-response
+  - malware-analysis

@@ -1,0 +1,93 @@
+schema: 1
+name: web-security
+version: "1.0.3"
+description: >
+  Web application penetration testing with 30+ attack technique playbooks
+  covering request smuggling, cache poisoning, SSRF, SSTI, DOM
+  vulnerabilities, authentication bypasses, parser differentials, and
+  client-side attacks. Includes HTTP client tooling, Caido proxy
+  integration via MCP, credential management, DNS rebinding, phone
+  verification, and vulnerability verification.
+
+mcp:
+  servers:
+    caido:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/caido.py"
+      init_timeout: 60
+    jxscout:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/jxscout.py"
+      init_timeout: 60
+    thermoptic:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/thermoptic.py"
+      init_timeout: 60
+    hackerone:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/hackerone.py"
+      init_timeout: 60
+    agent-browser:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/agent_browser.py"
+      init_timeout: 60
+    protoscope:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/protoscope.py"
+      init_timeout: 60
+    burp:
+      url: "http://127.0.0.1:9876/"
+      init_timeout: 15
+      timeout: 3600
+
+dependencies:
+  packages:
+    - default-jre-headless
+  python:
+    - "fastmcp>=2.0"
+    - "httpx>=0.28"
+    - "caido-sdk-client"
+  scripts:
+    - scripts/install_tools.sh
+
+checks:
+  - name: nuclei
+    command: 'command -v nuclei >/dev/null 2>&1 || test -x "$HOME/.pdtm/go/bin/nuclei"'
+  - name: httpx
+    command: 'command -v httpx >/dev/null 2>&1 || test -x "$HOME/.pdtm/go/bin/httpx"'
+  - name: interactsh-client
+    command: 'command -v interactsh-client >/dev/null 2>&1 || test -x "$HOME/go/bin/interactsh-client"'
+  - name: protoscope
+    command: 'command -v protoscope >/dev/null 2>&1 || test -x "$HOME/go/bin/protoscope"'
+  - name: caido-cli
+    command: command -v caido-cli
+  - name: burp
+    command: test -f /opt/burp/burpsuite.jar
+  - name: jxscout
+    command: command -v jxscout-pro-v2
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - web-security
+  - penetration-testing
+  - request-smuggling
+  - cache-poisoning
+  - dns-rebinding
+  - dom-security
+  - phone-verification

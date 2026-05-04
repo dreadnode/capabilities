@@ -1,0 +1,29 @@
+schema: 1
+name: secure-software
+version: "1.0.0"
+description: >
+  Package supply-chain analysis via ReversingLabs Spectra Assure
+  (secure.software). Search the Community catalogue by purl or hash,
+  import community packages into your Portal for analysis, export
+  reports (CycloneDX, SPDX, SARIF, rl-json, rl-cve), download the
+  underlying artifacts, and enrich with OSV vulnerability lookups,
+  OpenSSF Scorecard health, archive extraction, strings/entropy, and
+  YARA scanning. Chain secure.software findings with reversing tools
+  (e.g. dotnet-reversing) to investigate suspicious packages.
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - supply-chain
+  - sbom
+  - malware
+  - reversing
+  - vulnerability-analysis
+  - secure-software
+  - reversinglabs
+  - spectra-assure
+  - osv
+  - scorecard

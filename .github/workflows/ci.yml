@@ -1,0 +1,96 @@
+# CI for capabilities repo — lint and validate manifests.
+#
+# Runs on PRs and pushes to main. Covers:
+#   - ruff lint for critical Python errors across the repo
+#   - YAML validation for capability.yaml files and skill frontmatter
+#
+# Capability internal tests (pytest, etc.) are author-owned and run
+# locally — CI doesn't wire up per-capability test deps.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install ruff
+        run: uv pip install ruff --system
+
+      - name: Ruff check (critical errors only)
+        run: ruff check --select E9,F63,F7,F82 .
+
+      - name: Ruff check AIRT scripts (full)
+        run: ruff check --select E,F,W capabilities/ai-red-teaming/scripts/ capabilities/ai-red-teaming/tools/ capabilities/ai-red-teaming/tests/ || true
+
+  yaml-check:
+    name: Validate YAML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check capability.yaml files
+        run: |
+          pip install pyyaml
+          python -c "
+          import yaml, sys
+          from pathlib import Path
+          errors = 0
+          for f in Path('.').rglob('capability.yaml'):
+              try:
+                  yaml.safe_load(f.read_text())
+                  print(f'OK: {f}')
+              except Exception as e:
+                  print(f'FAIL: {f}: {e}')
+                  errors += 1
+          sys.exit(errors)
+          "
+
+      - name: Check skill frontmatter
+        run: |
+          python -c "
+          import yaml, sys
+          from pathlib import Path
+          errors = 0
+          skill_files = sorted(
+              list(Path('.').rglob('SKILL.md')) + list(Path('.').rglob('skill.md'))
+          )
+          for f in skill_files:
+              text = f.read_text()
+              if not text.startswith('---\n'):
+                  continue
+              end = text.find('\n---', 4)
+              if end == -1:
+                  print(f'FAIL: {f}: missing closing frontmatter delimiter')
+                  errors += 1
+                  continue
+              try:
+                  yaml.safe_load(text[4:end])
+                  print(f'OK: {f}')
+              except Exception as e:
+                  print(f'FAIL: {f}: {e}')
+                  errors += 1
+          sys.exit(errors)
+          "

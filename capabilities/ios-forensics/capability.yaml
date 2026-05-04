@@ -1,0 +1,38 @@
+schema: 1
+name: ios-forensics
+version: "0.1.0"
+description: >
+  iOS forensics and mercenary-spyware triage via MVT (Mobile
+  Verification Toolkit). Provides curated modules over iTunes/Finder
+  backups and full-filesystem extractions for device posture,
+  communications, location/activity, configuration profiles, and
+  spyware detection (Pegasus, Predator, QuaDream, RCS) driven by STIX
+  IoCs, plus an escape hatch for the full MVT module catalog and raw
+  SQLite/plist/Manifest.db helpers. Includes playbooks for image
+  triage, spyware hunts, communications analysis, activity
+  reconstruction, and configuration/persistence review.
+
+mcp:
+  servers:
+    mvt:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/mvt.py"
+      init_timeout: 60
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - forensics
+  - dfir
+  - ios
+  - mobile-forensics
+  - mvt
+  - spyware
+  - pegasus
+  - predator
+  - incident-response

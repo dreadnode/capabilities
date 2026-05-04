@@ -1,0 +1,58 @@
+schema: 1
+name: spectra-assure
+version: "0.1.0"
+description: >
+  Software supply chain security via ReversingLabs Spectra Assure. Scans open
+  source dependencies for malware, tampering, vulnerabilities, secret leakage,
+  and policy violations before they enter your project. Goes beyond traditional
+  SCA with binary differential analysis that catches compromised package
+  releases — the class of attacks that hit Ultralytics (PyPI, Dec 2024),
+  ctx/phpass, and xz-utils (CVE-2024-3094). Wraps the Spectra Assure Community
+  MCP server.
+
+mcp:
+  servers:
+    spectra-assure:
+      command: "docker"
+      args:
+        - "run"
+        - "--rm"
+        - "-i"
+        - "-e"
+        - "RL_TOKEN"
+        - "-e"
+        - "RL_PORTAL_SERVER"
+        - "-e"
+        - "RL_PORTAL_ORG"
+        - "-e"
+        - "RL_PORTAL_GROUP"
+        - "-e"
+        - "RL_PROFILE"
+        - "-v"
+        - "${WORKSPACE_ROOT:-${PWD}}:/project"
+        - "reversinglabs/rl-mcp-community:latest"
+      init_timeout: 60
+
+agents:
+  - agents/
+
+skills:
+  - skills/
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - reversinglabs
+  - spectra-assure
+  - supply-chain-security
+  - sca
+  - sbom
+  - malware-detection
+  - package-tampering
+  - binary-analysis
+  - nist-ssdf
+  - eo-14028
+  - secure-by-design

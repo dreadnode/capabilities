@@ -1,0 +1,133 @@
+# dreadnode/web-security-runtime
+#
+# LOCAL DEV / CI ONLY. For hosted sandboxes, the canonical path is
+# capability.yaml dependencies + scripts/install_tools.sh which the
+# runtime provisions automatically at sandbox boot.
+#
+# This Dockerfile is useful for local development without a sandbox
+# (docker build && docker run) and as a reference for the full
+# environment. Keep it in sync with scripts/install_tools.sh.
+#
+# Runtime image for the web-security capability. Bundles the external
+# binaries that MCP servers and tools shell out to so they work in
+# hosted sandbox environments (evals, remote runtimes) where the
+# operator's local toolchain isn't available.
+#
+# Binaries included:
+#   - pdtm + ProjectDiscovery tools (nuclei, httpx-toolkit, subfinder, …)
+#   - protoscope          (protobuf inspection)
+#   - interactsh-client   (OOB callback verification)
+#   - 2fa                 (TOTP code generation)
+#   - agent-browser       (headless Chromium for DOM interaction)
+#   - kiterunner          (API-aware content discovery)
+#   - surf                (SSRF target identification)
+#
+# Tools NOT included (require external instances reachable by network):
+#   - Caido   — set CAIDO_URL to a running instance
+#   - Burp    — set burp MCP url to a running instance
+#   - jxscout — commercial binary, requires license activation
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+# ── System packages ──────────────────────────────────────────────────
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        chromium \
+        coreutils \
+        curl \
+        findutils \
+        git \
+        unzip \
+        wget \
+ && rm -rf /var/lib/apt/lists/*
+
+# ── Go toolchain (for pdtm, protoscope, interactsh-client, 2fa) ─────
+ARG GO_VERSION=1.24.3
+ARG TARGETARCH
+RUN case "${TARGETARCH}" in \
+        arm64) GOARCH="arm64" ;; \
+        *)     GOARCH="amd64" ;; \
+    esac \
+ && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" \
+        | tar -xz -C /usr/local
+ENV PATH="/usr/local/go/bin:/root/go/bin:/root/.pdtm/go/bin:${PATH}"
+
+# ── Node.js (for agent-browser) ─────────────────────────────────────
+ARG NODE_MAJOR=22
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
+ && apt-get install -y --no-install-recommends nodejs \
+ && rm -rf /var/lib/apt/lists/*
+
+# ── uv (Python package/script runner — MCP servers use `uv run`) ────
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# ── PDTM + ProjectDiscovery tools ───────────────────────────────────
+# Build pdtm from source, then use it to install commonly used tools.
+# pdtm downloads pre-built binaries for the correct platform.
+RUN go install github.com/projectdiscovery/pdtm/cmd/pdtm@latest \
+ && pdtm -install nuclei,httpx,subfinder,naabu,dnsx,uncover,alterx,tlsx,asnmap
+
+# katana — pdtm go-install fallback fails due to upstream go-tree-sitter
+# build issue, so fetch the pre-built release binary directly.
+ARG KATANA_VERSION=1.5.0
+RUN ARCH="$(dpkg --print-architecture)" \
+ && curl -fsSL "https://github.com/projectdiscovery/katana/releases/download/v${KATANA_VERSION}/katana_${KATANA_VERSION}_linux_${ARCH}.zip" \
+        -o /tmp/katana.zip \
+ && unzip -o /tmp/katana.zip -d /tmp/katana_extract \
+ && mv /tmp/katana_extract/katana /root/.pdtm/go/bin/katana \
+ && chmod +x /root/.pdtm/go/bin/katana \
+ && rm -rf /tmp/katana.zip /tmp/katana_extract
+
+# ── kiterunner (API content discovery) ────────────────────────────
+RUN git clone --depth 1 https://github.com/assetnote/kiterunner /tmp/kiterunner \
+ && cd /tmp/kiterunner && make build \
+ && mv /tmp/kiterunner/dist/kr /usr/local/bin/kr \
+ && rm -rf /tmp/kiterunner \
+ || echo "WARN: kiterunner build failed, skipping"
+
+# ── surf (SSRF target identification) ────────────────────────────
+RUN go install github.com/assetnote/surf/cmd/surf@latest
+
+# ── protoscope ──────────────────────────────────────────────────────
+RUN go install github.com/protocolbuffers/protoscope/cmd/protoscope@latest
+
+# ── interactsh-client ───────────────────────────────────────────────
+RUN go install github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest
+
+# ── 2fa (TOTP generator) ────────────────────────────────────────────
+RUN go install rsc.io/2fa@latest
+
+# ── agent-browser ───────────────────────────────────────────────────
+RUN npm install -g agent-browser \
+ && agent-browser install || true
+ENV CHROME_PATH="/usr/bin/chromium"
+
+# ── Python packages used by MCP servers ─────────────────────────────
+# Pre-install so `uv run` doesn't fetch on every cold start.
+RUN pip install --no-cache-dir \
+        "fastmcp>=2.0" \
+        "httpx>=0.28" \
+        "caido-sdk-client"
+
+# ── Clean up Go build cache ─────────────────────────────────────────
+RUN go clean -cache -modcache
+
+# ── Non-root user ───────────────────────────────────────────────────
+RUN useradd --system --create-home --uid 1001 runner \
+ && mkdir -p /workspace \
+ && chown runner:runner /workspace \
+ && cp -r /root/go/bin /home/runner/go_bin \
+ && cp -r /root/.pdtm /home/runner/.pdtm \
+ && cp -r /root/.local /home/runner/.local \
+ && chown -R runner:runner /home/runner
+
+ENV PATH="/home/runner/.local/bin:/home/runner/go_bin:/home/runner/.pdtm/go/bin:${PATH}"
+
+USER runner
+WORKDIR /workspace

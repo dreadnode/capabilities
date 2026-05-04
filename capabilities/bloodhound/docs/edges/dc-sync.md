@@ -1,0 +1,31 @@
+---
+title: DCSync
+description: "This edge represents the combination of GetChanges and GetChangesAll. The combination of both these privileges grants a principal the ability to perform the DCSync attack."
+---
+
+<img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
+
+
+## Abuse Info
+
+With both GetChanges and GetChangesAll privileges in BloodHound, you may perform a dcsync attack to get the password hash of an arbitrary principal using mimikatz:
+
+lsadump::dcsync /domain:testlab.local /user:Administrator
+
+You can also perform the more complicated ExtraSids attack to hop domain trusts. For information on this see the blog post by harmj0y in the references tab.
+
+## Opsec Considerations
+
+For detailed information on detection of DCSync as well as opsec considerations, see the ADSecurity post in the references section below.
+
+## Edge Schema
+
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [Domain](/resources/nodes/domain)   
+Traversable: **Yes**   
+
+## References
+
+* [https://adsecurity.org/?p=1729](https://adsecurity.org/?p=1729)
+* [https://blog.harmj0y.net/redteaming/mimikatz-and-dcsync-and-extrasids-oh-my/](https://blog.harmj0y.net/redteaming/mimikatz-and-dcsync-and-extrasids-oh-my/)
+* [https://specterops.io/blog/2022/08/03/introducing-bloodhound-4-2-the-azure-refactor/](https://specterops.io/blog/2022/08/03/introducing-bloodhound-4-2-the-azure-refactor/)

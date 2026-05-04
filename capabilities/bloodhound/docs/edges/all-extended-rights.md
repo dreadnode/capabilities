@@ -1,0 +1,59 @@
+---
+title: AllExtendedRights
+description: "Extended rights are special rights granted on objects which allow reading of privileged attributes, as well as performing special actions."
+---
+
+<img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
+
+
+## Abuse Info
+### **User**
+
+Having this privilege over a user grants the ability to reset the user’s password. For more information about that, see the ForceChangePassword edge section
+
+### **Computer**
+
+You may read the LAPS password of the computer object. For more information about that, see the ReadLAPSPassword edge section.
+
+### **Domain**
+
+The AllExtendedRights permission grants both the DS-Replication-Get-Changes and DS-Replication-Get-Changes-All privileges, which combined allow a principal to replicate objects from the domain. This can be abused using the lsadump::dcsync command in mimikatz.
+
+### **CertTemplate**
+
+The AllExtendedRights permission grants enrollment rights on the certificate template.
+
+The following additional requirements must be met for a principal to be able to enroll a certificate:
+
+1.  The certificate template is published on an enterprise CA
+2.  The principal has Enroll permission on the enterprise CA
+3.  The principal meets the issuance requirements and the requirements for subject name and subject alternative name defined by the template
+
+Certify (2.0) can be used to enroll a certificate on Windows:
+
+```cmd
+Certify.exe request --ca SERVER\CA-NAME --template TEMPLATE
+```
+
+Certipy can be used to enroll a certificate on Linux:
+
+```bash
+certipy req -u USER@CORP.LOCAL -p PWD -ca CA-NAME -target SERVER -template TEMPLATE
+```
+
+## Opsec Considerations
+
+This will depend on the actual attack performed. See the particular opsec considerations sections for the ForceChangePassword, AddMembers, and GenericAll edges for more info
+
+## Edge Schema
+
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Domain](/resources/nodes/domain), [CertTemplate](/resources/nodes/cert-template)  
+Traversable: **Yes**  
+
+## References
+
+* [https://www.youtube.com/watch?v=z8thoG7gPd0](https://www.youtube.com/watch?v=z8thoG7gPd0)
+* [https://github.com/GhostPack/Certify](https://github.com/GhostPack/Certify)
+* [https://github.com/ly4k/Certipy](https://github.com/ly4k/Certipy)
+* [https://specterops.io/blog/2017/05/15/bloodhound-1-3-the-acl-attack-path-update/](https://specterops.io/blog/2017/05/15/bloodhound-1-3-the-acl-attack-path-update/)

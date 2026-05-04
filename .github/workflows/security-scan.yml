@@ -1,0 +1,152 @@
+# Security scan skills using cisco-ai-skill-scanner.
+#
+# Triggers on all pushes to main and PRs. The detect-changes job
+# auto-discovers capability directories (capabilities/<cap>/capability.yaml)
+# and filters to only those with changed files.
+
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Detect which capabilities have changed
+  # ---------------------------------------------------------------------------
+  detect-changes:
+    name: Detect changed capabilities
+    runs-on: ubuntu-latest
+    outputs:
+      capabilities: ${{ steps.resolve.outputs.capabilities }}
+      any_changed: ${{ steps.resolve.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve changed capabilities
+        id: resolve
+        run: |
+          set -euo pipefail
+
+          # Auto-discover all capability directories
+          ALL_CAPS=()
+          for dir in capabilities/*/; do
+            cap=$(basename "${dir}")
+            if [[ -f "capabilities/${cap}/capability.yaml" ]]; then
+              ALL_CAPS+=("${cap}")
+            fi
+          done
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            CAPS=("${ALL_CAPS[@]}")
+          else
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              DIFF_BASE="origin/${{ github.base_ref }}"
+              DIFF_HEAD="HEAD"
+            else
+              DIFF_BASE="${{ github.event.before }}"
+              DIFF_HEAD="${{ github.sha }}"
+            fi
+            # Extract capability names from changed paths under capabilities/
+            CHANGED=$(git diff --name-only "${DIFF_BASE}" "${DIFF_HEAD}" \
+              | awk -F/ '/^capabilities\// {print $2}' | sort -u || true)
+            CAPS=()
+            for cap in ${CHANGED}; do
+              for known in "${ALL_CAPS[@]}"; do
+                if [[ "${cap}" == "${known}" ]]; then
+                  CAPS+=("${cap}")
+                  break
+                fi
+              done
+            done
+            # If scan-policy.yaml changed, scan everything
+            if git diff --name-only "${DIFF_BASE}" "${DIFF_HEAD}" 2>/dev/null | grep -q '^scan-policy\.yaml$'; then
+              CAPS=("${ALL_CAPS[@]}")
+            fi
+          fi
+
+          JSON=$(printf '%s\n' "${CAPS[@]:-}" | jq -Rc . | jq -sc .)
+          ANY="false"
+          [[ ${#CAPS[@]} -gt 0 ]] && ANY="true"
+
+          echo "capabilities=${JSON}" >> "$GITHUB_OUTPUT"
+          echo "any_changed=${ANY}" >> "$GITHUB_OUTPUT"
+          echo "### Security scan: ${#CAPS[@]} capability(ies) to scan" >> "$GITHUB_STEP_SUMMARY"
+          echo "Capabilities: ${CAPS[*]:-none}" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Scan changed capabilities
+  # ---------------------------------------------------------------------------
+  scan:
+    name: Skill security scan
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Scan changed capabilities
+        run: |
+          set -euo pipefail
+          failed=0
+          mkdir -p .sarif
+
+          CAPS_JSON='${{ needs.detect-changes.outputs.capabilities }}'
+          for cap in $(echo "${CAPS_JSON}" | jq -r '.[]'); do
+            cap_dir="capabilities/${cap}"
+            if [[ ! -d "${cap_dir}" ]]; then
+              continue
+            fi
+
+            skill_count=$(find "${cap_dir}" -name "SKILL.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+            if [[ "${skill_count}" -eq 0 ]]; then
+              echo "==> ${cap_dir}/ — no skills, skipping"
+              continue
+            fi
+
+            echo "==> Scanning ${cap_dir}/ (${skill_count} skills)"
+            uvx --from cisco-ai-skill-scanner skill-scanner scan-all "${cap_dir}" \
+              --recursive \
+              --lenient \
+              --use-behavioral \
+              --policy scan-policy.yaml \
+              --format summary \
+              --format sarif \
+              --output-sarif ".sarif/${cap}.sarif" \
+              --fail-on-severity high \
+            || failed=1
+            echo ""
+          done
+
+          if compgen -G ".sarif/*.sarif" > /dev/null; then
+            echo "SARIF reports generated:"
+            ls -la .sarif/
+          fi
+
+          if [[ "${failed}" -eq 1 ]]; then
+            echo "::error::Security scan found HIGH+ severity findings"
+            exit 1
+          fi
+
+      - name: Upload SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .sarif/
+        continue-on-error: true

@@ -1,0 +1,26 @@
+schema: 1
+name: bloodhound
+version: "1.0.0"
+description: >
+  BloodHound CE integration for Active Directory attack path analysis.
+  Graph-based queries against Neo4j for domain enumeration, tier zero
+  identification, Kerberos attack surfaces, delegation abuse, PKI/ADCS
+  vulnerabilities, and Azure/Entra attack paths.
+
+mcp:
+  servers:
+    bloodhound:
+      command: "uv"
+      args: ["run", "${CAPABILITY_ROOT}/mcp/server.py"]
+      init_timeout: 30
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - bloodhound
+  - active-directory
+  - attack-paths
+  - graph-analysis

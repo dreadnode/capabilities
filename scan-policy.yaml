@@ -1,0 +1,139 @@
+# Skill Scanner – Capabilities Repo Scan Policy
+#
+# Tuned for a security-focused capabilities repository where skills
+# intentionally contain offensive security content (exploit examples,
+# injection patterns, C2 instructions, etc.). The policy suppresses
+# rules that false-positive on instructional security content while
+# keeping genuine supply-chain and exfiltration detection active.
+
+policy_name: capabilities
+policy_version: "1.0"
+preset_base: balanced
+
+# -- Rule scoping --------------------------------------------------------
+# Security knowledge bases (e.g. exploit-verifier, vuln-kb) contain
+# intentional examples of injections, shell commands, and HTTP requests.
+# Demote findings in docs/knowledge/reference directories and skip rules
+# that fire on instructional content.
+rule_scoping:
+  skillmd_and_scripts_only:
+    - autonomy_abuse_generic
+    - coercive_injection_generic
+  skip_in_docs:
+    - COMMAND_INJECTION_JS_CHILD_PROCESS
+    - COMMAND_INJECTION_JS_FUNCTION_CONSTRUCTOR
+    - DATA_EXFIL_JS_FS_ACCESS
+    - DATA_EXFIL_JS_NETWORK
+    - FIND_EXEC_PATTERN
+    - GLOB_HIDDEN_FILE_TARGETING
+    - PROMPT_INJECTION_IGNORE_INSTRUCTIONS
+    - SECRET_CONNECTION_STRING
+    - TOOL_ABUSE_SYSTEM_MODIFICATION
+    - code_execution_generic
+    - command_injection_generic
+    - credential_harvesting_generic
+    - script_injection_generic
+    - system_manipulation_generic
+  code_only:
+    - prompt_injection_unicode_steganography
+    - sql_injection_generic
+  doc_path_indicators:
+    - demos
+    - docs
+    - examples
+    - fixtures
+    - guides
+    - indexes
+    - knowledge
+    - patterns
+    - references
+    - rules
+    - test
+    - tutorials
+  doc_filename_patterns:
+    - security[_-]patterns|examples?|patterns?|samples?|demo|tutorial|guide|howto|cheatsheet|command[_-]|exploit[_-]|injection[_-]
+  dedupe_reference_aliases: true
+  dedupe_duplicate_findings: true
+  asset_prompt_injection_skip_in_docs: true
+
+# -- Pipeline analysis ----------------------------------------------------
+pipeline:
+  demote_in_docs: true
+  demote_instructional: true
+  check_known_installers: true
+  dedupe_equivalent_pipelines: true
+  compound_fetch_require_download_intent: true
+  compound_fetch_filter_api_requests: true
+  compound_fetch_filter_shell_wrapped_fetch: true
+  doc_path_indicators:
+    - doc
+    - docs
+    - examples
+    - guides
+    - knowledge
+    - references
+    - tutorials
+
+# -- Analyzers ------------------------------------------------------------
+analyzers:
+  static: true
+  bytecode: true
+  pipeline: true
+  # behavioral enabled via CLI flag (--use-behavioral)
+
+# -- Severity overrides ---------------------------------------------------
+# Demote MANIFEST_MISSING_LICENSE to info since we track licenses in
+# capability.yaml, not in individual SKILL.md frontmatter.
+severity_overrides:
+  - rule_id: MANIFEST_MISSING_LICENSE
+    severity: INFO
+    reason: "Licenses tracked in capability.yaml, not SKILL.md frontmatter"
+  # MDBLOCK_PYTHON_EVAL_EXEC fires on Python code examples in reference
+  # docs and skill instructions that demonstrate eval/exec patterns for
+  # educational purposes (e.g. sharp-edges, semgrep-rule-creator).
+  - rule_id: MDBLOCK_PYTHON_EVAL_EXEC
+    severity: INFO
+    reason: "Security skills contain intentional eval/exec examples"
+  # BEHAVIOR_EVAL_SUBPROCESS fires on security tools that legitimately
+  # invoke subprocesses (e.g. constant-time-analysis running timing tools,
+  # zeroize-audit running compiler checks).
+  - rule_id: BEHAVIOR_EVAL_SUBPROCESS
+    severity: MEDIUM
+    reason: "Security tools legitimately invoke subprocesses for analysis"
+  # SECRET_GOOGLE_API fires on skills that scan for exposed API keys
+  # as part of their security analysis (e.g. firebase-apk-scanner).
+  - rule_id: SECRET_GOOGLE_API
+    severity: INFO
+    reason: "Scanner skills contain example API key patterns for detection"
+  # PATH_TRAVERSAL_OPEN fires on tools that read/write files as part of
+  # their normal audit workflow (e.g. zeroize-audit writing reports).
+  - rule_id: PATH_TRAVERSAL_OPEN
+    severity: LOW
+    reason: "Audit tools legitimately read/write files for analysis"
+  # DATA_EXFIL_SENSITIVE_FILES fires on audit tools that open credential
+  # or config files as part of security scanning.
+  - rule_id: DATA_EXFIL_SENSITIVE_FILES
+    severity: LOW
+    reason: "Audit tools intentionally read sensitive files for analysis"
+  # PIPELINE_TAINT_FLOW fires on install scripts that download tooling
+  # from known GitHub repositories (e.g. ghostsecurity wrapper scripts).
+  - rule_id: PIPELINE_TAINT_FLOW
+    severity: MEDIUM
+    reason: "Skills use curl|bash for installing known security tools from trusted repos"
+
+# -- Disabled rules -------------------------------------------------------
+# Rules that consistently false-positive across the repo due to the
+# security-focused nature of these capabilities.
+disabled_rules:
+  # Fires on skills that teach agents to detect prompt leakage
+  - PROMPT_INJECTION_REVEAL_SYSTEM
+  # Fires on reference material about coercive injection patterns
+  - YARA_coercive_injection_generic
+
+# -- File limits ----------------------------------------------------------
+file_limits:
+  max_file_count: 200
+  max_file_size_bytes: 10485760
+  max_reference_depth: 5
+  max_yara_scan_file_size_bytes: 52428800
+  max_loader_file_size_bytes: 10485760

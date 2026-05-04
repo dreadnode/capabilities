@@ -1,0 +1,190 @@
+# Sync capabilities to the Dreadnode platform using the SDK CLI.
+#
+# Layout: capabilities/{capability}/capability.yaml.
+# All capabilities sync under the dreadnode organization.
+#
+# Promotion:
+#   push to main         -> dev (auto, via Tailscale) + staging (auto) + prod (approval gate)
+#   workflow_dispatch    -> selected environment(s)
+#
+# The SDK CLI does its own content-hash comparison and only uploads
+# capabilities whose contents actually changed — so the workflow runs
+# unconditionally on every push to main and lets the CLI decide what's
+# new.
+#
+# Dev API is on an internal-only ALB — the dev sync job connects via Tailscale
+# to reach dev.app.dreadnode.io through the dev bastion's subnet route.
+# Requires TAILSCALE_OAUTH_CLIENT_ID + TAILSCALE_OAUTH_SECRET in the "dev"
+# environment, tag-scoped to tag:ci-dev.
+
+name: Sync Capabilities
+
+on:
+  push:
+    branches: [main]
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment (or 'all')"
+        required: true
+        type: choice
+        options: [dev, staging, prod, all]
+        default: dev
+      force:
+        description: "Force upload even if SHA matches"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: sync-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate capabilities
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Validate
+        run: |
+          # TODO: restore --strict once two upstream issues are resolved:
+          #   1. Capability import errors fixed in this repo (bloodhound-enterprise,
+          #      oss-fuzz-crs, sast — all reference removed/renamed SDK modules).
+          #   2. SDK change in dreadnode-tiger so `check:*` runtime tool checks
+          #      don't run during validation — those probe for installed CLIs
+          #      (nuclei, pdtm, caido-cli, etc.) which aren't on a clean runner
+          #      and shouldn't gate validation.
+          # Without --strict, validation still fails on hard errors (import
+          # crashes, missing manifests) but warnings don't block the sync.
+          uv run --with dreadnode dreadnode capability validate capabilities
+
+  sync-dev:
+    name: "Sync to dev"
+    needs: validate
+    if: >-
+      github.event.inputs.environment == 'all' ||
+      github.event.inputs.environment == 'dev' ||
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      # The dev API ALB is internal-only. Tailscale brings the runner onto
+      # the tailnet so it can route to dev.app.dreadnode.io via the dev
+      # bastion's subnet route. OAuth client must be tag-scoped to
+      # tag:ci-dev only — see policy.
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@6cae46e2d796f265265cfcf628b72a32b4d7cade  # v3
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+          tags: tag:ci-dev
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync capabilities
+        env:
+          API_URL: ${{ vars.DREADNODE_API_URL }}
+          API_KEY: ${{ secrets.DREADNODE_API_KEY }}
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          set -euo pipefail
+          cmd=(uv run --with dreadnode dreadnode capability sync capabilities)
+          cmd+=(--server "${API_URL}" --api-key "${API_KEY}" --organization dreadnode)
+          cmd+=(--publish)
+          [[ "${FORCE}" == "true" ]] && cmd+=(--force)
+          "${cmd[@]}"
+
+  sync-staging:
+    name: "Sync to staging"
+    needs: validate
+    if: >-
+      github.event.inputs.environment == 'all' ||
+      github.event.inputs.environment == 'staging' ||
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync capabilities
+        env:
+          API_URL: ${{ vars.DREADNODE_API_URL }}
+          API_KEY: ${{ secrets.DREADNODE_API_KEY }}
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          set -euo pipefail
+          cmd=(uv run --with dreadnode dreadnode capability sync capabilities)
+          cmd+=(--server "${API_URL}" --api-key "${API_KEY}" --organization dreadnode)
+          cmd+=(--publish)
+          [[ "${FORCE}" == "true" ]] && cmd+=(--force)
+          "${cmd[@]}"
+
+  sync-prod:
+    name: "Sync to prod"
+    needs: validate
+    if: >-
+      github.event.inputs.environment == 'all' ||
+      github.event.inputs.environment == 'prod' ||
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync capabilities
+        env:
+          API_URL: ${{ vars.DREADNODE_API_URL }}
+          API_KEY: ${{ secrets.DREADNODE_API_KEY }}
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          set -euo pipefail
+          cmd=(uv run --with dreadnode dreadnode capability sync capabilities)
+          cmd+=(--server "${API_URL}" --api-key "${API_KEY}" --organization dreadnode)
+          cmd+=(--publish)
+          [[ "${FORCE}" == "true" ]] && cmd+=(--force)
+          "${cmd[@]}"
+
+  summary:
+    name: Sync summary
+    needs: [validate, sync-dev, sync-staging, sync-prod]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        env:
+          VALIDATE: ${{ needs.validate.result }}
+          DEV: ${{ needs.sync-dev.result }}
+          STAGING: ${{ needs.sync-staging.result }}
+          PROD: ${{ needs.sync-prod.result }}
+        run: |
+          {
+            echo "### Sync Summary"
+            echo "- **Validate:** ${VALIDATE}"
+            echo "- **Dev:** ${DEV}"
+            echo "- **Staging:** ${STAGING}"
+            echo "- **Prod:** ${PROD}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${VALIDATE}" == "failure" || "${DEV}" == "failure" || "${STAGING}" == "failure" || "${PROD}" == "failure" ]]; then
+            echo "::error::One or more jobs failed"
+            exit 1
+          fi
