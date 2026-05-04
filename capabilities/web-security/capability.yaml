@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.0.3"
+version: "1.0.4"
 description: >
   Web application penetration testing with 30+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
@@ -8,6 +8,9 @@ description: >
   client-side attacks. Includes HTTP client tooling, Caido proxy
   integration via MCP, credential management, DNS rebinding, phone
   verification, and vulnerability verification.
+
+hooks:
+  - hooks/interrupted_tool_result.py
 
 mcp:
   servers:
