@@ -1,7 +1,0 @@
-{
-  "function_name": "airt-fraud-detection-test",
-  "function_url": "https://kskkxpualy3lfwgqyqqrwfsetq0pysdr.lambda-url.us-west-2.on.aws/",
-  "region": "us-west-2",
-  "profile": "dreadnode-app-dev",
-  "account_id": "158205738195"
-}
