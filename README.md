@@ -20,19 +20,35 @@ Dreadnode Capabilities
 
 </br>
 
-This repo maintains the source for all our capabilities published to [app.dreadnode.io](https://app.dreadnode.io).
+This is the source repo for the capabilities Dreadnode publishes to [app.dreadnode.io](https://app.dreadnode.io). A capability is a directory — a manifest plus any combination of agents, tools, skills, MCP servers, and workers — that a Dreadnode runtime can pick up and load:
 
-Full reference for the manifest, components, discovery rules, installation, and publishing lives in the docs:
+```text
+threat-hunting/
+  capability.yaml     # manifest
+  agents/             # markdown prompts
+  tools/              # python @tool functions
+  skills/             # SKILL.md packs
+```
 
-**[docs.dreadnode.io/capabilities/overview](https://docs.dreadnode.io/capabilities/overview/)**
+Welcome — the rest of this README is a quick map to wherever you're trying to go.
 
-For an end-to-end walkthrough — scaffold, write a tool and an agent, install locally, drive it from the TUI — start with the [Quickstart](https://docs.dreadnode.io/capabilities/quickstart/).
+## Looking to use one?
 
-## How to use
+Pick whichever fits — same capabilities, three ways in:
 
-- **Install in the TUIr** — start `dn`, press `Ctrl+P` and find one of the `dreadnode/` capabilities.
-- **Browse the catalog** — interactively browse everything published at [app.dreadnode.io](https://app.dreadnode.io).
-- **Local checkout** — drop a capability directory in `~/.dreadnode/capabilities/` (or anywhere on `DREADNODE_CAPABILITY_DIRS`) and the runtime picks it up.
+- **Install the published version** — `dn capability install dreadnode/ai-red-teaming` (swap in any name from `capabilities/`)
+- **Run the source from this repo** — `dn capability install ./capabilities/ai-red-teaming` symlinks the directory into your runtime, so edits go live on reload
+- **Browse from inside the runtime** — start `dn`, press `Ctrl+P`, filter for `dreadnode/`
+
+Full install reference: [docs.dreadnode.io/capabilities/installing](https://docs.dreadnode.io/capabilities/installing/).
+
+## Curious how they work, or want to build one?
+
+This is a great place to be — every directory under `capabilities/` is a real, shipped example you can read alongside the docs:
+
+- **Concepts and load model** — [overview](https://docs.dreadnode.io/capabilities/overview/)
+- **Manifest reference** — [manifest](https://docs.dreadnode.io/capabilities/manifest/)
+- **End-to-end walkthrough** — [quickstart](https://docs.dreadnode.io/capabilities/quickstart/) (~10 minutes from scaffold to running in the TUI)
 
 ## Security scanning
 
