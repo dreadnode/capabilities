@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.1.4"
+version: "1.1.5"
 description: >
   Web application penetration testing with 60+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
@@ -10,6 +10,9 @@ description: >
   rebinding, AWS exploitation with Pacu, phone verification,
   vulnerability verification, IP rotation helpers (Flareprox, fireprox),
   and archive extraction vulnerability crafting with archivealchemist.
+
+hooks:
+  - hooks/interrupted_tool_result.py
 
 mcp:
   servers:
