@@ -10,15 +10,13 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-pytestmark = pytest.mark.asyncio
-
 # Add tools directory to path for import
 _REPO_ROOT = Path(__file__).resolve()
 while _REPO_ROOT != _REPO_ROOT.parent:
-    if (_REPO_ROOT / "dreadnode" / "web-security" / "tools").is_dir():
+    if (_REPO_ROOT / "capabilities" / "web-security" / "tools").is_dir():
         break
     _REPO_ROOT = _REPO_ROOT.parent
-sys.path.insert(0, str(_REPO_ROOT / "dreadnode" / "web-security" / "tools"))
+sys.path.insert(0, str(_REPO_ROOT / "capabilities" / "web-security" / "tools"))
 
 from bbscope import BBScope
 
@@ -56,12 +54,21 @@ class TestToolDiscovery:
 
 
 class TestFind:
+    @pytest.mark.asyncio
     async def test_find_with_results(self, toolset: BBScope) -> None:
         mock_data = {
             "query": "example.com",
             "programs": [
-                {"platform": "h1", "handle": "example", "url": "https://hackerone.com/example"},
-                {"platform": "bc", "handle": "example-bc", "url": "https://bugcrowd.com/example-bc"},
+                {
+                    "platform": "h1",
+                    "handle": "example",
+                    "url": "https://hackerone.com/example",
+                },
+                {
+                    "platform": "bc",
+                    "handle": "example-bc",
+                    "url": "https://bugcrowd.com/example-bc",
+                },
             ],
             "total_count": 2,
         }
@@ -76,6 +83,7 @@ class TestFind:
             assert "example" in result
             assert "BC" in result
 
+    @pytest.mark.asyncio
     async def test_find_no_results(self, toolset: BBScope) -> None:
         mock_data = {"query": "nonexistent.invalid", "programs": [], "total_count": 0}
         with patch.object(toolset, "_get_client") as mock_client:
@@ -86,6 +94,7 @@ class TestFind:
             result = await toolset.find(query="nonexistent.invalid")
             assert "No bug bounty programs found" in result
 
+    @pytest.mark.asyncio
     async def test_find_api_error(self, toolset: BBScope) -> None:
         with patch.object(toolset, "_get_client") as mock_client:
             client = AsyncMock()
@@ -98,6 +107,7 @@ class TestFind:
 
 
 class TestProgram:
+    @pytest.mark.asyncio
     async def test_program_details(self, toolset: BBScope) -> None:
         mock_data = {
             "platform": "h1",
@@ -119,6 +129,7 @@ class TestProgram:
             assert "*.example.com" in result
             assert "In-scope targets: 5" in result
 
+    @pytest.mark.asyncio
     async def test_program_vdp(self, toolset: BBScope) -> None:
         mock_data = {
             "platform": "bc",
@@ -138,11 +149,13 @@ class TestProgram:
             result = await toolset.program(platform="bc", handle="test")
             assert "VDP" in result
 
+    @pytest.mark.asyncio
     async def test_program_invalid_platform(self, toolset: BBScope) -> None:
         result = await toolset.program(platform="invalid", handle="test")
         assert "Error" in result
         assert "Invalid platform" in result
 
+    @pytest.mark.asyncio
     async def test_program_not_found(self, toolset: BBScope) -> None:
         with patch.object(toolset, "_get_client") as mock_client:
             client = AsyncMock()
@@ -154,6 +167,7 @@ class TestProgram:
 
 
 class TestTargets:
+    @pytest.mark.asyncio
     async def test_targets_wildcards(self, toolset: BBScope) -> None:
         mock_data = ["*.example.com", "*.test.org"]
         with patch.object(toolset, "_get_client") as mock_client:
@@ -165,16 +179,19 @@ class TestTargets:
             assert "*.example.com" in result
             assert "2 wildcards" in result
 
+    @pytest.mark.asyncio
     async def test_targets_invalid_type(self, toolset: BBScope) -> None:
         result = await toolset.targets(target_type="invalid")
         assert "Error" in result
         assert "Invalid target_type" in result
 
+    @pytest.mark.asyncio
     async def test_targets_invalid_platform(self, toolset: BBScope) -> None:
         result = await toolset.targets(target_type="domains", platform="invalid")
         assert "Error" in result
         assert "Invalid platform" in result
 
+    @pytest.mark.asyncio
     async def test_targets_with_limit(self, toolset: BBScope) -> None:
         mock_data = [f"target{i}.com" for i in range(200)]
         with patch.object(toolset, "_get_client") as mock_client:
@@ -188,6 +205,7 @@ class TestTargets:
 
 
 class TestUpdates:
+    @pytest.mark.asyncio
     async def test_updates_today(self, toolset: BBScope) -> None:
         mock_data = {
             "updates": [
@@ -215,6 +233,7 @@ class TestUpdates:
             assert "new.example.com" in result
             assert "added" in result
 
+    @pytest.mark.asyncio
     async def test_updates_no_results(self, toolset: BBScope) -> None:
         mock_data = {"updates": [], "total_count": 0}
         with patch.object(toolset, "_get_client") as mock_client:
