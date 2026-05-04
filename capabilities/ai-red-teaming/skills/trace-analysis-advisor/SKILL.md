@@ -250,4 +250,4 @@ Trace Advisor: "Response analysis indicates:
 - **Attack Selection Guide** - Enhanced with historical evidence rather than theoretical guidance
 - **Error Troubleshooting** - Identifies why attacks fail based on historical patterns
 
-This skill transforms the AI red teaming agent from a tool executor into an intelligent adversarial strategist, making the claims in the news story about "learning from traces" and "adaptive strategy" actually true.
+This skill provides data-driven attack recommendations based on historical trace analysis.
