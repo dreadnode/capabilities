@@ -20,38 +20,7 @@ Dreadnode Capabilities
 
 </br>
 
-A capability is a portable bundle that extends a Dreadnode runtime with everything an agent needs to do a job — agent prompts, Python tools, skills, MCP servers, background workers, and sandbox setup — driven by a single `capability.yaml`. This repository is the public source of the capabilities Dreadnode authors and ships to the platform.
-
-```yaml
-# capability.yaml
-schema: 1
-name: web-recon
-version: "0.1.0"
-description: Basic host reconnaissance.
-```
-
-```python
-# tools/lookup.py
-import typing as t
-from dreadnode import tool
-
-@tool
-def lookup_host(host: t.Annotated[str, "Hostname or IP to look up"]) -> dict[str, str]:
-    """Resolve a host and return basic metadata."""
-    return {"host": host, "status": "reachable"}
-```
-
-That's a working capability. The loader auto-discovers `agents/`, `tools/`, `skills/`, and `mcp/` from the directory, so the manifest stays small.
-
-## Where capabilities run
-
-- **Platform catalog** — browse and install everything published to your workspace at [app.dreadnode.io/capabilities](https://app.dreadnode.io/capabilities).
-- **TUI capability manager** — open `dn`, press `Ctrl+P` to install, enable, and inspect capabilities on a running runtime.
-- **Local checkout** — drop a capability directory in `~/.dreadnode/capabilities/` (or anywhere on `DREADNODE_CAPABILITY_DIRS`) and the runtime picks it up.
-
-Every capability in this repo syncs to the platform on push to `main` via the [sync workflow](.github/workflows/sync.yml).
-
-## Documentation
+This repo maintains the source for all our capabilities published to [app.dreadnode.io](https://app.dreadnode.io).
 
 Full reference for the manifest, components, discovery rules, installation, and publishing lives in the docs:
 
@@ -59,21 +28,11 @@ Full reference for the manifest, components, discovery rules, installation, and 
 
 For an end-to-end walkthrough — scaffold, write a tool and an agent, install locally, drive it from the TUI — start with the [Quickstart](https://docs.dreadnode.io/capabilities/quickstart/).
 
-## Local development
+## How to use
 
-Validate every manifest in the repo:
-
-```bash
-just validate
-```
-
-Mirror the repo into your local capability store so a `dn` runtime sees the changes:
-
-```bash
-just sync-dreadnode-files   # rsyncs capabilities/* into ~/.dreadnode/capabilities/
-```
-
-Pre-commit hooks run `ruff`, `ruff-format`, `check-yaml`, and `gitleaks`. Don't bypass them — fix the underlying issue.
+- **Install in the TUIr** — start `dn`, press `Ctrl+P` and find one of the `dreadnode/` capabilities.
+- **Browse the catalog** — interactively browse everything published at [app.dreadnode.io](https://app.dreadnode.io).
+- **Local checkout** — drop a capability directory in `~/.dreadnode/capabilities/` (or anywhere on `DREADNODE_CAPABILITY_DIRS`) and the runtime picks it up.
 
 ## Security scanning
 
