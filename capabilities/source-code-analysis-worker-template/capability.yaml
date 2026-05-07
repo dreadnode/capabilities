@@ -1,0 +1,38 @@
+schema: 1
+name: source-code-analysis-worker-template
+version: 0.1.0
+description: >
+  Reference template for a worker-coordinated multi-agent capability. A single
+  ``source-analysis.requested`` event drives a five-stage pipeline against a
+  GitHub repo: clone, attack-surface mapping, parallel specialist review, a
+  reconciling final reviewer that records structured findings via a typed
+  capability tool, and one validator session per high or critical finding.
+  Intended to be forked as a starting point for similar pipelines.
+
+agents:
+  - agents/
+
+tools:
+  - tools/
+
+workers:
+  coordinator:
+    path: workers/coordinator.py
+
+checks:
+  - name: git
+    command: command -v git
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - source-analysis
+  - security
+  - multi-agent
+  - github
+  - worker
+  - template
+  - reference
