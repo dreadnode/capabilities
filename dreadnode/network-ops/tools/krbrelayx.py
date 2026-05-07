@@ -5,6 +5,23 @@ from dreadnode import Config
 from dreadnode.agents.tools import Toolset, tool_method
 from dreadnode.tools.execute import execute
 
+# Import resolve_python_executable for proper Python path resolution
+try:
+    from dreadnode.app.env import resolve_python_executable
+except ImportError:
+    # Fallback if import fails
+    import shutil
+
+    def resolve_python_executable() -> str:
+        """Fallback implementation for Python executable resolution."""
+        python_from_path = shutil.which("python3")
+        if python_from_path:
+            return python_from_path
+        python_fallback = shutil.which("python")
+        if python_fallback:
+            return python_fallback
+        return sys.executable
+
 # Default path for krbrelayx scripts
 # Install via: git clone https://github.com/dirkjanm/krbrelayx.git
 g_default_krbrelayx_path = Path("/opt/krbrelayx/")
@@ -196,7 +213,7 @@ class Krbrelayx(Toolset):
         args.append(hostname)
 
         return await execute(
-            [sys.executable, str(self.script_path / "addspn.py"), *args],
+            [resolve_python_executable(), str(self.script_path / "addspn.py"), *args],
             timeout=self.timeout,
             input=input,
             env=env,
@@ -365,7 +382,7 @@ class Krbrelayx(Toolset):
         args.append(hostname)
 
         return await execute(
-            [sys.executable, str(self.script_path / "dnstool.py"), *args],
+            [resolve_python_executable(), str(self.script_path / "dnstool.py"), *args],
             timeout=self.timeout,
             input=input,
             env=env,
@@ -480,7 +497,7 @@ class Krbrelayx(Toolset):
             args.append("-d")
 
         return await execute(
-            [sys.executable, str(self.script_path / "krbrelayx.py"), *args],
+            [resolve_python_executable(), str(self.script_path / "krbrelayx.py"), *args],
             timeout=self.timeout,
             input=input,
             env=env,
@@ -592,7 +609,7 @@ class Krbrelayx(Toolset):
         args.extend([target, attacker])
 
         return await execute(
-            [sys.executable, str(self.script_path / "printerbug.py"), *args],
+            [resolve_python_executable(), str(self.script_path / "printerbug.py"), *args],
             timeout=self.timeout,
             input=input,
             env=env,
