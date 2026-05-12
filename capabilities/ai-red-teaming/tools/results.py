@@ -212,32 +212,41 @@ def get_workspace_info() -> str:
 def get_platform_assessment_data(
     assessment_name: t.Annotated[str, "Assessment name to retrieve from platform"] = "",
 ) -> str:
-    """Retrieve raw assessment data directly from Dreadnode platform.
+    """⚠️  CRITICAL LIMITATION: Limited platform data access.
 
-    ⚠️  PLATFORM ONLY - NO INTERPRETATION OR ANALYSIS
+    PLATFORM DATA AVAILABLE via get_assessment_status():
+    - ✅ Assessment name, target, goal, status
+    - ✅ ASR percentage per attack
+    - ✅ Risk score (0-10) per attack
+    - ✅ Attack completion status and notes
 
-    This tool ONLY returns factual data from the platform's assessment
-    tracking system. It does NOT:
-    - Interpret or analyze results
-    - Generate summaries or insights
-    - Make recommendations
-    - Hallucinate any metrics
+    PLATFORM DATA NOT ACCESSIBLE (requires full platform API):
+    - ❌ Individual trial details and best scores
+    - ❌ Severity breakdown (critical/high/medium/low)
+    - ❌ Transform comparison results
+    - ❌ Detailed scorer outputs
+    - ❌ Compliance framework mapping
+    - ❌ Trial-level timestamps and metadata
 
-    Returns only raw platform records: assessment ID, status, ASR values,
-    trial counts, attack configurations, timestamps.
+    RECOMMENDATION:
+    For detailed analytics, use the Dreadnode platform web interface
+    at your organization's dashboard. The assessment tracking tools
+    only provide high-level summary metrics.
 
-    Use get_assessment_status() and update_assessment_status() to access
-    this data through the official assessment tracking tools.
+    Current assessment tracking tools:
+    - get_assessment_status() - Available summary metrics only
+    - update_assessment_status() - Log high-level results only
+    - register_assessment() - Track assessment metadata only
     """
     return (
-        "❌ PLATFORM DATA RETRIEVAL NOT IMPLEMENTED\n\n"
-        "This tool is a placeholder to prevent analytics hallucination.\n"
-        "Use the official assessment tracking tools instead:\n\n"
-        "- get_assessment_status() - Get current assessment status\n"
-        "- update_assessment_status() - Log completed results\n"
-        "- register_assessment() - Start new assessment tracking\n\n"
-        "These tools connect to the actual platform data, not local files.\n"
-        "Assessment analytics flow through OTEL traces to ClickHouse on the platform."
+        "⚠️  LIMITED PLATFORM DATA ACCESS\n\n"
+        "Assessment tracking tools provide ONLY summary metrics:\n"
+        "- ASR percentage, Risk score, Status, Notes\n\n"
+        "For detailed analysis (trials, scorers, compliance):\n"
+        "→ Use Dreadnode platform web interface\n"
+        "→ OTEL traces contain full data in ClickHouse\n"
+        "→ Assessment tracking tools are for workflow coordination only\n\n"
+        "Call get_assessment_status() for available summary data."
     )
 
 

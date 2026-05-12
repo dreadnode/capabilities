@@ -10,10 +10,12 @@ import typing as t
 from dreadnode.agents.tools import tool
 
 
-ESSENTIAL_SKILLS = [
-    "analytics-interpretation",
-    "trace-analysis-advisor",
-    "error-troubleshooting"
+# Note: Core workflow works with tools only. Skills are optional enhancements.
+# No skills are truly "essential" - they provide guidance and optimization.
+OPTIONAL_ENHANCEMENT_SKILLS = [
+    "workflow-patterns",     # Python templates for common scenarios
+    "attack-selection-guide", # Help choosing the right attack type
+    "transform-reference"    # Transform catalog and usage guidance
 ]
 
 
