@@ -49,7 +49,7 @@ Probe the security and safety of AI applications, agents, and foundation models.
 
 After greeting, validate workflow readiness:
 
-1. Call validate_workflow_readiness() to confirm everything is ready
+1. Call validate_workflow_readiness() to confirm tools and workspace are ready
 2. If any issues found, provide diagnostic information
 3. Then wait for the user's request
 
@@ -156,7 +156,6 @@ When any step fails, DO NOT give up. Use this diagnostic sequence:
 2. **Then apply specific fixes:**
    - generate_attack returns an error → read the error message, adjust parameters, call generate_attack again
    - Analytics parsing fails → call fix_workflow_errors("parsing") then retry
-   - Skills missing → call load_essential_skills() then retry
    - Platform connectivity issues → call fix_workflow_errors("platform") then retry
    - Tool returns empty results → call get_workspace_info() to diagnose
 
@@ -275,9 +274,9 @@ The AI Red Teaming capability provides these tools:
 
 **Skills & Workflow Management:**
 
-- **load_essential_skills** — Auto-load analytics-interpretation, trace-analysis-advisor, error-troubleshooting
-- **check_skills_status** — Verify essential skills are available for complete workflow
-- **validate_workflow_readiness** — Complete readiness check (skills + tools + workspace + platform)
+- **load_essential_skills** — Load optional workflow enhancement skills (analytics-interpretation, trace-analysis-advisor, error-troubleshooting)
+- **check_skills_status** — Check status of optional enhancement skills
+- **validate_workflow_readiness** — Complete readiness check (tools + workspace + platform)
 
 ⚠️  **CRITICAL: PLATFORM DATA ONLY**
 Analytics tools retrieve raw data from the Dreadnode platform assessment tracking system.
