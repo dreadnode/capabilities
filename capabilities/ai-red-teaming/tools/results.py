@@ -92,14 +92,15 @@ def inspect_results(
 def get_analytics_summary(
     attack_name: t.Annotated[
         str,
-        "Filter by attack name (substring match). Empty for all.",
+        "Filter by assessment name (substring match). Empty for all.",
     ] = "",
 ) -> str:
-    """Aggregate key metrics across all analytics files.
+    """Get analytics summary from platform data - NO INTERPRETATION.
 
-    Scans all analytics, results, and study JSON files in the output
-    directory. Optionally filters by attack name. Returns ASR, risk
-    scores, severity, compliance, and trial counts for each file.
+    ⚠️  PLATFORM DATA ONLY - This tool retrieves raw assessment metrics
+    from the Dreadnode platform via assessment tracking. Does NOT interpret,
+    analyze, or generate any analytics data. Returns only factual platform
+    records: ASR, risk scores, severity counts, trial numbers.
     """
     if not WORKSPACE_DIR.exists():
         return f"Output directory not found: {WORKSPACE_DIR}"
@@ -199,3 +200,36 @@ def get_workspace_info() -> str:
     info.append(f"  AIRT_WORKFLOWS_DIR: {os.environ.get('AIRT_WORKFLOWS_DIR', 'not set')}")
 
     return "\n".join(info)
+
+
+@tool
+def get_platform_assessment_data(
+    assessment_name: t.Annotated[str, "Assessment name to retrieve from platform"] = "",
+) -> str:
+    """Retrieve raw assessment data directly from Dreadnode platform.
+
+    ⚠️  PLATFORM ONLY - NO INTERPRETATION OR ANALYSIS
+
+    This tool ONLY returns factual data from the platform's assessment
+    tracking system. It does NOT:
+    - Interpret or analyze results
+    - Generate summaries or insights
+    - Make recommendations
+    - Hallucinate any metrics
+
+    Returns only raw platform records: assessment ID, status, ASR values,
+    trial counts, attack configurations, timestamps.
+
+    Use get_assessment_status() and update_assessment_status() to access
+    this data through the official assessment tracking tools.
+    """
+    return (
+        "❌ PLATFORM DATA RETRIEVAL NOT IMPLEMENTED\n\n"
+        "This tool is a placeholder to prevent analytics hallucination.\n"
+        "Use the official assessment tracking tools instead:\n\n"
+        "- get_assessment_status() - Get current assessment status\n"
+        "- update_assessment_status() - Log completed results\n"
+        "- register_assessment() - Start new assessment tracking\n\n"
+        "These tools connect to the actual platform data, not local files.\n"
+        "Assessment analytics flow through OTEL traces to ClickHouse on the platform."
+    )
