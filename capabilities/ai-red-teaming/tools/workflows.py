@@ -124,6 +124,7 @@ def execute_workflow(
 
     try:
         python_executable = resolve_python_executable()
+        print(f"[INFO] Executing workflow with Python: {python_executable}", file=sys.stderr)
         result = subprocess.run(
             [python_executable, str(filepath)],
             capture_output=True,

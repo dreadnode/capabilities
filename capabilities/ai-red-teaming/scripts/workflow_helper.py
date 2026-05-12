@@ -121,6 +121,7 @@ def execute_workflow(params: dict) -> dict:
 
     try:
         python_executable = resolve_python_executable()
+        print(f"[INFO] Executing workflow with Python: {python_executable}", file=sys.stderr)
         result = subprocess.run(
             [python_executable, str(filepath)],
             cwd=str(WORKFLOWS_DIR.parent),

@@ -28,6 +28,7 @@ def _call_runner(name: str, params: dict) -> str:
     payload = json.dumps({"name": name, "parameters": params})
     try:
         python_executable = resolve_python_executable()
+        print(f"[INFO] Executing attack runner with Python: {python_executable}", file=sys.stderr)
         result = subprocess.run(
             [python_executable, str(_RUNNER_SCRIPT)],
             input=payload,

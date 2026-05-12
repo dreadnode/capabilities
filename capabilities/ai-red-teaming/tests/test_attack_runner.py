@@ -42,6 +42,7 @@ def _generate(params: dict) -> dict:
     payload = json.dumps({"name": "generate_attack", "parameters": params})
     env = {**os.environ, "DREADNODE_WORKSPACE_DIR": "/tmp/airt_test"}
     python_executable = resolve_python_executable()
+    print(f"[INFO] Running test with Python: {python_executable}", file=sys.stderr)
     result = subprocess.run(
         [python_executable, str(RUNNER_PATH)],
         input=payload,

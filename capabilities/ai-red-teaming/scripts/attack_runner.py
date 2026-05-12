@@ -82,6 +82,7 @@ def _auto_execute_workflow(filename: str, timeout: int = 540) -> str:
 
     try:
         python_executable = resolve_python_executable()
+        print(f"[INFO] Executing workflow with Python: {python_executable}", file=sys.stderr)
         result = subprocess.run(
             [python_executable, str(filepath)],
             cwd=str(WORKFLOWS_DIR.parent),
