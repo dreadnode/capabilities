@@ -159,6 +159,43 @@ def get_analytics_summary(
 
     if not summaries:
         filter_msg = f" for '{attack_name}'" if attack_name else ""
-        return f"No analytics data found{filter_msg}."
+        return f"No local analytics files found{filter_msg}. The data may be available on the Dreadnode platform. Use the assessment tracking tools to retrieve recent results."
 
     return "\n\n".join(summaries)
+
+
+@tool
+def get_workspace_info() -> str:
+    """Show current workspace configuration and suggest improvements.
+
+    Displays the current workspace directory, checks for analytics files,
+    and provides guidance on workspace organization.
+    """
+    info = [f"Current AIRT workspace: {WORKSPACE_DIR}"]
+
+    if WORKSPACE_DIR.exists():
+        analytics_count = len(list(WORKSPACE_DIR.rglob("*analytics*.json")))
+        result_count = len(list(WORKSPACE_DIR.rglob("*result*.json")))
+        workflow_count = len(list(WORKSPACE_DIR.rglob("*.py")))
+
+        info.append(f"Analytics files: {analytics_count}")
+        info.append(f"Result files: {result_count}")
+        info.append(f"Workflow files: {workflow_count}")
+
+        if analytics_count == 0:
+            info.append("")
+            info.append("⚠️  No local analytics files found.")
+            info.append("This usually means:")
+            info.append("1. Attack results are being sent to the platform via OTEL traces")
+            info.append("2. Local analytics writing is not configured")
+            info.append("3. Use assessment tracking tools to retrieve platform data")
+    else:
+        info.append("Workspace directory does not exist")
+        info.append("Run an attack workflow to create it automatically")
+
+    info.append("")
+    info.append("Environment variables:")
+    info.append(f"  AIRT_OUTPUT_DIR: {os.environ.get('AIRT_OUTPUT_DIR', 'not set')}")
+    info.append(f"  AIRT_WORKFLOWS_DIR: {os.environ.get('AIRT_WORKFLOWS_DIR', 'not set')}")
+
+    return "\n".join(info)

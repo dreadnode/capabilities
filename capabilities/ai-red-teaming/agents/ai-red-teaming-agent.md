@@ -47,7 +47,11 @@ Probe the security and safety of AI applications, agents, and foundation models.
 
 ---
 
-After greeting, wait for the user's request before taking any action.
+After greeting, automatically load analysis skills and wait for the user's request.
+
+Load these skills on startup:
+- analytics-interpretation
+- trace-analysis-advisor
 </greeting>
 
 <critical_instructions>

@@ -17,10 +17,19 @@ from pathlib import Path
 from dreadnode.agents.tools import tool
 from dreadnode.app.env import resolve_python_executable
 
+# Support flexible workspace organization
+_base_workspace = Path(os.environ.get("DREADNODE_WORKSPACE_ROOT", str(Path.home() / "workspace")))
+_org_key = os.environ.get("DREADNODE_ORG_KEY", "default")
+_project_key = os.environ.get("DREADNODE_PROJECT_KEY", "airt")
+
+# Organized structure: ~/workspace/[org]/[project]/workflows
+# Falls back to original structure if new env vars not set
 WORKFLOWS_DIR = Path(
     os.environ.get(
         "AIRT_WORKFLOWS_DIR",
-        str(Path.home() / "workspace" / "airt" / "workflows"),
+        str(_base_workspace / _org_key / _project_key / "workflows")
+        if any([os.environ.get(var) for var in ["DREADNODE_WORKSPACE_ROOT", "DREADNODE_ORG_KEY", "DREADNODE_PROJECT_KEY"]])
+        else str(Path.home() / "workspace" / "airt" / "workflows"),
     )
 )
 METADATA_FILE = WORKFLOWS_DIR / ".workflow_metadata.json"
