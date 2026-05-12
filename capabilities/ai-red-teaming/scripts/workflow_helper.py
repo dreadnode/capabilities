@@ -13,6 +13,8 @@ import sys
 import time
 from pathlib import Path
 
+from dreadnode.app.env import resolve_python_executable
+
 WORKFLOWS_DIR = Path(
     os.environ.get(
         "AIRT_WORKFLOWS_DIR",
@@ -118,8 +120,10 @@ def execute_workflow(params: dict) -> dict:
     timeout = min(timeout, 600)  # Max 10 minutes
 
     try:
+        python_executable = resolve_python_executable()
+        print(f"[INFO] Executing workflow with Python: {python_executable}", file=sys.stderr)
         result = subprocess.run(
-            [sys.executable, str(filepath)],
+            [python_executable, str(filepath)],
             cwd=str(WORKFLOWS_DIR.parent),
             capture_output=True,
             text=True,

@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from dreadnode.app.env import resolve_python_executable
+
 # ---------------------------------------------------------------------------
 # Load attack_runner as a module (it's not a package, just a script)
 # ---------------------------------------------------------------------------
@@ -39,8 +41,10 @@ def _generate(params: dict) -> dict:
     """Call attack_runner via subprocess and return JSON result."""
     payload = json.dumps({"name": "generate_attack", "parameters": params})
     env = {**os.environ, "DREADNODE_WORKSPACE_DIR": "/tmp/airt_test"}
+    python_executable = resolve_python_executable()
+    print(f"[INFO] Running test with Python: {python_executable}", file=sys.stderr)
     result = subprocess.run(
-        [sys.executable, str(RUNNER_PATH)],
+        [python_executable, str(RUNNER_PATH)],
         input=payload,
         capture_output=True,
         text=True,
