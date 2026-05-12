@@ -18,6 +18,7 @@ import typing as t
 from pathlib import Path
 
 from dreadnode.agents.tools import tool
+from dreadnode.app.env import resolve_python_executable
 
 _RUNNER_SCRIPT = Path(__file__).parent.parent / "scripts" / "attack_runner.py"
 
@@ -26,8 +27,9 @@ def _call_runner(name: str, params: dict) -> str:
     """Call attack_runner.py via subprocess with JSON dispatch."""
     payload = json.dumps({"name": name, "parameters": params})
     try:
+        python_executable = resolve_python_executable()
         result = subprocess.run(
-            [sys.executable, str(_RUNNER_SCRIPT)],
+            [python_executable, str(_RUNNER_SCRIPT)],
             input=payload,
             capture_output=True,
             text=True,
