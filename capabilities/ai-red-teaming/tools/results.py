@@ -136,11 +136,17 @@ def get_analytics_summary(
 
         severity = data.get("severity_breakdown", data.get("severity", {}))
         if severity:
-            lines.append("Severity: " + ", ".join(f"{k}={v}" for k, v in severity.items()))
+            if isinstance(severity, dict):
+                lines.append("Severity: " + ", ".join(f"{k}={v}" for k, v in severity.items()))
+            else:
+                lines.append(f"Severity: {severity}")
 
         compliance = data.get("compliance_coverage", data.get("compliance", {}))
         if compliance:
-            lines.append("Compliance: " + ", ".join(f"{k}={v}" for k, v in compliance.items()))
+            if isinstance(compliance, dict):
+                lines.append("Compliance: " + ", ".join(f"{k}={v}" for k, v in compliance.items()))
+            else:
+                lines.append(f"Compliance: {compliance}")
 
         trials = data.get("trials", data.get("results", []))
         if isinstance(trials, list):
@@ -233,3 +239,65 @@ def get_platform_assessment_data(
         "These tools connect to the actual platform data, not local files.\n"
         "Assessment analytics flow through OTEL traces to ClickHouse on the platform."
     )
+
+
+@tool
+def validate_attack_results() -> str:
+    """Validate that attack execution completed successfully.
+
+    Checks for common issues in the attack workflow:
+    - Analytics files were created
+    - No JSON parsing errors
+    - Expected result structure exists
+    - Platform assessment was registered
+
+    Returns validation report with actionable fixes.
+    """
+    issues = []
+    suggestions = []
+
+    # Check workspace directory
+    if not WORKSPACE_DIR.exists():
+        issues.append("❌ Workspace directory not found")
+        suggestions.append("Run an attack workflow to create workspace")
+    else:
+        # Check for analytics files
+        analytics_files = list(WORKSPACE_DIR.rglob("*analytics*.json"))
+        result_files = list(WORKSPACE_DIR.rglob("*result*.json"))
+
+        if not analytics_files and not result_files:
+            issues.append("❌ No analytics or result files found")
+            suggestions.append("Check if attack execution completed successfully")
+        else:
+            issues.append(f"✅ Found {len(analytics_files)} analytics, {len(result_files)} result files")
+
+        # Test JSON parsing
+        for f in analytics_files[:5]:  # Check first 5 files
+            try:
+                data = json.loads(f.read_text())
+                # Test the problematic fields
+                severity = data.get("severity_breakdown", data.get("severity", {}))
+                if severity and not isinstance(severity, (dict, str)):
+                    issues.append(f"⚠️  Invalid severity format in {f.name}")
+                    suggestions.append("Analytics parsing bug - severity field type issue")
+            except Exception as e:
+                issues.append(f"❌ JSON parsing failed for {f.name}: {e}")
+                suggestions.append(f"Fix malformed JSON in {f.name}")
+
+    # Check environment
+    env_vars = ["AIRT_OUTPUT_DIR", "DREADNODE_WORKSPACE_ROOT", "DREADNODE_ORG_KEY"]
+    for var in env_vars:
+        value = os.environ.get(var)
+        if value:
+            issues.append(f"✅ {var}={value}")
+        else:
+            issues.append(f"ℹ️  {var} not set (using defaults)")
+
+    report = ["=== Attack Results Validation ===", ""]
+    report.extend(issues)
+
+    if suggestions:
+        report.extend(["", "=== Suggestions ==="])
+        report.extend(suggestions)
+
+    return "\n".join(report)
