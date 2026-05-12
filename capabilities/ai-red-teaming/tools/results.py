@@ -18,6 +18,22 @@ WORKSPACE_DIR = Path(
 )
 
 
+def _validate_required_params(**kwargs) -> list[str]:
+    """Validate required parameters and return list of errors."""
+    errors = []
+    for name, value in kwargs.items():
+        if not value or (isinstance(value, str) and value.strip() == ""):
+            errors.append(f"Parameter '{name}' is required")
+    return errors
+
+
+def _suggest_alternatives(invalid_value: str, valid_options: list[str]) -> str:
+    """Suggest valid alternatives for invalid values."""
+    if not valid_options:
+        return ""
+    return f"Try one of: {', '.join(valid_options[:5])}"
+
+
 def _safe_path(relative: str) -> Path | None:
     """Resolve a relative path within workspace, rejecting traversal."""
     resolved = (WORKSPACE_DIR / relative).resolve()
@@ -43,6 +59,11 @@ def inspect_results(
     Lists or reads analytics JSON, result files, and reports from
     the ~/workspace/airt/ output directory.
     """
+    # Validate file_type parameter
+    valid_types = ["analytics", "results", "reports", "all"]
+    if file_type not in valid_types:
+        return f"Error: Invalid file_type '{file_type}'. {_suggest_alternatives(file_type, valid_types)}"
+
     if not WORKSPACE_DIR.exists():
         return f"Workspace directory not found: {WORKSPACE_DIR}"
 
@@ -171,41 +192,6 @@ def get_analytics_summary(
     return "\n\n".join(summaries)
 
 
-@tool
-def get_workspace_info() -> str:
-    """Show current workspace configuration and suggest improvements.
-
-    Displays the current workspace directory, checks for analytics files,
-    and provides guidance on workspace organization.
-    """
-    info = [f"Current AIRT workspace: {WORKSPACE_DIR}"]
-
-    if WORKSPACE_DIR.exists():
-        analytics_count = len(list(WORKSPACE_DIR.rglob("*analytics*.json")))
-        result_count = len(list(WORKSPACE_DIR.rglob("*result*.json")))
-        workflow_count = len(list(WORKSPACE_DIR.rglob("*.py")))
-
-        info.append(f"Analytics files: {analytics_count}")
-        info.append(f"Result files: {result_count}")
-        info.append(f"Workflow files: {workflow_count}")
-
-        if analytics_count == 0:
-            info.append("")
-            info.append("⚠️  No local analytics files found.")
-            info.append("This usually means:")
-            info.append("1. Attack results are being sent to the platform via OTEL traces")
-            info.append("2. Local analytics writing is not configured")
-            info.append("3. Use assessment tracking tools to retrieve platform data")
-    else:
-        info.append("Workspace directory does not exist")
-        info.append("Run an attack workflow to create it automatically")
-
-    info.append("")
-    info.append("Environment variables:")
-    info.append(f"  AIRT_OUTPUT_DIR: {os.environ.get('AIRT_OUTPUT_DIR', 'not set')}")
-    info.append(f"  AIRT_WORKFLOWS_DIR: {os.environ.get('AIRT_WORKFLOWS_DIR', 'not set')}")
-
-    return "\n".join(info)
 
 
 @tool
@@ -244,7 +230,6 @@ def get_platform_assessment_data(
         "- ASR percentage, Risk score, Status, Notes\n\n"
         "For detailed analysis (trials, scorers, compliance):\n"
         "→ Use Dreadnode platform web interface\n"
-        "→ OTEL traces contain full data in ClickHouse\n"
         "→ Assessment tracking tools are for workflow coordination only\n\n"
         "Call get_assessment_status() for available summary data."
     )
@@ -325,11 +310,16 @@ def fix_workflow_errors(
     - parsing: Fix JSON parsing errors in analytics files
     - analytics: Reset analytics pipeline and clear corrupted files
     - platform: Check platform connectivity and authentication
-    - skills: Reload essential skills
+    - skills: Reload optional skills
     - all: Run all fixes
 
     Returns fix report with success/failure status.
     """
+    # Validate error_type parameter
+    valid_types = ["parsing", "analytics", "platform", "skills", "all"]
+    if error_type not in valid_types:
+        return f"Error: Invalid error_type '{error_type}'. {_suggest_alternatives(error_type, valid_types)}"
+
     fixes_applied = []
     fixes_failed = []
 
@@ -380,7 +370,7 @@ def fix_workflow_errors(
 
     if error_type in ["skills", "all"]:
         # This would trigger skill reloading
-        fixes_applied.append("✅ Skills reload triggered (use load_essential_skills)")
+        fixes_applied.append("✅ Optional skills reload available (use load_essential_skills if needed)")
 
     if error_type in ["platform", "all"]:
         # Platform connectivity check
