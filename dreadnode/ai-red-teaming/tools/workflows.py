@@ -14,6 +14,8 @@ import typing as t
 from datetime import datetime, timezone
 from pathlib import Path
 
+from dreadnode.app.env import resolve_python_executable
+
 from dreadnode.agents.tools import tool
 
 WORKFLOWS_DIR = Path(
@@ -121,10 +123,11 @@ def execute_workflow(
 
     timeout = min(timeout, 600)
 
+    python_executable = resolve_python_executable()
+    print(f"[INFO] Executing workflow with Python: {python_executable}", file=sys.stderr)
     try:
         result = subprocess.run(
-            [sys.executable, str(filepath)],
-            capture_output=True,
+            [python_executable, str(filepath)],            capture_output=True,
             text=True,
             timeout=timeout,
             cwd=str(WORKFLOWS_DIR.parent),

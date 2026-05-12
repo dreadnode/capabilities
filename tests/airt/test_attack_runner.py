@@ -14,6 +14,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from dreadnode.app.env import resolve_python_executable
+
 import pytest
 
 # ---------------------------------------------------------------------------
@@ -39,9 +41,10 @@ def _generate(params: dict) -> dict:
     """Call attack_runner via subprocess and return JSON result."""
     payload = json.dumps({"name": "generate_attack", "parameters": params})
     env = {**os.environ, "DREADNODE_WORKSPACE_DIR": "/tmp/airt_test"}
+    python_executable = resolve_python_executable()
+    print(f"[INFO] Running test with Python: {python_executable}", file=sys.stderr)
     result = subprocess.run(
-        [sys.executable, str(RUNNER_PATH)],
-        input=payload,
+        [python_executable, str(RUNNER_PATH)],        input=payload,
         capture_output=True,
         text=True,
         timeout=30,

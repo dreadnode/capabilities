@@ -17,6 +17,8 @@ import sys
 import typing as t
 from pathlib import Path
 
+from dreadnode.app.env import resolve_python_executable
+
 from dreadnode.agents.tools import tool
 
 _RUNNER_SCRIPT = Path(__file__).parent.parent / "scripts" / "attack_runner.py"
@@ -25,10 +27,11 @@ _RUNNER_SCRIPT = Path(__file__).parent.parent / "scripts" / "attack_runner.py"
 def _call_runner(name: str, params: dict) -> str:
     """Call attack_runner.py via subprocess with JSON dispatch."""
     payload = json.dumps({"name": name, "parameters": params})
+    python_executable = resolve_python_executable()
+    print(f"[INFO] Executing attack runner with Python: {python_executable}", file=sys.stderr)
     try:
         result = subprocess.run(
-            [sys.executable, str(_RUNNER_SCRIPT)],
-            input=payload,
+            [python_executable, str(_RUNNER_SCRIPT)],            input=payload,
             capture_output=True,
             text=True,
             timeout=660,  # 11min: runner has 9min internal timeout + overhead

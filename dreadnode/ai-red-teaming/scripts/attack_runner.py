@@ -20,22 +20,7 @@ import sys
 import time
 from pathlib import Path
 
-# Import resolve_python_executable for proper Python path resolution
-try:
-    from dreadnode.app.env import resolve_python_executable
-except ImportError:
-    # Fallback if import fails (shouldn't happen in normal execution)
-    import shutil
-
-    def resolve_python_executable() -> str:
-        """Fallback implementation for Python executable resolution."""
-        python_from_path = shutil.which("python3")
-        if python_from_path:
-            return python_from_path
-        python_fallback = shutil.which("python")
-        if python_fallback:
-            return python_fallback
-        return sys.executable
+from dreadnode.app.env import resolve_python_executable
 
 WORKFLOWS_DIR = Path(
     os.environ.get(
@@ -96,9 +81,10 @@ def _auto_execute_workflow(filename: str, timeout: int = 540) -> str:
         return "\n[AUTO-EXECUTE] Syntax error in generated script: {} (line {})".format(e.msg, e.lineno)
 
     try:
+        python_executable = resolve_python_executable()
+        print(f"[INFO] Executing workflow with Python: {python_executable}", file=sys.stderr)
         result = subprocess.run(
-            [resolve_python_executable(), str(filepath)],
-            cwd=str(WORKFLOWS_DIR.parent),
+            [python_executable, str(filepath)],            cwd=str(WORKFLOWS_DIR.parent),
             capture_output=True,
             text=True,
             timeout=timeout,
