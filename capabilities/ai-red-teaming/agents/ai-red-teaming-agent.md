@@ -192,7 +192,7 @@ When you call `generate_attack`, it:
 | `tap` | General jailbreak testing (tree-search) | ~200-500 |
 | `pair` | Query-efficient parallel testing | ~100-300 |
 | `crescendo` | Multi-turn conversation weaknesses | ~200-500 |
-| `goat` | Conversational jailbreaks | ~200-500 |
+| `goat` | Graph of Attacks with Pruning | ~200-500 |
 | `prompt` | Simple single-prompt baseline | ~10-50 |
 | `rainbow` | Broad risk coverage (MAP-Elites) | ~500-2000 |
 | `gptfuzzer` | Template-based fuzzing | ~200-500 |
