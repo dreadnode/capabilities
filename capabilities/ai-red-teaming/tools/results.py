@@ -134,11 +134,11 @@ def get_analytics_summary(
             lines.append(f"Overall Risk: {data['overall_risk']}")
 
         severity = data.get("severity_breakdown", data.get("severity", {}))
-        if severity:
+        if severity and isinstance(severity, dict):
             lines.append("Severity: " + ", ".join(f"{k}={v}" for k, v in severity.items()))
 
         compliance = data.get("compliance_coverage", data.get("compliance", {}))
-        if compliance:
+        if compliance and isinstance(compliance, dict):
             lines.append("Compliance: " + ", ".join(f"{k}={v}" for k, v in compliance.items()))
 
         trials = data.get("trials", data.get("results", []))
