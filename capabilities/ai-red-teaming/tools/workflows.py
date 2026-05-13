@@ -17,21 +17,27 @@ from pathlib import Path
 from dreadnode.agents.tools import tool
 from dreadnode.app.env import resolve_python_executable
 
-# Support flexible workspace organization
-_base_workspace = Path(os.environ.get("DREADNODE_WORKSPACE_ROOT", str(Path.home() / "workspace")))
-_org_key = os.environ.get("DREADNODE_ORG_KEY", "default")
-_project_key = os.environ.get("DREADNODE_PROJECT_KEY", "airt")
+# Get org/workspace from active profile, with fallbacks
+def _get_workspace_path() -> Path:
+    try:
+        from dreadnode.app.config import UserConfig
+        config = UserConfig.read()
+        profile_data = config.active_profile
+        if profile_data:
+            _, profile = profile_data
+            org_key = profile.organization or "default"
+            workspace_key = profile.workspace or "main"
+        else:
+            org_key = "default"
+            workspace_key = "main"
+    except Exception:
+        # Fallback if config system unavailable
+        org_key = "default"
+        workspace_key = "main"
 
-# Organized structure: ~/workspace/[org]/[project]/workflows
-# Falls back to original structure if new env vars not set
-WORKFLOWS_DIR = Path(
-    os.environ.get(
-        "AIRT_WORKFLOWS_DIR",
-        str(_base_workspace / _org_key / _project_key / "workflows")
-        if any([os.environ.get(var) for var in ["DREADNODE_WORKSPACE_ROOT", "DREADNODE_ORG_KEY", "DREADNODE_PROJECT_KEY"]])
-        else str(Path.home() / "workspace" / "airt" / "workflows"),
-    )
-)
+    return Path.home() / ".dreadnode" / "airt" / org_key / workspace_key / "workflows"
+
+WORKFLOWS_DIR = Path(os.environ.get("AIRT_WORKFLOWS_DIR")) if os.environ.get("AIRT_WORKFLOWS_DIR") else _get_workspace_path()
 METADATA_FILE = WORKFLOWS_DIR / ".workflow_metadata.json"
 
 

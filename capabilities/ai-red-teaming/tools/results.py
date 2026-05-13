@@ -13,8 +13,9 @@ from pathlib import Path
 
 from dreadnode.agents.tools import tool
 
+# Legacy: Local analytics files (use platform data instead)
 WORKSPACE_DIR = Path(
-    os.environ.get("AIRT_OUTPUT_DIR", str(Path.home() / "workspace" / "airt"))
+    os.environ.get("AIRT_OUTPUT_DIR", str(Path.home() / ".dreadnode" / "airt" / "legacy"))
 )
 
 
