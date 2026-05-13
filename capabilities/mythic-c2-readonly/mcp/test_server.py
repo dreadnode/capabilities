@@ -45,9 +45,7 @@ class TestToolRegistration:
             "list_tokens",
             "search",
         }
-        assert expected == tool_names, (
-            f"Unexpected: {tool_names - expected}, Missing: {expected - tool_names}"
-        )
+        assert expected == tool_names, f"Unexpected: {tool_names - expected}, Missing: {expected - tool_names}"
 
     def test_tool_count(self):
         import asyncio
@@ -99,6 +97,7 @@ class TestHelpers:
 
     def test_decode_b64_valid(self):
         import base64
+
         encoded = base64.b64encode(b"secret output").decode()
         assert server._decode_b64(encoded) == "secret output"
 

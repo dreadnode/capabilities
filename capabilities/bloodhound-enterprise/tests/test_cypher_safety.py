@@ -40,9 +40,7 @@ class TestWriteDetection:
 
     def test_word_boundary_avoids_false_positive(self) -> None:
         # 'created' and 'createdAt' shouldn't trigger.
-        assert not is_write_query(
-            "MATCH (n:User) WHERE n.createdAt > 0 RETURN n"
-        )
+        assert not is_write_query("MATCH (n:User) WHERE n.createdAt > 0 RETURN n")
 
 
 class TestEnsureLimit:

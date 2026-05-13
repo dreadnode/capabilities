@@ -24,9 +24,9 @@ If PKINIT is not common in the environment, a 4768 (Kerberos authentication tick
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
-Destination: [User](/resources/nodes/user), [Computer](/resources/nodes/computer)  
-Traversable: **Yes**   
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
+Destination: [User](/resources/nodes/user), [Computer](/resources/nodes/computer)
+Traversable: **Yes**
 
 ## References
 

@@ -21,4 +21,3 @@ Properties which are blank/null will not be shown in the Entity Panel.
 | Created | The time when the object was created in the directory. |
 | Operating System | The operating system running on the computer, according to the corresponding property on the object in the directory. |
 | Tenant ID | Unique identifier for the Azure tenant. |
-

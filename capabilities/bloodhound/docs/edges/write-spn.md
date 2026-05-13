@@ -1,6 +1,6 @@
 ---
 title: WriteSPN
-description: The ability to write directly to the servicePrincipalNames attribute on a user object. 
+description: The ability to write directly to the servicePrincipalNames attribute on a user object.
 ---
 
 <img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
@@ -37,12 +37,11 @@ Modifying the servicePrincipalName attribute will not, by default, generate an e
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
-Destination: [User](/resources/nodes/user)  
-Traversable: **Yes**  
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
+Destination: [User](/resources/nodes/user)
+Traversable: **Yes**
 
 ## References
 
 * [https://blog.harmj0y.net/redteaming/kerberoasting-revisited/](https://blog.harmj0y.net/redteaming/kerberoasting-revisited/)
 * [https://specterops.io/blog/2022/02/09/introducing-bloodhound-4-1-the-three-headed-hound/](https://specterops.io/blog/2022/02/09/introducing-bloodhound-4-1-the-three-headed-hound/)
-

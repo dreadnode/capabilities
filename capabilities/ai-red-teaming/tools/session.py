@@ -76,20 +76,20 @@ def save_session_context(
 
     # Append to history (keep last 20 entries)
     history = session.get("history", [])
-    history.append({
-        "attack_type": attack_type,
-        "target_model": target_model,
-        "goal": goal,
-        "best_score": best_score,
-        "transforms": transforms or [],
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    history.append(
+        {
+            "attack_type": attack_type,
+            "target_model": target_model,
+            "goal": goal,
+            "best_score": best_score,
+            "transforms": transforms or [],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
     session["history"] = history[-20:]
 
     _save(session)
-    return "Session context saved. Target: {}, Goal: {}, Last attack: {}".format(
-        target_model, goal[:60], attack_type
-    )
+    return "Session context saved. Target: {}, Goal: {}, Last attack: {}".format(target_model, goal[:60], attack_type)
 
 
 @tool
@@ -136,9 +136,9 @@ def get_session_context() -> str:
         for h in history[-5:]:  # Show last 5
             score_str = "ASR={}%".format(h["best_score"]) if h.get("best_score") is not None else "no score"
             tx_str = "+{}".format(",".join(h["transforms"])) if h.get("transforms") else ""
-            lines.append("  - {} {}: {} ({})".format(
-                h.get("attack_type", "?"), tx_str, h.get("goal", "")[:40], score_str
-            ))
+            lines.append(
+                "  - {} {}: {} ({})".format(h.get("attack_type", "?"), tx_str, h.get("goal", "")[:40], score_str)
+            )
 
     return "\n".join(lines)
 

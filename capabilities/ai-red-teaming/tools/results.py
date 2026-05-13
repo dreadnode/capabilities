@@ -14,9 +14,7 @@ from pathlib import Path
 from dreadnode.agents.tools import tool
 
 # Legacy: Local analytics files (use platform data instead)
-WORKSPACE_DIR = Path(
-    os.environ.get("AIRT_OUTPUT_DIR", str(Path.home() / ".dreadnode" / "airt" / "legacy"))
-)
+WORKSPACE_DIR = Path(os.environ.get("AIRT_OUTPUT_DIR", str(Path.home() / ".dreadnode" / "airt" / "legacy")))
 
 
 def _validate_required_params(**kwargs) -> list[str]:
@@ -51,8 +49,7 @@ def inspect_results(
     ] = "all",
     filename: t.Annotated[
         str,
-        "Specific file to read (relative to ~/workspace/airt/). "
-        "If omitted, lists matching files.",
+        "Specific file to read (relative to ~/workspace/airt/). " "If omitted, lists matching files.",
     ] = "",
 ) -> str:
     """Browse and read output files from attack runs.
@@ -191,8 +188,6 @@ def get_analytics_summary(
         return f"No local analytics files found{filter_msg}. The data may be available on the Dreadnode platform. Use the assessment tracking tools to retrieve recent results."
 
     return "\n\n".join(summaries)
-
-
 
 
 @tool
@@ -361,6 +356,7 @@ def fix_workflow_errors(
             cache_dir = WORKSPACE_DIR / ".cache"
             if cache_dir.exists():
                 import shutil
+
                 shutil.rmtree(cache_dir)
                 fixes_applied.append("✅ Cleared analytics cache")
             else:

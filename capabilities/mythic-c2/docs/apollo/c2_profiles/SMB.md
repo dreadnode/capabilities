@@ -21,7 +21,7 @@ sequenceDiagram
     Egress Agent->>Mythic: POST to receive taskings from server
     Mythic-->>Egress Agent: send taskings in server response
     Egress Agent->>P2P Agent: send taskings over Named Pipe
-    P2P Agent->>Egress Agent: send task response over Named Pipe 
+    P2P Agent->>Egress Agent: send task response over Named Pipe
     Egress Agent->>Mythic: POST task response to server
     Mythic-->>Egress Agent: send task status in server response
     Egress Agent->>P2P Agent: send server response over Named Pipe

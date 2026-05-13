@@ -36,13 +36,11 @@ class DataTools(Toolset):
         self,
         query: t.Annotated[
             str,
-            "Free-text query — matched against names and object ids "
-            "across every node kind.",
+            "Free-text query — matched against names and object ids " "across every node kind.",
         ],
         kind: t.Annotated[
             str,
-            "Optional kind filter (User, Computer, Group, Domain, "
-            "OU, GPO, AZUser, AZGroup, ...). Empty for all.",
+            "Optional kind filter (User, Computer, Group, Domain, " "OU, GPO, AZUser, AZGroup, ...). Empty for all.",
         ] = "",
         skip: t.Annotated[int, "Pagination offset"] = 0,
         limit: t.Annotated[int, "Cap on rows returned"] = 50,
@@ -59,9 +57,7 @@ class DataTools(Toolset):
             params["type"] = kind
         client = get_client()
         try:
-            data = await client.get_json(
-                "/api/v2/graphs/search", params=params
-            )
+            data = await client.get_json("/api/v2/graphs/search", params=params)
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -114,8 +110,7 @@ class DataTools(Toolset):
         job_id: t.Annotated[str, "Id from create_file_upload_job"],
         path: t.Annotated[
             str,
-            "Local filesystem path to the collection file. Typically a "
-            "SharpHound .zip or AzureHound .json.",
+            "Local filesystem path to the collection file. Typically a " "SharpHound .zip or AzureHound .json.",
         ],
     ) -> str:
         """Push one collection file into a pending upload job.
@@ -180,9 +175,7 @@ class DataTools(Toolset):
         """List the file types BHE will accept for uploads."""
         client = get_client()
         try:
-            data = await client.get_json(
-                "/api/v2/file-upload-jobs/accepted-types"
-            )
+            data = await client.get_json("/api/v2/file-upload-jobs/accepted-types")
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -200,9 +193,7 @@ class DataTools(Toolset):
         """List managed collection clients on the BHE deployment."""
         client = get_client()
         try:
-            data = await client.get_json(
-                "/api/v2/clients", params={"skip": skip, "limit": limit}
-            )
+            data = await client.get_json("/api/v2/clients", params={"skip": skip, "limit": limit})
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -231,12 +222,8 @@ class DataTools(Toolset):
     async def schedule_collection_job(
         self,
         client_id: t.Annotated[str, "Client id"],
-        ad_structure_collection: t.Annotated[
-            bool, "Collect AD nodes / edges"
-        ] = True,
-        local_group_collection: t.Annotated[
-            bool, "Collect local-group + session data"
-        ] = False,
+        ad_structure_collection: t.Annotated[bool, "Collect AD nodes / edges"] = True,
+        local_group_collection: t.Annotated[bool, "Collect local-group + session data"] = False,
         session_collection: t.Annotated[bool, "Collect session data"] = False,
     ) -> str:
         """Queue a collection job for a managed client.
@@ -255,9 +242,7 @@ class DataTools(Toolset):
         }
         client = get_client()
         try:
-            data = await client.post_json(
-                f"/api/v2/clients/{client_id}/jobs", json=body
-            )
+            data = await client.post_json(f"/api/v2/clients/{client_id}/jobs", json=body)
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)

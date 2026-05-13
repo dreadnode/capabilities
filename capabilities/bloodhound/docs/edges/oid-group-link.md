@@ -16,9 +16,9 @@ When an attacker abuses a privilege escalation or impersonation primitive that r
 
 ## Edge Schema
 
-Source: [IssuancePolicy](/resources/nodes/issuance-policy)   
-Destination: [Group](/resources/nodes/group)   
-Traversable: **No**  
+Source: [IssuancePolicy](/resources/nodes/issuance-policy)
+Destination: [Group](/resources/nodes/group)
+Traversable: **No**
 
 ## References
 

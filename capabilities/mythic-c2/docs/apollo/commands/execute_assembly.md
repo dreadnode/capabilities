@@ -18,7 +18,7 @@ Execute a .NET Framework assembly with the specified arguments. This assembly mu
 ![exeasm](../images/execute_assembly.png)
 
 #### Assembly
-The name of the assembly to execute. This must match the file name used with `register_file`. 
+The name of the assembly to execute. This must match the file name used with `register_file`.
 
 #### Arguments (optional)
 Arguments to pass to the assembly.

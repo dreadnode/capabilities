@@ -31,9 +31,9 @@ There is no opsec information for this edge.
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
-Destination: [GPO](/resources/nodes/gpo)  
-Traversable: **Yes**  
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
+Destination: [GPO](/resources/nodes/gpo)
+Traversable: **Yes**
 
 ## References
 

@@ -134,12 +134,8 @@ class TestUpdateAssessmentStatus:
                 "planned_attacks": ["tap_attack"],
             }
         )
-        tracker.update_assessment_status(
-            {"attack_name": "tap_attack", "status": "failed"}
-        )
-        tracker.update_assessment_status(
-            {"attack_name": "tap_attack", "status": "completed", "asr": 0.9}
-        )
+        tracker.update_assessment_status({"attack_name": "tap_attack", "status": "failed"})
+        tracker.update_assessment_status({"attack_name": "tap_attack", "status": "completed", "asr": 0.9})
         state = json.loads(state_file.read_text())
         assert len(state["completed_attacks"]) == 1
         assert state["completed_attacks"][0]["status"] == "completed"

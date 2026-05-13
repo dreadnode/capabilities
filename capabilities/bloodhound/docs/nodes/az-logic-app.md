@@ -24,4 +24,3 @@ Properties which are blank/null will not be shown in the Entity Panel.
 ## References
 
 [Introducing BloodHound 4.3: Get Global Admin More Often](https://specterops.io/blog/2023/04/18/introducing-bloodhound-4-3-get-global-admin-more-often/)
-

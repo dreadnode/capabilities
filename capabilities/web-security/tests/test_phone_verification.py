@@ -46,9 +46,7 @@ def _install_dreadnode_tools_stub() -> None:
                 value = getattr(self, attr_name)
                 meta = getattr(value, "_tool_metadata", None)
                 if meta:
-                    discovered.append(
-                        _Tool(meta["name"], meta["description"], meta["catch"])
-                    )
+                    discovered.append(_Tool(meta["name"], meta["description"], meta["catch"]))
             return discovered
 
     class PrivateAttr:
@@ -351,9 +349,7 @@ class TestPrivateNumber:
         mock_client.is_closed = False
         toolset._http = mock_client
 
-        result = await toolset.request_private_number(
-            "https://api.example.test/handler_api.php", "key", "tg"
-        )
+        result = await toolset.request_private_number("https://api.example.test/handler_api.php", "key", "tg")
         parsed = json.loads(result)
         assert parsed["request_id"] == "12345"
         assert parsed["phone_number"] == "15551234567"
@@ -369,9 +365,7 @@ class TestPrivateNumber:
         mock_client.is_closed = False
         toolset._http = mock_client
 
-        result = await toolset.request_private_number(
-            "https://api.example.test/handler_api.php", "key", "tg"
-        )
+        result = await toolset.request_private_number("https://api.example.test/handler_api.php", "key", "tg")
         assert "NO_NUMBERS" in result
 
     @pytest.mark.asyncio
@@ -385,9 +379,7 @@ class TestPrivateNumber:
         mock_client.is_closed = False
         toolset._http = mock_client
 
-        result = await toolset.request_private_number(
-            "https://api.example.test/handler_api.php", "key", "tg"
-        )
+        result = await toolset.request_private_number("https://api.example.test/handler_api.php", "key", "tg")
         assert "Error" in result or "Unexpected" in result
 
 
@@ -403,9 +395,7 @@ class TestPollPrivateNumber:
         mock_client.is_closed = False
         toolset._http = mock_client
 
-        result = await toolset.poll_private_number(
-            "https://api.example.test/handler_api.php", "key", "12345"
-        )
+        result = await toolset.poll_private_number("https://api.example.test/handler_api.php", "key", "12345")
         parsed = json.loads(result)
         assert parsed["codes"] == ["493812"]
 
@@ -420,7 +410,5 @@ class TestPollPrivateNumber:
         mock_client.is_closed = False
         toolset._http = mock_client
 
-        result = await toolset.poll_private_number(
-            "https://api.example.test/handler_api.php", "key", "12345"
-        )
+        result = await toolset.poll_private_number("https://api.example.test/handler_api.php", "key", "12345")
         assert "Waiting" in result

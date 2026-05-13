@@ -208,11 +208,7 @@ _LIBRARY: list[AttackPattern] = [
             "compromising the session-host gives the attacker the "
             "tier-zero account."
         ),
-        cypher=(
-            "MATCH (c:Computer)-[:HasSession]->(u) "
-            "WHERE u.highvalue = true "
-            "RETURN c, u LIMIT 200"
-        ),
+        cypher=("MATCH (c:Computer)-[:HasSession]->(u) " "WHERE u.highvalue = true " "RETURN c, u LIMIT 200"),
     ),
     AttackPattern(
         id="tier-zero-non-dc",
@@ -275,11 +271,7 @@ _LIBRARY: list[AttackPattern] = [
             "attacker can request a TGT and crack it offline. Should "
             "be empty; any results are findings."
         ),
-        cypher=(
-            "MATCH (u:User) WHERE u.dontreqpreauth = true "
-            "AND u.enabled = true "
-            "RETURN u LIMIT 200"
-        ),
+        cypher=("MATCH (u:User) WHERE u.dontreqpreauth = true " "AND u.enabled = true " "RETURN u LIMIT 200"),
         attack_path_type="ASREPRoastable",
     ),
     AttackPattern(
@@ -326,11 +318,7 @@ _LIBRARY: list[AttackPattern] = [
             "to a tier-zero target — a privilege escalation to the "
             "target identity."
         ),
-        cypher=(
-            "MATCH p = (n)-[:AllowedToDelegate]->(t) "
-            "WHERE t.highvalue = true "
-            "RETURN p LIMIT 200"
-        ),
+        cypher=("MATCH p = (n)-[:AllowedToDelegate]->(t) " "WHERE t.highvalue = true " "RETURN p LIMIT 200"),
     ),
     AttackPattern(
         id="deleg-rbcd-writeable",
@@ -357,10 +345,7 @@ _LIBRARY: list[AttackPattern] = [
             "with constrained delegation, lets the principal "
             "impersonate any identity to a downstream service."
         ),
-        cypher=(
-            "MATCH (c:Computer) WHERE c.trustedtoauth = true "
-            "RETURN c LIMIT 200"
-        ),
+        cypher=("MATCH (c:Computer) WHERE c.trustedtoauth = true " "RETURN c LIMIT 200"),
     ),
     # -------------------- ADCS / PKI --------------------
     AttackPattern(
@@ -460,11 +445,7 @@ _LIBRARY: list[AttackPattern] = [
             "flag set — every cert request can specify SAN, turning "
             "every enrollable template into an ESC1."
         ),
-        cypher=(
-            "MATCH (ca:EnterpriseCA) "
-            "WHERE ca.isuserspecifiessanenabled = true "
-            "RETURN ca LIMIT 50"
-        ),
+        cypher=("MATCH (ca:EnterpriseCA) " "WHERE ca.isuserspecifiessanenabled = true " "RETURN ca LIMIT 50"),
         attack_path_type="ADCSESC6",
     ),
     AttackPattern(
@@ -705,10 +686,7 @@ _LIBRARY: list[AttackPattern] = [
             "passwords on domain-joined machines. Each principal × "
             "computer pair is a one-step local-admin path."
         ),
-        cypher=(
-            "MATCH p = (n)-[:ReadLAPSPassword]->(c:Computer) "
-            "RETURN p LIMIT 500"
-        ),
+        cypher=("MATCH p = (n)-[:ReadLAPSPassword]->(c:Computer) " "RETURN p LIMIT 500"),
     ),
     AttackPattern(
         id="cred-gmsa-readers",
@@ -719,11 +697,7 @@ _LIBRARY: list[AttackPattern] = [
             "Account's password. Compromising a reader yields the "
             "service identity directly."
         ),
-        cypher=(
-            "MATCH p = (n)-[:ReadGMSAPassword]->(u:User) "
-            "WHERE u.gmsa = true "
-            "RETURN p LIMIT 200"
-        ),
+        cypher=("MATCH p = (n)-[:ReadGMSAPassword]->(u:User) " "WHERE u.gmsa = true " "RETURN p LIMIT 200"),
     ),
     AttackPattern(
         id="cred-stale-tier-zero",
@@ -785,9 +759,7 @@ _LIBRARY: list[AttackPattern] = [
             "Can manage every resource in the subscription, including "
             "running code on every VM."
         ),
-        cypher=(
-            "MATCH p = (n)-[:AZOwns]->(s:AZSubscription) RETURN p LIMIT 200"
-        ),
+        cypher=("MATCH p = (n)-[:AZOwns]->(s:AZSubscription) RETURN p LIMIT 200"),
     ),
     AttackPattern(
         id="az-app-credential-rights",
@@ -798,10 +770,7 @@ _LIBRARY: list[AttackPattern] = [
             "Application.ReadWrite.All — can add credentials to any "
             "app and impersonate it. A common cross-tenant escalation."
         ),
-        cypher=(
-            "MATCH p = (n)-[:AZAddSecret|AZAddOwner]->(a:AZApp) "
-            "RETURN p LIMIT 200"
-        ),
+        cypher=("MATCH p = (n)-[:AZAddSecret|AZAddOwner]->(a:AZApp) " "RETURN p LIMIT 200"),
     ),
     AttackPattern(
         id="az-vm-runners",
@@ -812,10 +781,7 @@ _LIBRARY: list[AttackPattern] = [
             "Azure VMs. Can execute arbitrary code on every targeted "
             "VM as SYSTEM."
         ),
-        cypher=(
-            "MATCH p = (n)-[:AZVMContributor|AZVMAdminLogin|AZRunCommand]->(v:AZVM) "
-            "RETURN p LIMIT 200"
-        ),
+        cypher=("MATCH p = (n)-[:AZVMContributor|AZVMAdminLogin|AZRunCommand]->(v:AZVM) " "RETURN p LIMIT 200"),
     ),
     # -------------------- Trust / cross-domain --------------------
     AttackPattern(
@@ -828,11 +794,7 @@ _LIBRARY: list[AttackPattern] = [
             "the trusted domain — frequently a remnant of botched "
             "migrations."
         ),
-        cypher=(
-            "MATCH (u) WHERE u.sidhistory IS NOT NULL "
-            "AND size(u.sidhistory) > 0 "
-            "RETURN u LIMIT 200"
-        ),
+        cypher=("MATCH (u) WHERE u.sidhistory IS NOT NULL " "AND size(u.sidhistory) > 0 " "RETURN u LIMIT 200"),
     ),
     AttackPattern(
         id="trust-foreign-tier-zero-controllers",
@@ -879,9 +841,7 @@ def patterns_by_category(category: str) -> tuple[AttackPattern, ...]:
 
 def patterns_for_finding(attack_path_type: str) -> tuple[AttackPattern, ...]:
     """Every pattern that correlates to ``attack_path_type``."""
-    return tuple(
-        p for p in _LIBRARY if p.attack_path_type == attack_path_type
-    )
+    return tuple(p for p in _LIBRARY if p.attack_path_type == attack_path_type)
 
 
 def category_counts() -> dict[str, int]:

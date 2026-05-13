@@ -149,9 +149,7 @@ class Impacket(Toolset):
         if target == "LOCAL":
             return "LOCAL"
 
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if identity:
             return f"{identity}@{target}"
         return target
@@ -373,18 +371,12 @@ class Impacket(Toolset):
             raise ValueError("delegate_from is required when action='write'")
 
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -400,11 +392,7 @@ class Impacket(Toolset):
         if use_ldaps:
             args.append("-use-ldaps")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -512,9 +500,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build identity with target
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -531,11 +517,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         return await execute(
@@ -632,9 +614,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build domain-first identity
-        identity = self._build_domain_first_identity(
-            domain, username=username, password=password
-        )
+        identity = self._build_domain_first_identity(domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -642,11 +622,7 @@ class Impacket(Toolset):
         if target_domain:
             args.extend(["-target-domain", target_domain])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -745,9 +721,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build domain-first identity
-        identity = self._build_domain_first_identity(
-            domain, username=username, password=password
-        )
+        identity = self._build_domain_first_identity(domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -758,11 +732,7 @@ class Impacket(Toolset):
         if outputfile:
             args.extend(["-outputfile", outputfile])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -892,9 +862,7 @@ class Impacket(Toolset):
         """
         # Validation
         if not nthash and not aes_key and not keytab:
-            raise ValueError(
-                "Must provide at least one signing key: nthash, aes_key, or keytab"
-            )
+            raise ValueError("Must provide at least one signing key: nthash, aes_key, or keytab")
 
         if request and not request_user:
             raise ValueError("request_user is required when request=True")
@@ -1079,18 +1047,12 @@ class Impacket(Toolset):
         """
         # Validation
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -1120,11 +1082,7 @@ class Impacket(Toolset):
         if renew:
             args.append("-renew")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -1247,9 +1205,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build domain-first identity
-        identity = self._build_domain_first_identity(
-            domain, username=username, password=password
-        )
+        identity = self._build_domain_first_identity(domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -1278,11 +1234,7 @@ class Impacket(Toolset):
         if stealth:
             args.append("-stealth")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -1412,18 +1364,12 @@ class Impacket(Toolset):
         """
         # Validation
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -1457,11 +1403,7 @@ class Impacket(Toolset):
         if delete:
             args.append("-delete")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -1561,18 +1503,12 @@ class Impacket(Toolset):
         """
         # Validation
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -1585,11 +1521,7 @@ class Impacket(Toolset):
         if principal_type:
             args.extend(["-principalType", principal_type])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -2083,26 +2015,18 @@ class Impacket(Toolset):
         """
         # Validation
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         if not (target or target_sid or target_dn):
-            raise ValueError(
-                "Must provide at least one target identifier: target, target_sid, or target_dn"
-            )
+            raise ValueError("Must provide at least one target identifier: target, target_sid, or target_dn")
 
         if action == "write" and not (new_owner or new_owner_sid or new_owner_dn):
             raise ValueError("Must provide new owner when action='write'")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -2132,11 +2056,7 @@ class Impacket(Toolset):
         if use_ldaps:
             args.append("-use-ldaps")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -2302,9 +2222,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build identity with target
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -2358,11 +2276,7 @@ class Impacket(Toolset):
         if ntds:
             args.extend(["-ntds", ntds])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         return await execute(
@@ -2465,9 +2379,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build domain-first identity
-        identity = self._build_domain_first_identity(
-            domain, username=username, password=password
-        )
+        identity = self._build_domain_first_identity(domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -2484,11 +2396,7 @@ class Impacket(Toolset):
         if usersfile:
             args.extend(["-usersfile", usersfile])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -2622,9 +2530,7 @@ class Impacket(Toolset):
             raise ValueError("Must provide either newpass or newhashes")
 
         # Build identity with target
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -2650,11 +2556,7 @@ class Impacket(Toolset):
         if reset:
             args.append("-reset")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -2808,28 +2710,18 @@ class Impacket(Toolset):
         """
         # Validation
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         if not (target or target_sid or target_dn):
-            raise ValueError(
-                "Must provide at least one target identifier: target, target_sid, or target_dn"
-            )
+            raise ValueError("Must provide at least one target identifier: target, target_sid, or target_dn")
 
-        if action in ("write", "remove") and not (
-            principal or principal_sid or principal_dn
-        ):
+        if action in ("write", "remove") and not (principal or principal_sid or principal_dn):
             raise ValueError(f"Must provide principal when action='{action}'")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -2874,11 +2766,7 @@ class Impacket(Toolset):
         if file:
             args.extend(["-file", file])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -2975,9 +2863,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build identity with target
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -2991,11 +2877,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=None, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=None, password=password))
         args.extend(self._build_connection_flags(target_ip=target_ip))
 
         return await execute(

@@ -1,6 +1,6 @@
 ---
 title: MemberOf
-description: Groups in active directory grant their members any privileges the group itself has. 
+description: Groups in active directory grant their members any privileges the group itself has.
 ---
 
 <img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
@@ -17,9 +17,9 @@ No opsec considerations apply to this edge.
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
-Destination: [Group](/resources/nodes/group)   
-Traversable: **Yes**  
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
+Destination: [Group](/resources/nodes/group)
+Traversable: **Yes**
 
 
 ## References[](#heading-3)

@@ -22,9 +22,7 @@ class DomainController(BaseModel):
     hostname: str = Field(description="Short hostname (e.g., 'servername')")
     fqdn: str = Field(description="Fully qualified domain name")
     ip: str = Field(description="IP address of the domain controller")
-    domain_name: str = Field(
-        description="AD domain this DC serves (e.g., 'subname.servername.local')"
-    )
+    domain_name: str = Field(description="AD domain this DC serves (e.g., 'subname.servername.local')")
     forest_root: str | None = Field(None, description="Forest root domain name")
 
 
@@ -41,9 +39,7 @@ class Hash(BaseModel):
     """A password hash."""
 
     hash_value: str = Field(description="The actual hash value")
-    hash_type: Literal["ntlm", "kerberos_tgs", "kerberos_asrep"] = Field(
-        description="Type of hash algorithm used"
-    )
+    hash_type: Literal["ntlm", "kerberos_tgs", "kerberos_asrep"] = Field(description="Type of hash algorithm used")
 
 
 class Credential(BaseModel):
@@ -81,9 +77,7 @@ class Weakness(BaseModel):
     cve: str | None = Field(None, description="CVE identifier")
     title: str = Field(description="Weakness title/name")
     description: str | None = Field(None, description="Weakness description")
-    severity: Literal["low", "medium", "high", "critical"] = Field(
-        description="Severity of the weakness"
-    )
+    severity: Literal["low", "medium", "high", "critical"] = Field(description="Severity of the weakness")
 
 
 @tool

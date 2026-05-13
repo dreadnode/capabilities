@@ -15,9 +15,9 @@ When an attacker abuses a privilege escalation or impersonation primitive that r
 
 ## Edge Schema
 
-Source: [Computer](/resources/nodes/computer)  
-Destination: [EnterpriseCA](/resources/nodes/enterprise-ca)  
-Traversable: **No**  
+Source: [Computer](/resources/nodes/computer)
+Destination: [EnterpriseCA](/resources/nodes/enterprise-ca)
+Traversable: **No**
 
 ## References
 
@@ -28,4 +28,3 @@ This edge is related to the following MITRE ATT&CK tactic and techniques:
 ### Abuse and Opsec references
 
 * [https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf](https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf)
-

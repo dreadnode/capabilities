@@ -67,13 +67,12 @@ This will depend on which type of object you are targeting and the attack you pe
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
 Destination: [AIACA](/resources/nodes/aiaca), [CertTemplate](/resources/nodes/cert-template), [Computer](/resources/nodes/computer), [Domain](/resources/nodes/domain), [EnterpriseCA](/resources/nodes/enterprise-ca), [GPO](/resources/nodes/gpo), [Group](/resources/nodes/group), [IssuancePolicy](/resources/nodes/issuance-policy), [NTAuthStore](/resources/nodes/nt-auth-store), [OU](/resources/nodes/ou), [RootCA](/resources/nodes/root-ca), [User](/resources/nodes/user)
- 
-Traversable: **Yes**  
+
+Traversable: **Yes**
 
 ## References
 
 * [https://www.youtube.com/watch?v=z8thoG7gPd0](https://www.youtube.com/watch?v=z8thoG7gPd0)
 * [https://specterops.io/blog/2017/05/15/bloodhound-1-3-the-acl-attack-path-update/](https://specterops.io/blog/2017/05/15/bloodhound-1-3-the-acl-attack-path-update/)
-

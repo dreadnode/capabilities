@@ -124,9 +124,7 @@ async def _ensure_server() -> str:
                     f"Check stderr output above for details."
                 )
             try:
-                async with session.get(
-                    f"{base_url}/health", timeout=aiohttp.ClientTimeout(total=2)
-                ) as resp:
+                async with session.get(f"{base_url}/health", timeout=aiohttp.ClientTimeout(total=2)) as resp:
                     if resp.status == 200:
                         return base_url
             except (aiohttp.ClientError, asyncio.TimeoutError, OSError) as e:
@@ -135,10 +133,7 @@ async def _ensure_server() -> str:
 
     # Timed out
     _shutdown_server()
-    raise RuntimeError(
-        f"Dotnet server failed to start within {_HEALTH_TIMEOUT}s. "
-        f"Last error: {last_error}"
-    )
+    raise RuntimeError(f"Dotnet server failed to start within {_HEALTH_TIMEOUT}s. " f"Last error: {last_error}")
 
 
 # ---------------------------------------------------------------------------

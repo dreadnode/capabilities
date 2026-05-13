@@ -49,9 +49,7 @@ mcp = FastMCP("qiling")
 
 MAX_OUTPUT_CHARS = int(os.environ.get("QILING_MAX_OUTPUT_CHARS", "100000"))
 DEFAULT_TIMEOUT_US = int(os.environ.get("QILING_TIMEOUT_US", str(30 * 1_000_000)))
-DEFAULT_ROOTFS = Path(
-    os.environ.get("QILING_ROOTFS", str(Path.home() / ".qiling" / "rootfs"))
-)
+DEFAULT_ROOTFS = Path(os.environ.get("QILING_ROOTFS", str(Path.home() / ".qiling" / "rootfs")))
 
 Arch = Literal["x86", "x8664", "auto"]
 
@@ -119,9 +117,7 @@ async def qiling_status() -> dict[str, Any]:
         "x8664_rootfs_present": _rootfs_for("x8664").exists(),
         "timeout_us": DEFAULT_TIMEOUT_US,
         "hint": (
-            None
-            if _rootfs_for("x86").exists() or _rootfs_for("x8664").exists()
-            else _missing_rootfs_message("x86")
+            None if _rootfs_for("x86").exists() or _rootfs_for("x8664").exists() else _missing_rootfs_message("x86")
         ),
     }
 
@@ -161,9 +157,7 @@ def _install_antidebug_bypass(ql: Any, arch: str, api_log: list[str]) -> dict[st
         return 0
 
     def _check_remote(ql_inner: Any, _address: int, params: Any) -> int:
-        api_log.append(
-            "BYPASS CheckRemoteDebuggerPresent -> *pbDebuggerPresent=0, return 1"
-        )
+        api_log.append("BYPASS CheckRemoteDebuggerPresent -> *pbDebuggerPresent=0, return 1")
         # The hook replaces the API entirely, so we must write the out-param
         # ourselves. Qiling decodes Win32 prototypes into a dict whose keys
         # match parameter names; fall back to positional indexing.
@@ -206,9 +200,7 @@ def _install_antidebug_bypass(ql: Any, arch: str, api_log: list[str]) -> dict[st
             # NtGlobalFlag lives at PEB+0x68 (x86) and PEB+0xBC (x64).
             ng_offset = 0xBC if arch == "x8664" else 0x68
             ql.mem.write(peb + ng_offset, b"\x00\x00\x00\x00")
-            statuses["peb"] = (
-                f"BeingDebugged + NtGlobalFlag (offset 0x{ng_offset:x}) cleared"
-            )
+            statuses["peb"] = f"BeingDebugged + NtGlobalFlag (offset 0x{ng_offset:x}) cleared"
         except Exception as e:
             statuses["peb"] = f"failed: {e}"
 
@@ -294,12 +286,8 @@ def _format_install_status(label: str, statuses: dict[str, str]) -> list[str]:
 async def qiling_emulate(
     path: Annotated[str, "Path to the PE"],
     arch: Annotated[Arch, "x86 | x8664 | auto"] = "auto",
-    bypass_antidebug: Annotated[
-        bool, "Install the common anti-debug bypass before running"
-    ] = False,
-    timeout_us: Annotated[
-        int, "Emulation timeout in microseconds"
-    ] = DEFAULT_TIMEOUT_US,
+    bypass_antidebug: Annotated[bool, "Install the common anti-debug bypass before running"] = False,
+    timeout_us: Annotated[int, "Emulation timeout in microseconds"] = DEFAULT_TIMEOUT_US,
 ) -> str:
     """Emulate the PE end-to-end and return its stdout.
 
@@ -339,9 +327,7 @@ async def qiling_api_trace(
         "API names to log (None = a sensible default set)",
     ] = None,
     bypass_antidebug: Annotated[bool, "Also install the anti-debug bypass"] = True,
-    timeout_us: Annotated[
-        int, "Emulation timeout in microseconds"
-    ] = DEFAULT_TIMEOUT_US,
+    timeout_us: Annotated[int, "Emulation timeout in microseconds"] = DEFAULT_TIMEOUT_US,
 ) -> str:
     """Log every call to the given Win32 APIs during emulation.
 
@@ -357,9 +343,7 @@ async def qiling_api_trace(
     ql = _new_ql_or_raise(p, rootfs, stdout_buf)
 
     api_log: list[str] = []
-    bypass_status = (
-        _install_antidebug_bypass(ql, a, api_log) if bypass_antidebug else {}
-    )
+    bypass_status = _install_antidebug_bypass(ql, a, api_log) if bypass_antidebug else {}
     trace_status = _install_api_logger(ql, api_log, apis)
     err = _run_ql(ql, timeout_us)
 
@@ -379,9 +363,7 @@ async def qiling_dump_at_api(
     length: Annotated[int, "Bytes to read from the pointed-to buffer"] = 128,
     arch: Annotated[Arch, "x86 | x8664 | auto"] = "auto",
     bypass_antidebug: Annotated[bool, "Also install the anti-debug bypass"] = True,
-    timeout_us: Annotated[
-        int, "Emulation timeout in microseconds"
-    ] = DEFAULT_TIMEOUT_US,
+    timeout_us: Annotated[int, "Emulation timeout in microseconds"] = DEFAULT_TIMEOUT_US,
 ) -> str:
     """Break on `api`, dump the buffer at `params[param_index]`.
 
@@ -401,9 +383,7 @@ async def qiling_dump_at_api(
 
     dumps: list[str] = []
     api_log: list[str] = []
-    bypass_status = (
-        _install_antidebug_bypass(ql, a, api_log) if bypass_antidebug else {}
-    )
+    bypass_status = _install_antidebug_bypass(ql, a, api_log) if bypass_antidebug else {}
 
     def _on_call(ql_inner: Any, _address: int, params: Any) -> None:
         try:
@@ -412,17 +392,12 @@ async def qiling_dump_at_api(
             else:
                 values = list(params)
             if param_index >= len(values):
-                dumps.append(
-                    f"{api}: param index {param_index} out of range ({len(values)} params)"
-                )
+                dumps.append(f"{api}: param index {param_index} out of range ({len(values)} params)")
                 return
             ptr = int(values[param_index])
             raw = ql_inner.mem.read(ptr, length)
             printable = bytes(raw).split(b"\x00", 1)[0].decode(errors="replace")
-            dumps.append(
-                f"{api}[{param_index}] @ 0x{ptr:x}: "
-                f"{bytes(raw).hex()}  ({printable!r})"
-            )
+            dumps.append(f"{api}[{param_index}] @ 0x{ptr:x}: " f"{bytes(raw).hex()}  ({printable!r})")
         except Exception as e:
             dumps.append(f"{api}: dump failed: {e}")
 

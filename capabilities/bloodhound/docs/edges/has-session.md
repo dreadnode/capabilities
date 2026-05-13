@@ -33,9 +33,9 @@ An EDR product may detect your attempt to inject into lsass and alert a SOC anal
 
 ## Edge Schema
 
-Source: [Computer](/resources/nodes/computer)  
-Destination: [User](/resources/nodes/user)  
-Traversable: **Yes**  
+Source: [Computer](/resources/nodes/computer)
+Destination: [User](/resources/nodes/user)
+Traversable: **Yes**
 
 ## References
 
@@ -48,4 +48,3 @@ Traversable: **Yes**
 
 * [https://github.com/PowerShellMafia/PowerSploit/blob/master/Exfiltration/Invoke-TokenManipulation.ps1](https://github.com/PowerShellMafia/PowerSploit/blob/master/Exfiltration/Invoke-TokenManipulation.ps1)
 * [https://attack.mitre.org/techniques/T1134/](https://attack.mitre.org/techniques/T1134/)
-

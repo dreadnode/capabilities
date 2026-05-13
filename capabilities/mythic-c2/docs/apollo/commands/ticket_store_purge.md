@@ -6,7 +6,7 @@ hidden = false
 +++
 
 {{% notice info %}}
-Artifacts Generated: 
+Artifacts Generated:
 {{% /notice %}}
 
 ## Summary
@@ -16,7 +16,7 @@ Remove the specified ticket(s) from the agents internal ticket store
 ### Arguments
 
 
-#### serviceName 
+#### serviceName
 the name of the service to remove, needs to include the domain name, not required if -all flag is present
 
 #### All (Optional)

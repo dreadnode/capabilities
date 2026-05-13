@@ -376,7 +376,6 @@ def make_args(**kwargs: Any) -> argparse.Namespace:
     return argparse.Namespace(**defaults)
 
 
-
 # ── Helper unit tests ────────────────────────────────────────────────
 
 
@@ -542,10 +541,7 @@ class TestCmdTasks:
 
     @pytest.mark.asyncio
     async def test_pagination_message(self, capsys):
-        many_tasks = [
-            {**TASKS_DATA[0], "id": i, "display_id": i}
-            for i in range(30)
-        ]
+        many_tasks = [{**TASKS_DATA[0], "id": i, "display_id": i} for i in range(30)]
         mock_get = AsyncMock(return_value=many_tasks)
         with patch.object(mythic_read.mythic_sdk, "get_all_tasks", mock_get):
             await mythic_read.cmd_tasks(MagicMock(), make_args(callback=1, limit=5))
@@ -558,9 +554,7 @@ class TestCmdTaskOutput:
     @pytest.mark.asyncio
     async def test_decoded_output(self, capsys):
         mock_get = AsyncMock(return_value=TASK_OUTPUT_DATA)
-        with patch.object(
-            mythic_read.mythic_sdk, "get_all_task_and_subtask_output_by_id", mock_get
-        ):
+        with patch.object(mythic_read.mythic_sdk, "get_all_task_and_subtask_output_by_id", mock_get):
             await mythic_read.cmd_task_output(MagicMock(), make_args(id=1))
         out = capsys.readouterr().out
         # base64 "a2FsaQ==" should decode to "kali"
@@ -570,9 +564,7 @@ class TestCmdTaskOutput:
     @pytest.mark.asyncio
     async def test_no_output(self, capsys):
         mock_get = AsyncMock(return_value=[])
-        with patch.object(
-            mythic_read.mythic_sdk, "get_all_task_and_subtask_output_by_id", mock_get
-        ):
+        with patch.object(mythic_read.mythic_sdk, "get_all_task_and_subtask_output_by_id", mock_get):
             await mythic_read.cmd_task_output(MagicMock(), make_args(id=999))
         out = capsys.readouterr().out
         assert "No output" in out
@@ -581,12 +573,8 @@ class TestCmdTaskOutput:
     async def test_offset_and_max_lines(self, capsys):
         lines = [{"response_text": f"line{i}"} for i in range(20)]
         mock_get = AsyncMock(return_value=lines)
-        with patch.object(
-            mythic_read.mythic_sdk, "get_all_task_and_subtask_output_by_id", mock_get
-        ):
-            await mythic_read.cmd_task_output(
-                MagicMock(), make_args(id=1, offset=5, max_lines=3)
-            )
+        with patch.object(mythic_read.mythic_sdk, "get_all_task_and_subtask_output_by_id", mock_get):
+            await mythic_read.cmd_task_output(MagicMock(), make_args(id=1, offset=5, max_lines=3))
         out = capsys.readouterr().out
         assert "line5" in out
         assert "line7" in out
@@ -790,9 +778,7 @@ class TestCmdFileBrowser:
     async def test_host_and_path_filters(self):
         mock_gql = AsyncMock(return_value=FILE_BROWSER_DATA)
         with patch.object(mythic_read.mythic_utilities, "graphql_post", mock_gql):
-            await mythic_read.cmd_file_browser(
-                MagicMock(), make_args(host="KALI", path="/opt", limit=100)
-            )
+            await mythic_read.cmd_file_browser(MagicMock(), make_args(host="KALI", path="/opt", limit=100))
         call_args = mock_gql.call_args
         args_str = str(call_args)
         assert "%KALI%" in args_str
@@ -891,10 +877,21 @@ class TestBuildParser:
     def test_all_commands_registered(self):
         parser = mythic_read.build_parser()
         commands = {
-            "status", "callbacks", "callback", "tasks", "task-output",
-            "credentials", "files", "file-contents", "artifacts",
-            "keylogs", "screenshots", "processes", "file-browser",
-            "tokens", "search",
+            "status",
+            "callbacks",
+            "callback",
+            "tasks",
+            "task-output",
+            "credentials",
+            "files",
+            "file-contents",
+            "artifacts",
+            "keylogs",
+            "screenshots",
+            "processes",
+            "file-browser",
+            "tokens",
+            "search",
         }
         # Parse each command to verify it's registered
         for cmd in commands:

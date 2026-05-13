@@ -255,10 +255,7 @@ class BHEClient:
             json={"login_method": "secret", "username": username, "secret": password},
         )
         if response.status_code >= 400:
-            raise BHEAuthError(
-                f"login failed with HTTP {response.status_code}: "
-                f"{response.text[:300]}"
-            )
+            raise BHEAuthError(f"login failed with HTTP {response.status_code}: " f"{response.text[:300]}")
         try:
             payload = response.json()
         except ValueError as exc:
@@ -320,9 +317,7 @@ class BHEClient:
             if qs:
                 request_uri = f"{path}?{qs}"
 
-        request_headers.update(
-            self._auth_headers(method=method, request_uri=request_uri, body=body_bytes)
-        )
+        request_headers.update(self._auth_headers(method=method, request_uri=request_uri, body=body_bytes))
 
         response = await client.request(
             method.upper(),

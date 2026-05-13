@@ -15,9 +15,7 @@ from pathlib import Path
 
 
 def _capabilities_dir() -> Path:
-    return Path(
-        os.environ.get("DREADNODE_CAPABILITIES_DIR", Path.home() / ".dreadnode" / "capabilities")
-    )
+    return Path(os.environ.get("DREADNODE_CAPABILITIES_DIR", Path.home() / ".dreadnode" / "capabilities"))
 
 
 def _capability_path() -> Path:

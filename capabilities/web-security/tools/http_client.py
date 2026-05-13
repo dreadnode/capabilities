@@ -83,10 +83,7 @@ class HttpTools(Toolset):
             response_text = response.text
             if len(response_text) > self.max_output_chars:
                 total = len(response_text)
-                response_text = (
-                    response_text[: self.max_output_chars]
-                    + f"\n\n... [TRUNCATED: {total} chars total]"
-                )
+                response_text = response_text[: self.max_output_chars] + f"\n\n... [TRUNCATED: {total} chars total]"
 
             return f"HTTP {response.status_code}\n\n{response_text}"
 

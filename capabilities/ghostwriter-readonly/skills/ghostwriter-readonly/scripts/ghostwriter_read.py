@@ -368,8 +368,7 @@ async def connect() -> Client:
 
     if not api_token and not (username and password):
         print(
-            "Error: Set GHOSTWRITER_API_TOKEN or both GHOSTWRITER_USERNAME"
-            " and GHOSTWRITER_PASSWORD.",
+            "Error: Set GHOSTWRITER_API_TOKEN or both GHOSTWRITER_USERNAME" " and GHOSTWRITER_PASSWORD.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -738,13 +737,9 @@ async def cmd_finding(session: AsyncClientSession, args: argparse.Namespace) -> 
     print_json(raw)
 
 
-async def cmd_observations(
-    session: AsyncClientSession, args: argparse.Namespace
-) -> None:
+async def cmd_observations(session: AsyncClientSession, args: argparse.Namespace) -> None:
     variables: dict[str, int | str] = {"limit": args.limit, "offset": args.offset}
-    where, decls = _add_project_filter(
-        args, variables, "report: {projectId: {_eq: $projectId}}"
-    )
+    where, decls = _add_project_filter(args, variables, "report: {projectId: {_eq: $projectId}}")
 
     query = f"""
         query AllObservations($limit: Int!, $offset: Int!{decls}) {{
@@ -822,9 +817,7 @@ async def cmd_reports(session: AsyncClientSession, args: argparse.Namespace) -> 
     print_table(headers, rows, max_widths={1: 40, 2: 25})
 
 
-async def cmd_infrastructure(
-    session: AsyncClientSession, args: argparse.Namespace
-) -> None:
+async def cmd_infrastructure(session: AsyncClientSession, args: argparse.Namespace) -> None:
     variables: dict[str, int | str] = {}
     where = ""
     decls = ""
@@ -931,11 +924,7 @@ async def cmd_servers(session: AsyncClientSession, args: argparse.Namespace) -> 
             s.server.ipAddress if s.server else "",
             s.server.name if s.server else "",
             s.serverRole.label() if s.serverRole else "",
-            (
-                s.server.serverProvider.label()
-                if s.server and s.server.serverProvider
-                else ""
-            ),
+            (s.server.serverProvider.label() if s.server and s.server.serverProvider else ""),
             s.activityType.label() if s.activityType else "",
             _trunc(s.startDate, 10),
             _trunc(s.endDate, 10),
@@ -994,13 +983,9 @@ async def cmd_domains(session: AsyncClientSession, args: argparse.Namespace) -> 
     print_table(headers, rows)
 
 
-async def cmd_activity_logs(
-    session: AsyncClientSession, args: argparse.Namespace
-) -> None:
+async def cmd_activity_logs(session: AsyncClientSession, args: argparse.Namespace) -> None:
     variables: dict[str, int | str] = {"limit": args.limit, "offset": args.offset}
-    where, decls = _add_project_filter(
-        args, variables, "log: {project: {id: {_eq: $projectId}}}"
-    )
+    where, decls = _add_project_filter(args, variables, "log: {project: {id: {_eq: $projectId}}}")
 
     query = f"""
         query AllActivityLogs($limit: Int!, $offset: Int!{decls}) {{
@@ -1167,9 +1152,7 @@ async def cmd_scope(session: AsyncClientSession, args: argparse.Namespace) -> No
     print_table(headers, rows, max_widths={2: 40})
 
 
-async def cmd_deconflictions(
-    session: AsyncClientSession, args: argparse.Namespace
-) -> None:
+async def cmd_deconflictions(session: AsyncClientSession, args: argparse.Namespace) -> None:
     variables: dict[str, int | str] = {"limit": args.limit}
     where, decls = _add_project_filter(args, variables)
 
@@ -1252,9 +1235,7 @@ async def cmd_evidence(session: AsyncClientSession, args: argparse.Namespace) ->
     print_table(headers, rows, max_widths={2: 35, 3: 30})
 
 
-async def cmd_finding_templates(
-    session: AsyncClientSession, args: argparse.Namespace
-) -> None:
+async def cmd_finding_templates(session: AsyncClientSession, args: argparse.Namespace) -> None:
     variables: dict[str, int | str] = {"limit": args.limit}
     decls = ""
     where = ""
@@ -1498,11 +1479,7 @@ def _print_search_results(key: str, items: list[object]) -> None:
         for f in items:
             finding = FindingInList.model_validate(f)
             sev = finding.severity.label() if finding.severity else ""
-            proj = (
-                finding.report.project.codename
-                if finding.report and finding.report.project
-                else ""
-            )
+            proj = finding.report.project.codename if finding.report and finding.report.project else ""
             print(f"  #{finding.id} [{sev}] {finding.title} — {proj}")
     elif key == "observations":
         for o in items:
@@ -1525,9 +1502,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument(
-        "-d", "--detail", action="store_true", help="Print full raw JSON"
-    )
+    common.add_argument("-d", "--detail", action="store_true", help="Print full raw JSON")
     common.add_argument("--json", action="store_true", help="Output raw JSON")
 
     sub.add_parser("status", parents=[common], help="Show connection info")
@@ -1591,9 +1566,7 @@ def build_parser() -> argparse.ArgumentParser:
     sc.add_argument("--project", type=int, default=None)
     sc.add_argument("--limit", type=int, default=50)
 
-    dc = sub.add_parser(
-        "deconflictions", parents=[common], help="Deconfliction entries"
-    )
+    dc = sub.add_parser("deconflictions", parents=[common], help="Deconfliction entries")
     dc.add_argument("--project", type=int, default=None)
     dc.add_argument("--limit", type=int, default=50)
 
@@ -1602,9 +1575,7 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--finding", type=int, default=None)
     ev.add_argument("--limit", type=int, default=50)
 
-    ft = sub.add_parser(
-        "finding-templates", parents=[common], help="Finding template library"
-    )
+    ft = sub.add_parser("finding-templates", parents=[common], help="Finding template library")
     ft.add_argument("--severity", default=None)
     ft.add_argument("--limit", type=int, default=50)
 
@@ -1612,9 +1583,7 @@ def build_parser() -> argparse.ArgumentParser:
     wc.add_argument("--project", type=int, default=None)
     wc.add_argument("--limit", type=int, default=50)
 
-    nt = sub.add_parser(
-        "notes", parents=[common], help="Notes (client/project/domain/server)"
-    )
+    nt = sub.add_parser("notes", parents=[common], help="Notes (client/project/domain/server)")
     nt.add_argument("type", choices=["client", "project", "domain", "server"])
     nt.add_argument("--parent-id", type=int, default=None, help="Filter by parent ID")
     nt.add_argument("--limit", type=int, default=50)

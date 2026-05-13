@@ -27,4 +27,3 @@ Properties which are blank/null will not be shown in the Entity Panel.
 ## References
 
 * [https://learn.microsoft.com/en-us/windows/win32/adschema/c-grouppolicycontainer](https://learn.microsoft.com/en-us/windows/win32/adschema/c-computer)
-

@@ -17,9 +17,9 @@ No opsec considerations apply to this edge.
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
-Destination: [Computer](/resources/nodes/computer)  
-Traversable: **No**  
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
+Destination: [Computer](/resources/nodes/computer)
+Traversable: **No**
 
 ## References
 

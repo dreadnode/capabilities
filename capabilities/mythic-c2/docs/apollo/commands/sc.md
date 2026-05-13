@@ -111,7 +111,7 @@ Path to service executable.
 
 The display name of the service to query.
 
-#### Description (optional) 
+#### Description (optional)
 Set the service description.
 
 #### StartType (optional)
@@ -119,7 +119,7 @@ Set the user the service will run as. Defaults to SERVICE_NO_CHANGE.
 
 Valid options: SERVICE_NO_CHANGE, SERVICE_AUTO_START, SERVICE_BOOT_START, SERVICE_DEMAND_START, SERVICE_DISABLED, SERVICE_SYSTEM_START
 
-#### Dependencies (optional) 
+#### Dependencies (optional)
 Set the dependencies for a service. Values can be a comma separated list or an empty string ("") to remove dependencies.
 
 #### ServiceType (optional)

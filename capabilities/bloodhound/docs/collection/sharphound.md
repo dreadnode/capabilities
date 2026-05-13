@@ -91,4 +91,3 @@ Finally, remember that SharpHound CE is free and _open source_. You can build Sh
 * [https://docs.microsoft.com/en-us/visualstudio/ide/dotfuscator/?view=vs-2019](https://docs.microsoft.com/en-us/visualstudio/ide/dotfuscator/?view=vs-2019)
 * [https://github.com/TheWover/donut](https://github.com/TheWover/donut)
 * [https://blog.xpnsec.com/building-modifying-packing-devops/](https://blog.xpnsec.com/building-modifying-packing-devops/)
-

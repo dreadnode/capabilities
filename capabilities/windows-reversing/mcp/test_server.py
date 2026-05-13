@@ -125,9 +125,7 @@ class TestPeTriageRegistration:
         sample = tmp_path / "tiny.bin"
         sample.write_bytes(b"hello")
         with pytest.raises(Exception) as ei:
-            await pe_triage.mcp.call_tool(
-                "pe_bytes_at", {"path": str(sample), "offset": 999, "length": 4}
-            )
+            await pe_triage.mcp.call_tool("pe_bytes_at", {"path": str(sample), "offset": 999, "length": 4})
         assert "out of range" in str(ei.value)
 
 

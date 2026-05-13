@@ -59,9 +59,9 @@ Entering a PSSession will generate a logon event on the target computer.
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
-Destination: [Computer](/resources/nodes/computer)  
-Traversable: **Yes**  
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
+Destination: [Computer](/resources/nodes/computer)
+Traversable: **Yes**
 
 ## References
 

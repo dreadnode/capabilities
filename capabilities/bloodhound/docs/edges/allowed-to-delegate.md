@@ -26,9 +26,9 @@ As mentioned in the abuse info, in order to currently abuse this primitive the R
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Computer](/resources/nodes/computer)  
-Destination: [Computer](/resources/nodes/computer)  
-Traversable: **Yes**  
+Source: [User](/resources/nodes/user), [Computer](/resources/nodes/computer)
+Destination: [Computer](/resources/nodes/computer)
+Traversable: **Yes**
 
 ## References
 * [https://github.com/GhostPack/Rubeus#s4u](https://github.com/GhostPack/Rubeus#s4u)

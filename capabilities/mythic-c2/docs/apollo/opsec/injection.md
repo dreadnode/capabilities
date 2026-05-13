@@ -25,5 +25,5 @@ All of Apollo's [fork and run commands](/agents/apollo/opsec/forkandrun/) use in
 - [`screenshot_inject`](/agents/apollo/commands/screenshot_inject)
 
 {{% notice info %}}
-Some injection techniques are incompatible with the aforementioned commands. For example: If QueueUserAPC is in use, the above commands will fail as it leverages the early bird version of QueueUserAPC, not the APC bombing technique. 
+Some injection techniques are incompatible with the aforementioned commands. For example: If QueueUserAPC is in use, the above commands will fail as it leverages the early bird version of QueueUserAPC, not the APC bombing technique.
 {{% /notice %}}

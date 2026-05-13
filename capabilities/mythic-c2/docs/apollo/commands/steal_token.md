@@ -14,7 +14,7 @@ Steal the primary token from another process. If no target process is specified,
 
 ### Arguments (Positional)
 #### pid
-The process id to steal a primary access token from. This will default to `winlogon.exe` if no PID is provided. 
+The process id to steal a primary access token from. This will default to `winlogon.exe` if no PID is provided.
 
 ## Usage
 ```

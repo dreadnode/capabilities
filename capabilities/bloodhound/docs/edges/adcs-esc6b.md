@@ -61,9 +61,9 @@ well as the target identity the attacker is attempting to impersonate.
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
-Destination: [Domain](/resources/nodes/domain)  
-Traversable: **Yes**  
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
+Destination: [Domain](/resources/nodes/domain)
+Traversable: **Yes**
 
 ## References
 

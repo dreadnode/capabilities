@@ -44,7 +44,7 @@ As mentionned before named pipe pivots use a similar process, first you need to 
 
 ```
 
-You can then generate an implant connecting to it 
+You can then generate an implant connecting to it
 
 ```bash
 sliver > generate --os windows --debug --skip-symbols --named-pipe ./pipe/foobar
@@ -53,4 +53,3 @@ sliver > generate --os windows --debug --skip-symbols --named-pipe ./pipe/foobar
 [*] Build completed in 1s
 [*] Implant saved to /Users/tester/code/sliver/PROPER_SING.exe
 ```
-

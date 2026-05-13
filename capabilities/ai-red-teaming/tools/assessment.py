@@ -14,9 +14,7 @@ from pathlib import Path
 
 from dreadnode.agents.tools import tool
 
-ASSESSMENT_PATH = Path(
-    os.environ.get("AIRT_ASSESSMENT_PATH", "/tmp/airt_assessment.json")
-)
+ASSESSMENT_PATH = Path(os.environ.get("AIRT_ASSESSMENT_PATH", "/tmp/airt_assessment.json"))
 
 
 def _load() -> dict:
@@ -52,10 +50,7 @@ def register_assessment(
         "status": "in_progress",
     }
     _save(data)
-    return (
-        f"Assessment '{name}' registered with {len(planned_attacks)} "
-        f"planned attacks targeting {target}."
-    )
+    return f"Assessment '{name}' registered with {len(planned_attacks)} " f"planned attacks targeting {target}."
 
 
 @tool
@@ -85,10 +80,7 @@ def get_assessment_status() -> str:
     if completed:
         lines.append("Completed:")
         for c in completed:
-            line = (
-                f"  - {c['attack_name']}: ASR={c.get('asr', 'N/A')}%, "
-                f"Risk={c.get('risk_score', 'N/A')}/10"
-            )
+            line = f"  - {c['attack_name']}: ASR={c.get('asr', 'N/A')}%, " f"Risk={c.get('risk_score', 'N/A')}/10"
             if c.get("notes"):
                 line += f" — {c['notes']}"
             lines.append(line)

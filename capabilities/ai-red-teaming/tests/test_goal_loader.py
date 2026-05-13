@@ -68,9 +68,7 @@ class TestGetCategoryGoals:
             assert "goal" not in g  # Goal text must never leak
 
     def test_sample_size_limits_results(self) -> None:
-        result = loader.get_category_goals(
-            {"sub_categories": ["cybersecurity"], "sample_size": 3}
-        )
+        result = loader.get_category_goals({"sub_categories": ["cybersecurity"], "sample_size": 3})
         assert result["result"]["count"] <= 3
 
     def test_invalid_category_returns_error(self) -> None:

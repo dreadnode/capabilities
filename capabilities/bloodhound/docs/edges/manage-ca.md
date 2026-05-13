@@ -131,9 +131,9 @@ Abusing these capabilities commonly results in certificate issuance; issued cert
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
-Destination: [EnterpriseCA](/resources/nodes/enterprise-ca)   
-Traversable: **Yes**  
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
+Destination: [EnterpriseCA](/resources/nodes/enterprise-ca)
+Traversable: **Yes**
 
 ## References
 
@@ -147,4 +147,3 @@ This edge is related to the following MITRE ATT&CK tactic and techniques:
 * [Certify wiki - Escalation Techniques - ManageCA](https://github.com/GhostPack/Certify/wiki/4-%E2%80%90-Escalation-Techniques#manageca)
 * [ESC7: Dangerous Permissions on CA (Certipy wiki)](https://github.com/ly4k/Certipy/wiki/06-%E2%80%90-Privilege-Escalation#esc7-dangerous-permissions-on-ca)
 * [AD CS: from ManageCA to RCE](https://www.tarlogic.com/blog/ad-cs-manageca-rce/)
-

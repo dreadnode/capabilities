@@ -562,13 +562,10 @@ async def _ensure_connected() -> AsyncClientSession:
         raise RuntimeError("GHOSTWRITER_URL env var is required.")
     if not _config["api_token"] and not (_config["username"] and _config["password"]):
         raise RuntimeError(
-            "Set GHOSTWRITER_API_TOKEN or both "
-            "GHOSTWRITER_USERNAME and GHOSTWRITER_PASSWORD env vars."
+            "Set GHOSTWRITER_API_TOKEN or both " "GHOSTWRITER_USERNAME and GHOSTWRITER_PASSWORD env vars."
         )
 
-    token = _config["api_token"] or await _login_jwt(
-        _config["url"], _config["username"], _config["password"]
-    )
+    token = _config["api_token"] or await _login_jwt(_config["url"], _config["username"], _config["password"])
     transport = AIOHTTPTransport(
         url=f"{_config['url']}{GRAPHQL_PATH}",
         headers={
@@ -581,9 +578,7 @@ async def _ensure_connected() -> AsyncClientSession:
     session = await client.connect_async(reconnecting=True)
     # Verify credentials actually work before declaring success
     try:
-        await session.execute(
-            gql_parse("{ client_aggregate { aggregate { count } } }")
-        )
+        await session.execute(gql_parse("{ client_aggregate { aggregate { count } } }"))
     except Exception as exc:
         await client.close_async()
         raise RuntimeError(f"GhostWriter authentication failed: {exc}") from exc
@@ -738,9 +733,11 @@ async def list_projects(
     limit: Annotated[int, "Maximum results to return"] = 50,
 ) -> list[ProjectSummary]:
     """List projects/engagements."""
-    where, decls, variables = _build_where({
-        "clientId": {"predicate": "clientId: {_eq: $clientId}", "value": client_id},
-    })
+    where, decls, variables = _build_where(
+        {
+            "clientId": {"predicate": "clientId: {_eq: $clientId}", "value": client_id},
+        }
+    )
     variables["limit"] = limit
     result = await _run_query(
         f"""
@@ -801,16 +798,18 @@ async def list_findings(
     offset: Annotated[int, "Offset for pagination"] = 0,
 ) -> list[FindingSummary]:
     """List reported findings across engagements."""
-    where, decls, variables = _build_where({
-        "projectId": {
-            "predicate": "report: {projectId: {_eq: $projectId}}",
-            "value": project_id,
-        },
-        "severity": {
-            "predicate": "severity: {severity: {_ilike: $severity}}",
-            "value": severity,
-        },
-    })
+    where, decls, variables = _build_where(
+        {
+            "projectId": {
+                "predicate": "report: {projectId: {_eq: $projectId}}",
+                "value": project_id,
+            },
+            "severity": {
+                "predicate": "severity: {severity: {_ilike: $severity}}",
+                "value": severity,
+            },
+        }
+    )
     variables["limit"] = limit
     variables["offset"] = offset
     result = await _run_query(
@@ -867,12 +866,14 @@ async def list_finding_templates(
     limit: Annotated[int, "Maximum results to return"] = 50,
 ) -> list[FindingTemplate]:
     """List the finding template library."""
-    where, decls, variables = _build_where({
-        "severity": {
-            "predicate": "severity: {severity: {_ilike: $severity}}",
-            "value": severity,
-        },
-    })
+    where, decls, variables = _build_where(
+        {
+            "severity": {
+                "predicate": "severity: {severity: {_ilike: $severity}}",
+                "value": severity,
+            },
+        }
+    )
     variables["limit"] = limit
     result = await _run_query(
         f"""
@@ -1005,16 +1006,18 @@ async def list_evidence(
     limit: Annotated[int, "Maximum results to return"] = 50,
 ) -> list[Evidence]:
     """List evidence files."""
-    where, decls, variables = _build_where({
-        "projectId": {
-            "predicate": "report: {projectId: {_eq: $projectId}}",
-            "value": project_id,
-        },
-        "findingId": {
-            "predicate": "findingId: {_eq: $findingId}",
-            "value": finding_id,
-        },
-    })
+    where, decls, variables = _build_where(
+        {
+            "projectId": {
+                "predicate": "report: {projectId: {_eq: $projectId}}",
+                "value": project_id,
+            },
+            "findingId": {
+                "predicate": "findingId: {_eq: $findingId}",
+                "value": finding_id,
+            },
+        }
+    )
     variables["limit"] = limit
     result = await _run_query(
         f"""
@@ -1063,12 +1066,14 @@ async def list_observations(
     offset: Annotated[int, "Offset for pagination"] = 0,
 ) -> list[Observation]:
     """List observations/notes from reports."""
-    where, decls, variables = _build_where({
-        "projectId": {
-            "predicate": "report: {projectId: {_eq: $projectId}}",
-            "value": project_id,
-        },
-    })
+    where, decls, variables = _build_where(
+        {
+            "projectId": {
+                "predicate": "report: {projectId: {_eq: $projectId}}",
+                "value": project_id,
+            },
+        }
+    )
     variables["limit"] = limit
     variables["offset"] = offset
     result = await _run_query(
@@ -1208,12 +1213,14 @@ async def list_activity_logs(
     offset: Annotated[int, "Offset for pagination"] = 0,
 ) -> list[ActivityLog]:
     """List operation activity logs (oplog entries)."""
-    where, decls, variables = _build_where({
-        "projectId": {
-            "predicate": "log: {project: {id: {_eq: $projectId}}}",
-            "value": project_id,
-        },
-    })
+    where, decls, variables = _build_where(
+        {
+            "projectId": {
+                "predicate": "log: {project: {id: {_eq: $projectId}}}",
+                "value": project_id,
+            },
+        }
+    )
     variables["limit"] = limit
     variables["offset"] = offset
     result = await _run_query(
@@ -1246,12 +1253,14 @@ async def list_notes(
 ) -> list[Note]:
     """List notes for a given entity type (client, project, domain, or server)."""
     table, fk_field = _NOTE_TABLES[note_type]
-    where, decls, variables = _build_where({
-        "parentId": {
-            "predicate": f"{fk_field}: {{_eq: $parentId}}",
-            "value": parent_id,
-        },
-    })
+    where, decls, variables = _build_where(
+        {
+            "parentId": {
+                "predicate": f"{fk_field}: {{_eq: $parentId}}",
+                "value": parent_id,
+            },
+        }
+    )
     variables["limit"] = limit
     result = await _run_query(
         f"""
@@ -1383,7 +1392,10 @@ def _valid_search_types(raw: str | None) -> set[SearchType]:
 @mcp.tool
 async def search(
     query: Annotated[str, "Search term"],
-    types: Annotated[str | None, "Comma-separated types to search (clients,projects,findings,observations,activity-logs). Default: all"] = None,
+    types: Annotated[
+        str | None,
+        "Comma-separated types to search (clients,projects,findings,observations,activity-logs). Default: all",
+    ] = None,
     limit: Annotated[int, "Maximum results per type"] = 10,
 ) -> SearchResult:
     """Search across clients, projects, findings, observations, and activity logs concurrently."""

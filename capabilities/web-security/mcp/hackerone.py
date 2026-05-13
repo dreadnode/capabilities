@@ -81,6 +81,7 @@ mcp = FastMCP("hackerone")
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _attr(resource: dict, key: str, default: str = "") -> str:
     """Extract an attribute from a JSON:API resource."""
     return str(resource.get("attributes", {}).get(key, default))
@@ -125,6 +126,7 @@ async def _paginate_all(
 # Health / Profile
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool
 async def hackerone_health() -> str:
     """Check HackerOne API connection and show hacker profile."""
@@ -152,6 +154,7 @@ async def hackerone_health() -> str:
 # ---------------------------------------------------------------------------
 # Programs
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool
 async def hackerone_list_programs(
@@ -309,6 +312,7 @@ async def hackerone_get_program_weaknesses(
 # ---------------------------------------------------------------------------
 # Reports
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool
 async def hackerone_search_reports(
@@ -483,6 +487,7 @@ async def hackerone_get_report_activities(
 # Report Actions (write operations)
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool
 async def hackerone_submit_report(
     program_handle: Annotated[str, "Target program handle"],
@@ -595,6 +600,7 @@ async def hackerone_add_comment(
 # Hacktivity (public disclosures)
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool
 async def hackerone_search_hacktivity(
     program: Annotated[str | None, "Filter by program handle"] = None,
@@ -639,6 +645,7 @@ async def hackerone_search_hacktivity(
 # ---------------------------------------------------------------------------
 # Earnings
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool
 async def hackerone_get_earnings(

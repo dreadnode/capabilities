@@ -1,6 +1,6 @@
 """Skills management for AI red teaming agent.
 
-Ensures essential skills are loaded for complete end-to-end workflow.
+Ensures optional skills are loaded for complete end-to-end workflow.
 """
 
 from __future__ import annotations
@@ -13,17 +13,17 @@ from dreadnode.agents.tools import tool
 # Note: Core workflow works with tools only. Skills are optional enhancements.
 # No skills are truly "essential" - they provide guidance and optimization.
 OPTIONAL_ENHANCEMENT_SKILLS = [
-    "workflow-patterns",     # Python templates for common scenarios
-    "attack-selection-guide", # Help choosing the right attack type
-    "transform-reference"    # Transform catalog and usage guidance
+    "workflow-patterns",  # Python templates for common scenarios
+    "attack-selection-guide",  # Help choosing the right attack type
+    "transform-reference",  # Transform catalog and usage guidance
 ]
 
 
 @tool
 def load_essential_skills() -> str:
-    """Load essential skills for AI red teaming workflow.
+    """Load optional skills for AI red teaming workflow.
 
-    Auto-loads the skills needed for complete end-to-end experience:
+    Auto-loads optional enhancement skills for improved experience:
     - analytics-interpretation: Interpret ASR, risk scores, severity levels
     - trace-analysis-advisor: Recommend next attack strategies based on results
     - error-troubleshooting: Diagnose and fix workflow issues
@@ -33,7 +33,7 @@ def load_essential_skills() -> str:
     loaded_skills = []
     failed_skills = []
 
-    for skill in ESSENTIAL_SKILLS:
+    for skill in OPTIONAL_ENHANCEMENT_SKILLS:
         try:
             # Note: This is a placeholder - actual skill loading would be handled
             # by the Dreadnode runtime/capability system
@@ -55,9 +55,9 @@ def load_essential_skills() -> str:
         result.append("\nTry manually loading these skills with /skills command.")
 
     if not loaded_skills and not failed_skills:
-        result.append("ℹ️  No skills to load - all essential skills already available.")
+        result.append("ℹ️  No skills to load - all optional skills already available.")
 
-    result.append(f"\nTotal essential skills: {len(ESSENTIAL_SKILLS)}")
+    result.append(f"\nTotal optional skills: {len(OPTIONAL_ENHANCEMENT_SKILLS)}")
     result.append("Use /skills command to see all available skills.")
 
     return "\n".join(result)
@@ -79,7 +79,7 @@ def check_skills_status() -> str:
     # Note: In a real implementation, this would check the actual skill registry
     # For now, providing a diagnostic template
 
-    for skill in ESSENTIAL_SKILLS:
+    for skill in OPTIONAL_ENHANCEMENT_SKILLS:
         result.append(f"  {skill}:")
         result.append(f"    Status: Available (assumed)")
         result.append(f"    Purpose: {_get_skill_purpose(skill)}")
@@ -98,7 +98,7 @@ def _get_skill_purpose(skill: str) -> str:
     purposes = {
         "analytics-interpretation": "Interpret ASR scores, risk levels, severity distributions",
         "trace-analysis-advisor": "Recommend next attacks based on current results",
-        "error-troubleshooting": "Diagnose workflow failures and suggest fixes"
+        "error-troubleshooting": "Diagnose workflow failures and suggest fixes",
     }
     return purposes.get(skill, "Unknown skill purpose")
 
@@ -127,7 +127,7 @@ def validate_workflow_readiness() -> str:
         "execute_workflow",
         "validate_attack_results",
         "get_assessment_status",
-        "register_assessment"
+        "register_assessment",
     ]
 
     ready_items.append("✅ Essential tools available:")

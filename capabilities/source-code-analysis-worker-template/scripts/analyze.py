@@ -61,8 +61,7 @@ async def build_client(args: argparse.Namespace) -> RuntimeClient:
     runtime_url = args.runtime_url or os.environ.get("DREADNODE_RUNTIME_URL")
     if not runtime_url:
         raise SystemExit(
-            "Provide --runtime-url (or DREADNODE_RUNTIME_URL), or pass --local "
-            "to boot an in-process runtime."
+            "Provide --runtime-url (or DREADNODE_RUNTIME_URL), or pass --local " "to boot an in-process runtime."
         )
     runtime_token = args.runtime_token or os.environ.get("DREADNODE_RUNTIME_TOKEN")
     return RuntimeClient(server_url=runtime_url.rstrip("/"), auth_token=runtime_token)
@@ -158,9 +157,7 @@ def read_repo_file(path: str) -> list[str]:
 
 def default_report_name(repo_url: str) -> str:
     repo = repo_url.rstrip("/").removesuffix(".git").rsplit("/", 1)[-1]
-    safe = "".join(
-        char if char.isalnum() or char in "-_" else "-" for char in repo
-    ).strip("-")
+    safe = "".join(char if char.isalnum() or char in "-_" else "-" for char in repo).strip("-")
     return f"{safe or 'repo'}-final-report.md"
 
 
@@ -176,10 +173,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--repo-file",
         default=None,
-        help=(
-            "File of GitHub URLs to analyze sequentially, one per line. "
-            "Blank lines and # comments are ignored."
-        ),
+        help=("File of GitHub URLs to analyze sequentially, one per line. " "Blank lines and # comments are ignored."),
     )
     parser.add_argument(
         "--runtime-url",

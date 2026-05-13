@@ -50,9 +50,7 @@ class Netexec(Toolset):
         # Fix netexec first-run setup issue if .nxc exists as a file instead of directory
         nxc_path = Path.home() / ".nxc"
         if nxc_path.exists() and nxc_path.is_file():
-            logger.warning(
-                f"Found {nxc_path} as a file instead of directory, removing to allow netexec setup"
-            )
+            logger.warning(f"Found {nxc_path} as a file instead of directory, removing to allow netexec setup")
             nxc_path.unlink()
 
         cmd = ["netexec", protocol, *targets]

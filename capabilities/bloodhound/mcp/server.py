@@ -184,9 +184,7 @@ async def _ensure_connected() -> None:
     if not _config:
         _config = _default_config()
     if not _config["password"]:
-        raise RuntimeError(
-            "Not connected. Call connect(password=...) or set BLOODHOUND_PASSWORD env var."
-        )
+        raise RuntimeError("Not connected. Call connect(password=...) or set BLOODHOUND_PASSWORD env var.")
     _graph_driver = AsyncGraphDatabase.driver(
         _config["neo4j_url"],
         auth=(_config["neo4j_username"], _config["neo4j_password"]),
@@ -282,11 +280,13 @@ async def list_queries(
     for name, entry in sorted(STANDARD_QUERIES.items()):
         if category and entry["category"] != category:
             continue
-        results.append({
-            "name": name,
-            "description": entry["description"],
-            "category": entry["category"],
-        })
+        results.append(
+            {
+                "name": name,
+                "description": entry["description"],
+                "category": entry["category"],
+            }
+        )
     if not results and category:
         categories = sorted({e["category"] for e in STANDARD_QUERIES.values()})
         return [{"error": f"No queries in category '{category}'", "available_categories": categories}]

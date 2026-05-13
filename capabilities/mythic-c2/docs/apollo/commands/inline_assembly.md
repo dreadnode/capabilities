@@ -18,7 +18,7 @@ This command does not patch Environment.Exit, and as a result, should the assemb
 ![exeasm](../images/inline_assembly.png)
 
 #### Assembly
-The name of the assembly to execute. This must match the file name used with `register_file`. 
+The name of the assembly to execute. This must match the file name used with `register_file`.
 
 #### Arguments (optional)
 Arguments to pass to the assembly.

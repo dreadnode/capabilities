@@ -1,6 +1,6 @@
 ---
 title: TrustedForNTAuth
-description: The NTAuthStore contains the certificate of the Enterprise CA. 
+description: The NTAuthStore contains the certificate of the Enterprise CA.
 ---
 
 <img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
@@ -17,9 +17,9 @@ When an attacker abuses a privilege escalation or impersonation primitive that r
 
 ## Edge Schema
 
-Source: [EnterpriseCA](/resources/nodes/enterprise-ca)   
-Destination: [NTAuthStore](/resources/nodes/nt-auth-store)   
-Traversable: **No**  
+Source: [EnterpriseCA](/resources/nodes/enterprise-ca)
+Destination: [NTAuthStore](/resources/nodes/nt-auth-store)
+Traversable: **No**
 
 ## References
 

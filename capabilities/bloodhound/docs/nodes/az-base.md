@@ -27,4 +27,3 @@ The node supports the properties of the table. Three types of property names wil
 ## Edges
 
 Any edge type may be linked to/from this node. See the [edges documentation](/resources/edges) for more information on the edge types.
-

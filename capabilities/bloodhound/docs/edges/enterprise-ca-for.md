@@ -16,9 +16,9 @@ When an attacker abuses a privilege escalation or impersonation primitive that r
 
 ## Edge Schema
 
-Source: [EnterpriseCA](/resources/nodes/enterprise-ca)  
-Destination: [RootCA](/resources/nodes/root-ca)   
-Traversable: **No**   
+Source: [EnterpriseCA](/resources/nodes/enterprise-ca)
+Destination: [RootCA](/resources/nodes/root-ca)
+Traversable: **No**
 
 ## References
 

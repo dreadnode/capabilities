@@ -70,9 +70,7 @@ class TestSigning:
 
     def test_signature_changes_with_date_hour(self) -> None:
         ref = sign_request(**REFERENCE)
-        other = sign_request(
-            **{**REFERENCE, "request_date": "2024-01-15T11:30:00.000000000Z"}
-        )
+        other = sign_request(**{**REFERENCE, "request_date": "2024-01-15T11:30:00.000000000Z"})
         assert ref != other
 
     def test_signature_changes_with_body(self) -> None:
@@ -85,9 +83,7 @@ class TestSigning:
         in the same hour on the same path/body must produce the same
         signature — load-bearing for replay-window semantics."""
         ref = sign_request(**REFERENCE)
-        same_hour = sign_request(
-            **{**REFERENCE, "request_date": "2024-01-15T10:59:59.999999999Z"}
-        )
+        same_hour = sign_request(**{**REFERENCE, "request_date": "2024-01-15T10:59:59.999999999Z"})
         assert ref == same_hour
 
     def test_returns_base64(self) -> None:
@@ -112,9 +108,7 @@ class TestRequestDateFormat:
     def test_includes_microseconds_and_padding(self) -> None:
         from datetime import datetime, timezone
 
-        result = _format_request_date(
-            datetime(2024, 1, 15, 10, 30, 0, 123456, tzinfo=timezone.utc)
-        )
+        result = _format_request_date(datetime(2024, 1, 15, 10, 30, 0, 123456, tzinfo=timezone.utc))
         # Expected shape: 2024-01-15T10:30:00.123456000Z
         assert result == "2024-01-15T10:30:00.123456000Z"
 

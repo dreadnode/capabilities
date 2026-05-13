@@ -1,6 +1,6 @@
 ---
 title: ManageCertificates
-description: The principal has the "Manage Certificates", also known as "CA Officer", permission on the Enterprise CA. 
+description: The principal has the "Manage Certificates", also known as "CA Officer", permission on the Enterprise CA.
 ---
 
 <img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
@@ -47,9 +47,9 @@ Approving requests generates issuance events and stores issued certificates on t
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
-Destination: [EnterpriseCA](/resources/nodes/enterprise-ca)   
-Traversable: **Yes**  
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
+Destination: [EnterpriseCA](/resources/nodes/enterprise-ca)
+Traversable: **Yes**
 
 
 ## References
@@ -63,5 +63,3 @@ This edge is related to the following MITRE ATT&CK tactic and techniques:
 * [Certified Pre-Owned](https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf)
 * [Certify wiki - Escalation Techniques - ManageCertificates](https://github.com/GhostPack/Certify/wiki/4-%E2%80%90-Escalation-Techniques#managecertificates)
 * [ESC7: Dangerous Permissions on CA (Certipy wiki)](https://github.com/ly4k/Certipy/wiki/06-%E2%80%90-Privilege-Escalation#esc7-dangerous-permissions-on-ca)
-
-

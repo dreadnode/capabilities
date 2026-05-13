@@ -17,9 +17,9 @@ Creation and modification of ACEs will be logged depending on the auditing setup
 
 ## Edge Schema
 
-Source: [Computer](/resources/nodes/computer), [OU](/resources/nodes/ou), [Container](/resources/nodes/container)  
-Destination: [AIACA](/resources/nodes/aiaca), [CertTemplate](/resources/nodes/cert-template), [Computer](/resources/nodes/computer), [EnterpriseCA](/resources/nodes/enterprise-ca), [Group](/resources/nodes/group), [IssuancePolicy](/resources/nodes/issuance-policy), [NTAuthStore](/resources/nodes/nt-auth-store), [OU](/resources/nodes/ou), [RootCA](/resources/nodes/root-ca), [User](/resources/nodes/user)  
-Traversable: **Yes**  
+Source: [Computer](/resources/nodes/computer), [OU](/resources/nodes/ou), [Container](/resources/nodes/container)
+Destination: [AIACA](/resources/nodes/aiaca), [CertTemplate](/resources/nodes/cert-template), [Computer](/resources/nodes/computer), [EnterpriseCA](/resources/nodes/enterprise-ca), [Group](/resources/nodes/group), [IssuancePolicy](/resources/nodes/issuance-policy), [NTAuthStore](/resources/nodes/nt-auth-store), [OU](/resources/nodes/ou), [RootCA](/resources/nodes/root-ca), [User](/resources/nodes/user)
+Traversable: **Yes**
 
 ## References
 * [https://wald0.com/?p=179](https://wald0.com/?p=179)

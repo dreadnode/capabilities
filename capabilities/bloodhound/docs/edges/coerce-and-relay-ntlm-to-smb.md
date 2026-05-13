@@ -20,7 +20,7 @@ This section provides general guidance about abusing this edge. For detailed ins
 1. **Coerce the Target Computer**
 
    Several coercion methods are documented here: [Windows Coerced Authentication Methods](https://github.com/p0dalirius/windows-coerced-authentication-methods).
-   
+
    Examples of tools include:
 
    - [printerbug.py](https://github.com/dirkjanm/krbrelayx/blob/master/printerbug.py)
@@ -39,7 +39,7 @@ This section provides general guidance about abusing this edge. For detailed ins
 1. **Coerce the Target Computer**
 
    Several coercion methods are documented here: [Windows Coerced Authentication Methods](https://github.com/p0dalirius/windows-coerced-authentication-methods).
-   
+
    Examples of tools include:
 
    - [SpoolSample](https://github.com/leechristensen/SpoolSample)
@@ -51,9 +51,9 @@ NTLM relayed authentications can be detected by login events where the IP addres
 
 ## Edge Schema
 
-Source: `Authenticated Users`, [Group](/resources/nodes/group)  
-Destination: [Computer](/resources/nodes/computer)  
-Traversable: **Yes**  
+Source: `Authenticated Users`, [Group](/resources/nodes/group)
+Destination: [Computer](/resources/nodes/computer)
+Traversable: **Yes**
 
 ## References
 

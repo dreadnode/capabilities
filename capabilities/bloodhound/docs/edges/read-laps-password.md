@@ -41,9 +41,9 @@ Reading properties from LDAP is extremely low risk, and can only be found using 
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
-Destination: [Computer](/resources/nodes/computer)   
-Traversable: **Yes**  
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
+Destination: [Computer](/resources/nodes/computer)
+Traversable: **Yes**
 
 
 ## References

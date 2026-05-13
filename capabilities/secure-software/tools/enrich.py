@@ -109,9 +109,7 @@ class PackageEnrichment(Toolset):
 
         client = self._ensure_client()
         try:
-            url, default_name = await _resolve_registry_url(
-                client, ecosystem, namespace, name, version
-            )
+            url, default_name = await _resolve_registry_url(client, ecosystem, namespace, name, version)
         except ValueError as exc:
             return f"Error: {exc}"
 
@@ -140,8 +138,7 @@ class PackageEnrichment(Toolset):
         archive: t.Annotated[str, "Path to the downloaded archive"],
         into: t.Annotated[
             str,
-            "Destination directory. Relative paths resolve under "
-            "SECURE_SOFTWARE_DIR. Created if missing.",
+            "Destination directory. Relative paths resolve under " "SECURE_SOFTWARE_DIR. Created if missing.",
         ] = "",
     ) -> str:
         """Extract a tar/zip/wheel/npm tarball safely into a directory.
@@ -289,10 +286,7 @@ class PackageEnrichment(Toolset):
         try:
             import yara  # type: ignore[import-untyped]
         except ImportError:
-            return (
-                "Error: yara-python is not installed. "
-                "Install with `pip install yara-python` to enable this tool."
-            )
+            return "Error: yara-python is not installed. " "Install with `pip install yara-python` to enable this tool."
         if "rule " in rules:
             compiled = yara.compile(source=rules)
         else:
@@ -347,9 +341,7 @@ class PackageEnrichment(Toolset):
             return f"Error: {exc}"
         package_name = f"{namespace}/{name}" if namespace else name
         osv_ecosystem = _osv_ecosystem(ecosystem)
-        body: dict[str, t.Any] = {
-            "package": {"name": package_name, "ecosystem": osv_ecosystem}
-        }
+        body: dict[str, t.Any] = {"package": {"name": package_name, "ecosystem": osv_ecosystem}}
         if version:
             body["version"] = version
         client = self._ensure_client()
@@ -363,9 +355,7 @@ class PackageEnrichment(Toolset):
         lines = [f"OSV: {len(vulns)} vulnerability record(s) for {purl}"]
         for v in vulns[:50]:
             sev = ", ".join(s.get("type", "?") + ":" + s.get("score", "?") for s in v.get("severity", [])) or "n/a"
-            lines.append(
-                f"- {v.get('id')}  severity={sev}  summary={v.get('summary', '')[:180]}"
-            )
+            lines.append(f"- {v.get('id')}  severity={sev}  summary={v.get('summary', '')[:180]}")
         return self._clip("\n".join(lines))
 
     @tool_method(name="scorecard_fetch", catch=True)
@@ -373,8 +363,7 @@ class PackageEnrichment(Toolset):
         self,
         repo: t.Annotated[
             str,
-            "Source repo in 'host/owner/name' form, e.g. "
-            "'github.com/psf/requests'.",
+            "Source repo in 'host/owner/name' form, e.g. " "'github.com/psf/requests'.",
         ],
     ) -> str:
         """Fetch the latest OpenSSF Scorecard result for a repository.
@@ -396,8 +385,7 @@ class PackageEnrichment(Toolset):
         lines = [f"Scorecard for {repo} (as of {date}): overall={overall}/10"]
         for check in payload.get("checks", []):
             lines.append(
-                f"  {check.get('name'):<24} {check.get('score'):>3}/10  "
-                f"{(check.get('reason') or '')[:120]}"
+                f"  {check.get('name'):<24} {check.get('score'):>3}/10  " f"{(check.get('reason') or '')[:120]}"
             )
         return self._clip("\n".join(lines))
 
@@ -483,9 +471,7 @@ async def _resolve_registry_url(
         meta_url = f"https://pypi.org/pypi/{name}/{version}/json"
         resp = await client.get(meta_url)
         if resp.status_code >= 400:
-            raise ValueError(
-                f"pypi metadata lookup failed: HTTP {resp.status_code} for {meta_url}"
-            )
+            raise ValueError(f"pypi metadata lookup failed: HTTP {resp.status_code} for {meta_url}")
         payload = resp.json()
         files = payload.get("urls") or []
         sdist = next((f for f in files if f.get("packagetype") == "sdist"), None)

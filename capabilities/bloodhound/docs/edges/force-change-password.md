@@ -45,9 +45,9 @@ Finally, by changing a service account password, you may cause that service to s
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
-Destination: [User](/resources/nodes/user)  
-Traversable: **Yes**  
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
+Destination: [User](/resources/nodes/user)
+Traversable: **Yes**
 
 ## References
 

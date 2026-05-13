@@ -14,4 +14,4 @@ exit
 ```
 
 ## Detailed Summary
-The `exit` command uses the `Environment.Exit` method to exit the agent's running process. 
+The `exit` command uses the `Environment.Exit` method to exit the agent's running process.

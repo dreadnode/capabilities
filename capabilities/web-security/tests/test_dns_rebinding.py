@@ -45,9 +45,7 @@ def _install_dreadnode_tools_stub() -> None:
                 value = getattr(self, attr_name)
                 meta = getattr(value, "_tool_metadata", None)
                 if meta:
-                    discovered.append(
-                        _Tool(meta["name"], meta["description"], meta["catch"])
-                    )
+                    discovered.append(_Tool(meta["name"], meta["description"], meta["catch"]))
             return discovered
 
     tools.Toolset = Toolset

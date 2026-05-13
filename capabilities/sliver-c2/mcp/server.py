@@ -132,10 +132,17 @@ async def get_sessions() -> list[dict]:
     client = await _get_client()
     return [
         {
-            "id": s.ID, "name": s.Name, "remote_address": s.RemoteAddress,
-            "hostname": s.Hostname, "username": s.Username, "os": s.OS,
-            "arch": s.Arch, "transport": s.Transport, "pid": s.PID,
-            "filename": s.Filename, "active_c2": s.ActiveC2,
+            "id": s.ID,
+            "name": s.Name,
+            "remote_address": s.RemoteAddress,
+            "hostname": s.Hostname,
+            "username": s.Username,
+            "os": s.OS,
+            "arch": s.Arch,
+            "transport": s.Transport,
+            "pid": s.PID,
+            "filename": s.Filename,
+            "active_c2": s.ActiveC2,
         }
         for s in await client.sessions()
     ]
@@ -147,11 +154,19 @@ async def get_beacons() -> list[dict]:
     client = await _get_client()
     return [
         {
-            "id": b.ID, "name": b.Name, "hostname": b.Hostname,
-            "username": b.Username, "os": b.OS, "arch": b.Arch,
-            "transport": b.Transport, "interval": b.Interval, "jitter": b.Jitter,
-            "remote_address": b.RemoteAddress, "pid": b.PID,
-            "filename": b.Filename, "active_c2": b.ActiveC2,
+            "id": b.ID,
+            "name": b.Name,
+            "hostname": b.Hostname,
+            "username": b.Username,
+            "os": b.OS,
+            "arch": b.Arch,
+            "transport": b.Transport,
+            "interval": b.Interval,
+            "jitter": b.Jitter,
+            "remote_address": b.RemoteAddress,
+            "pid": b.PID,
+            "filename": b.Filename,
+            "active_c2": b.ActiveC2,
         }
         for b in await client.beacons()
     ]
@@ -162,8 +177,7 @@ async def get_jobs() -> list[dict]:
     """List all active jobs (listeners) on the Sliver server."""
     client = await _get_client()
     return [
-        {"id": j.ID, "name": j.Name, "protocol": j.Protocol, "port": j.Port,
-         "description": j.Description}
+        {"id": j.ID, "name": j.Name, "protocol": j.Protocol, "port": j.Port, "description": j.Description}
         for j in await client.jobs()
     ]
 
@@ -254,14 +268,16 @@ async def get_implant_builds() -> list[dict]:
     result = []
     for name, build in builds.items():
         c2_urls = [c2.URL for c2 in build.C2] if build.C2 else []
-        result.append({
-            "name": name,
-            "os": build.GOOS,
-            "arch": build.GOARCH,
-            "format": str(build.Format),
-            "c2": c2_urls,
-            "is_beacon": build.IsBeacon,
-        })
+        result.append(
+            {
+                "name": name,
+                "os": build.GOOS,
+                "arch": build.GOARCH,
+                "format": str(build.Format),
+                "c2": c2_urls,
+                "is_beacon": build.IsBeacon,
+            }
+        )
     return result
 
 
@@ -459,9 +475,9 @@ async def execute_assembly(
     with open(assembly_path, "rb") as f:
         data = f.read()
     result = await _resolve(
-        await impl.execute_assembly(data, arguments=arguments, process="",
-                                     is_dll=is_dll, arch=arch, class_name="",
-                                     method="", app_domain="")
+        await impl.execute_assembly(
+            data, arguments=arguments, process="", is_dll=is_dll, arch=arch, class_name="", method="", app_domain=""
+        )
     )
     out = result.Output.decode(errors="replace") if result.Output else "Assembly executed with no output."
     return _truncate(out)
@@ -494,8 +510,9 @@ async def sideload(
     with open(dll_path, "rb") as f:
         dll_data = f.read()
     result = await _resolve(
-        await impl.sideload(dll_data, process_name=process_name, arguments=arguments,
-                             entry_point=entry_point, kill=kill)
+        await impl.sideload(
+            dll_data, process_name=process_name, arguments=arguments, entry_point=entry_point, kill=kill
+        )
     )
     out = result.Result.decode(errors="replace") if result.Result else "Sideload completed with no output."
     return _truncate(out)
@@ -568,9 +585,7 @@ async def run_as(
 async def get_system() -> str:
     """Attempt to elevate to SYSTEM privileges on the target (Windows only)."""
     impl = await _get_interact()
-    result = await _resolve(
-        await impl.get_system(hosting_process="", config=client_pb2.ImplantConfig())
-    )
+    result = await _resolve(await impl.get_system(hosting_process="", config=client_pb2.ImplantConfig()))
     return f"Elevated to SYSTEM. New session: {result.Session.ID if result.Session else 'pending'}"
 
 
@@ -611,9 +626,14 @@ async def registry_write(
     impl = await _get_interact()
     await _resolve(
         await impl.registry_write(
-            hive, reg_path, key, hostname,
-            string_value=string_value, byte_value=b"",
-            dword_value=0, qword_value=0,
+            hive,
+            reg_path,
+            key,
+            hostname,
+            string_value=string_value,
+            byte_value=b"",
+            dword_value=0,
+            qword_value=0,
             reg_type=sliver_pb2.RegistryType.String,
         )
     )

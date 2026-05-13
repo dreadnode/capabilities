@@ -182,9 +182,7 @@ async def protoscope_status() -> dict:
 
 @mcp.tool
 async def protoscope_run(
-    args: Annotated[
-        list[str], "Raw Protoscope CLI arguments, excluding the binary name"
-    ],
+    args: Annotated[list[str], "Raw Protoscope CLI arguments, excluding the binary name"],
     timeout: Annotated[int, "Command timeout in seconds"] = DEFAULT_TIMEOUT,
 ) -> str:
     """Run any Protoscope command for advanced workflows."""
@@ -206,27 +204,13 @@ async def protoscope_help(
 @mcp.tool
 async def protoscope_inspect_file(
     input_path: Annotated[str, "Path to an encoded protobuf binary file"],
-    descriptor_set: Annotated[
-        str | None, "Optional encoded FileDescriptorSet path"
-    ] = None,
-    message_type: Annotated[
-        str | None, "Full message type name for descriptor-guided decoding"
-    ] = None,
-    explicit_wire_types: Annotated[
-        bool, "Include explicit wire type for every field"
-    ] = False,
-    explicit_length_prefixes: Annotated[
-        bool, "Emit literal length prefixes instead of braces"
-    ] = False,
-    print_field_names: Annotated[
-        bool, "Print field names when using message_type"
-    ] = False,
-    print_enum_names: Annotated[
-        bool, "Print enum names when using message_type"
-    ] = False,
-    all_fields_are_messages: Annotated[
-        bool, "Try to disassemble all fields as messages"
-    ] = False,
+    descriptor_set: Annotated[str | None, "Optional encoded FileDescriptorSet path"] = None,
+    message_type: Annotated[str | None, "Full message type name for descriptor-guided decoding"] = None,
+    explicit_wire_types: Annotated[bool, "Include explicit wire type for every field"] = False,
+    explicit_length_prefixes: Annotated[bool, "Emit literal length prefixes instead of braces"] = False,
+    print_field_names: Annotated[bool, "Print field names when using message_type"] = False,
+    print_enum_names: Annotated[bool, "Print enum names when using message_type"] = False,
+    all_fields_are_messages: Annotated[bool, "Try to disassemble all fields as messages"] = False,
     no_groups: Annotated[bool, "Do not try to disassemble groups"] = False,
     no_quoted_strings: Annotated[bool, "Assume no fields are strings"] = False,
     timeout: Annotated[int, "Command timeout in seconds"] = DEFAULT_TIMEOUT,
@@ -255,27 +239,13 @@ async def protoscope_inspect_file(
 @mcp.tool
 async def protoscope_inspect_hex(
     hex_data: Annotated[str, "Encoded protobuf bytes as hex"],
-    descriptor_set: Annotated[
-        str | None, "Optional encoded FileDescriptorSet path"
-    ] = None,
-    message_type: Annotated[
-        str | None, "Full message type name for descriptor-guided decoding"
-    ] = None,
-    explicit_wire_types: Annotated[
-        bool, "Include explicit wire type for every field"
-    ] = False,
-    explicit_length_prefixes: Annotated[
-        bool, "Emit literal length prefixes instead of braces"
-    ] = False,
-    print_field_names: Annotated[
-        bool, "Print field names when using message_type"
-    ] = False,
-    print_enum_names: Annotated[
-        bool, "Print enum names when using message_type"
-    ] = False,
-    all_fields_are_messages: Annotated[
-        bool, "Try to disassemble all fields as messages"
-    ] = False,
+    descriptor_set: Annotated[str | None, "Optional encoded FileDescriptorSet path"] = None,
+    message_type: Annotated[str | None, "Full message type name for descriptor-guided decoding"] = None,
+    explicit_wire_types: Annotated[bool, "Include explicit wire type for every field"] = False,
+    explicit_length_prefixes: Annotated[bool, "Emit literal length prefixes instead of braces"] = False,
+    print_field_names: Annotated[bool, "Print field names when using message_type"] = False,
+    print_enum_names: Annotated[bool, "Print enum names when using message_type"] = False,
+    all_fields_are_messages: Annotated[bool, "Try to disassemble all fields as messages"] = False,
     no_groups: Annotated[bool, "Do not try to disassemble groups"] = False,
     no_quoted_strings: Annotated[bool, "Assume no fields are strings"] = False,
     timeout: Annotated[int, "Command timeout in seconds"] = DEFAULT_TIMEOUT,
@@ -307,9 +277,7 @@ async def protoscope_inspect_hex(
 @mcp.tool
 async def protoscope_assemble_text(
     source: Annotated[str, "Protoscope source text to assemble"],
-    output_format: Annotated[
-        Literal["hex", "base64"], "Return encoding for binary output"
-    ] = "hex",
+    output_format: Annotated[Literal["hex", "base64"], "Return encoding for binary output"] = "hex",
     timeout: Annotated[int, "Command timeout in seconds"] = DEFAULT_TIMEOUT,
 ) -> str:
     """Assemble Protoscope source text and return encoded binary bytes."""
@@ -336,9 +304,7 @@ async def protoscope_assemble_text(
 @mcp.tool
 async def protoscope_assemble_file(
     source_path: Annotated[str, "Path to Protoscope source text"],
-    output_format: Annotated[
-        Literal["hex", "base64"], "Return encoding for binary output"
-    ] = "hex",
+    output_format: Annotated[Literal["hex", "base64"], "Return encoding for binary output"] = "hex",
     timeout: Annotated[int, "Command timeout in seconds"] = DEFAULT_TIMEOUT,
 ) -> str:
     """Assemble a Protoscope source file and return encoded binary bytes."""

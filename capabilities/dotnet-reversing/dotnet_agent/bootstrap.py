@@ -37,9 +37,7 @@ def _get_deps_dir() -> Path:
         except OSError:
             pass
         # If workspace exists but isn't a mount, still use it in sandbox-like envs
-        if (SANDBOX_WORKSPACE / ".dreadnode").exists() or os.environ.get(
-            "DREADNODE_SANDBOX"
-        ):
+        if (SANDBOX_WORKSPACE / ".dreadnode").exists() or os.environ.get("DREADNODE_SANDBOX"):
             return SANDBOX_WORKSPACE / ".dreadnode" / "deps"
     return LOCAL_FALLBACK
 
@@ -110,9 +108,7 @@ def ensure_dependencies(verbose: bool = True) -> bool:
     os.environ["DOTNET_TOOLS_LIB_DIR"] = str(ILSPY_LIB_DIR)
 
     # Verify installation
-    if not (
-        _is_dotnet_installed() and _is_ilspy_installed() and _is_pythonnet_installed()
-    ):
+    if not (_is_dotnet_installed() and _is_ilspy_installed() and _is_pythonnet_installed()):
         missing = []
         if not _is_dotnet_installed():
             missing.append(".NET runtime")

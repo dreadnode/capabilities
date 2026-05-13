@@ -83,38 +83,28 @@ class TestPatternFields:
 
     @pytest.mark.parametrize("pattern", all_patterns(), ids=lambda p: p.id)
     def test_category_known(self, pattern: AttackPattern) -> None:
-        assert pattern.category in CATEGORIES, (
-            f"{pattern.id}: unknown category {pattern.category!r}"
-        )
+        assert pattern.category in CATEGORIES, f"{pattern.id}: unknown category {pattern.category!r}"
 
     @pytest.mark.parametrize("pattern", all_patterns(), ids=lambda p: p.id)
     def test_description_meaningful(self, pattern: AttackPattern) -> None:
         # Descriptions are the agent's "why this matters" hint;
         # one-liners aren't enough.
-        assert len(pattern.description) >= 50, (
-            f"{pattern.id}: description too short ({len(pattern.description)} chars)"
-        )
+        assert len(pattern.description) >= 50, f"{pattern.id}: description too short ({len(pattern.description)} chars)"
 
     @pytest.mark.parametrize("pattern", all_patterns(), ids=lambda p: p.id)
     def test_no_write_clauses(self, pattern: AttackPattern) -> None:
-        assert not is_write_query(pattern.cypher), (
-            f"{pattern.id}: contains a write clause"
-        )
+        assert not is_write_query(pattern.cypher), f"{pattern.id}: contains a write clause"
 
     @pytest.mark.parametrize("pattern", all_patterns(), ids=lambda p: p.id)
     def test_explicit_limit_present(self, pattern: AttackPattern) -> None:
-        assert _LIMIT_RE.search(pattern.cypher), (
-            f"{pattern.id}: missing explicit LIMIT"
-        )
+        assert _LIMIT_RE.search(pattern.cypher), f"{pattern.id}: missing explicit LIMIT"
 
     @pytest.mark.parametrize("pattern", all_patterns(), ids=lambda p: p.id)
     def test_cypher_starts_with_match_or_with(self, pattern: AttackPattern) -> None:
         # Sanity — every catalog query is a read pipeline. Should
         # start with MATCH (or WITH for prefixed projections).
         head = pattern.cypher.lstrip().upper()[:6]
-        assert head.startswith(("MATCH ", "WITH ")), (
-            f"{pattern.id}: cypher starts with {head!r}"
-        )
+        assert head.startswith(("MATCH ", "WITH ")), f"{pattern.id}: cypher starts with {head!r}"
 
 
 class TestLookups:

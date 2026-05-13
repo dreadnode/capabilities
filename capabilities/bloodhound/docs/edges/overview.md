@@ -28,7 +28,7 @@ Each article in this section documents an individual edge, and each contains:
 * A description of the edge.
 * **Abuse Info:** How red teamers can use the privilege of the edge to obtain their goals.
 * **Opsec Considerations:** What red teamers should consider avoiding detection and thereby increasing **op**erational **sec**urity.
-* **Edge Schema:** Lists valid edge sources and destinations (targets) and specifies whether the edge is traversable. 
+* **Edge Schema:** Lists valid edge sources and destinations (targets) and specifies whether the edge is traversable.
 
 * **References:** Links to publicly available sources used to create the above information.
 

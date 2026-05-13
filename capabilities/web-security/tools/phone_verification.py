@@ -191,8 +191,7 @@ class PhoneVerification(Toolset):
         self,
         country: Annotated[
             str,
-            "Filter by country name (e.g. 'United States', 'United Kingdom'). "
-            "Use 'all' for every available number.",
+            "Filter by country name (e.g. 'United States', 'United Kingdom'). " "Use 'all' for every available number.",
         ] = "all",
     ) -> str:
         """List available free public phone numbers from receive-smss.com.
@@ -224,9 +223,7 @@ class PhoneVerification(Toolset):
         for n in numbers:
             lines.append(f"  {n['number']:<20} {n['country']:<20} {n['inbox_url']}")
 
-        lines.append(
-            "\nUse read_phone_inbox with the number to check for verification codes."
-        )
+        lines.append("\nUse read_phone_inbox with the number to check for verification codes.")
         return "\n".join(lines)
 
     @tool_method(name="read_phone_inbox", catch=True)
@@ -234,13 +231,11 @@ class PhoneVerification(Toolset):
         self,
         phone_number: Annotated[
             str,
-            "Phone number (digits only or with +). "
-            "Or a full inbox URL from a free SMS provider.",
+            "Phone number (digits only or with +). " "Or a full inbox URL from a free SMS provider.",
         ],
         sender_filter: Annotated[
             str,
-            "Only show messages from this sender (substring match). "
-            "Empty string for all messages.",
+            "Only show messages from this sender (substring match). " "Empty string for all messages.",
         ] = "",
         code_regex: Annotated[
             str,

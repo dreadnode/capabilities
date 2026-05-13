@@ -209,20 +209,14 @@ async def pe_triage_status() -> dict[str, Any]:
     if floss_path:
         rc, _, err = await _run([floss_path, "--help"], timeout=15)
         status["floss"] = (
-            "ok"
-            if rc == 0
-            else f"unavailable: floss --help exited {rc}: {err.decode(errors='replace')[:200]}"
+            "ok" if rc == 0 else f"unavailable: floss --help exited {rc}: {err.decode(errors='replace')[:200]}"
         )
     else:
-        status["floss"] = (
-            "unavailable: `floss` CLI not on PATH (flare-floss installs it as a console_script)"
-        )
+        status["floss"] = "unavailable: `floss` CLI not on PATH (flare-floss installs it as a console_script)"
 
     capa_path = _which("capa")
     if not capa_path:
-        status["capa"] = (
-            "unavailable: `capa` CLI not on PATH (flare-capa installs it as a console_script)"
-        )
+        status["capa"] = "unavailable: `capa` CLI not on PATH (flare-capa installs it as a console_script)"
     else:
         try:
             rules = await _ensure_capa_rules()
@@ -296,12 +290,7 @@ async def pe_info(
         for entry in pe.DIRECTORY_ENTRY_IMPORT:
             dll = entry.dll.decode(errors="replace")
             names = [
-                (
-                    imp.name.decode(errors="replace")
-                    if imp.name
-                    else f"ordinal_{imp.ordinal}"
-                )
-                for imp in entry.imports
+                (imp.name.decode(errors="replace") if imp.name else f"ordinal_{imp.ordinal}") for imp in entry.imports
             ]
             imports[dll] = names
 
@@ -325,9 +314,7 @@ async def pe_info(
         "QueryPerformanceCounter",
         "RtlAddVectoredExceptionHandler",
     }
-    flagged_imports = sorted(
-        {api for apis in imports.values() for api in apis if api in anti_debug_apis}
-    )
+    flagged_imports = sorted({api for apis in imports.values() for api in apis if api in anti_debug_apis})
 
     return {
         "path": str(p),
@@ -453,9 +440,7 @@ async def pe_floss(
 
     rc, stdout, stderr = await _run(argv, timeout=timeout)
     if rc != 0:
-        raise RuntimeError(
-            f"floss exited {rc}: {stderr.decode(errors='replace')[:500]}"
-        )
+        raise RuntimeError(f"floss exited {rc}: {stderr.decode(errors='replace')[:500]}")
 
     try:
         doc = _json.loads(stdout.decode(errors="replace"))
@@ -477,9 +462,7 @@ async def pe_floss(
         for it in items:
             s = it.get("string", "")
             # FLOSS records use 'address' for stack/tight/decoded, 'offset' for static.
-            addr = (
-                it.get("address") if it.get("address") is not None else it.get("offset")
-            )
+            addr = it.get("address") if it.get("address") is not None else it.get("offset")
             if isinstance(addr, int):
                 lines.append(f"0x{addr:08x}\t{s}")
             else:
@@ -495,9 +478,7 @@ async def pe_floss(
 @mcp.tool
 async def pe_capa(
     path: Annotated[str, "Path to the PE file"],
-    summary_only: Annotated[
-        bool, "Return just the capability names (no per-match details)"
-    ] = False,
+    summary_only: Annotated[bool, "Return just the capability names (no per-match details)"] = False,
     timeout: Annotated[int, "Subprocess timeout (seconds)"] = DEFAULT_TIMEOUT,
 ) -> str:
     """Run MITRE capa against the binary and return capability tags.

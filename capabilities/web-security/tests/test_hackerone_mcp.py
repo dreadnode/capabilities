@@ -267,18 +267,26 @@ class TestListProgramsTool:
         mock_client.get.return_value = _mock_response(
             json_data={
                 "data": [
-                    _jsonapi_resource("1", "program", {
-                        "handle": "example",
-                        "name": "Example Corp",
-                        "offers_bounties": True,
-                        "submission_state": "open",
-                    }),
-                    _jsonapi_resource("2", "program", {
-                        "handle": "test-vdp",
-                        "name": "Test VDP",
-                        "offers_bounties": False,
-                        "submission_state": "open",
-                    }),
+                    _jsonapi_resource(
+                        "1",
+                        "program",
+                        {
+                            "handle": "example",
+                            "name": "Example Corp",
+                            "offers_bounties": True,
+                            "submission_state": "open",
+                        },
+                    ),
+                    _jsonapi_resource(
+                        "2",
+                        "program",
+                        {
+                            "handle": "test-vdp",
+                            "name": "Test VDP",
+                            "offers_bounties": False,
+                            "submission_state": "open",
+                        },
+                    ),
                 ],
             }
         )
@@ -305,20 +313,28 @@ class TestGetProgramScopeTool:
     @pytest.mark.asyncio
     async def test_scope_assets(self) -> None:
         items = [
-            _jsonapi_resource("1", "structured_scope", {
-                "asset_type": "URL",
-                "asset_identifier": "https://api.example.com",
-                "eligible_for_bounty": True,
-                "max_severity": "critical",
-                "instruction": "Focus on API endpoints",
-            }),
-            _jsonapi_resource("2", "structured_scope", {
-                "asset_type": "WILDCARD",
-                "asset_identifier": "*.example.com",
-                "eligible_for_bounty": True,
-                "max_severity": "critical",
-                "instruction": "",
-            }),
+            _jsonapi_resource(
+                "1",
+                "structured_scope",
+                {
+                    "asset_type": "URL",
+                    "asset_identifier": "https://api.example.com",
+                    "eligible_for_bounty": True,
+                    "max_severity": "critical",
+                    "instruction": "Focus on API endpoints",
+                },
+            ),
+            _jsonapi_resource(
+                "2",
+                "structured_scope",
+                {
+                    "asset_type": "WILDCARD",
+                    "asset_identifier": "*.example.com",
+                    "eligible_for_bounty": True,
+                    "max_severity": "critical",
+                    "instruction": "",
+                },
+            ),
         ]
 
         with patch.object(MODULE, "_paginate_all", return_value=items):
@@ -348,13 +364,17 @@ class TestSearchReportsTool:
         mock_client.get.return_value = _mock_response(
             json_data={
                 "data": [
-                    _jsonapi_resource("12345", "report", {
-                        "title": "XSS in search",
-                        "state": "triaged",
-                        "severity_rating": "high",
-                        "created_at": "2026-01-15T10:00:00Z",
-                        "bounty_awarded_amount": None,
-                    }),
+                    _jsonapi_resource(
+                        "12345",
+                        "report",
+                        {
+                            "title": "XSS in search",
+                            "state": "triaged",
+                            "severity_rating": "high",
+                            "created_at": "2026-01-15T10:00:00Z",
+                            "bounty_awarded_amount": None,
+                        },
+                    ),
                 ],
             }
         )
@@ -373,9 +393,7 @@ class TestSearchReportsTool:
         mock_client.get.return_value = _mock_response(json_data={"data": []})
 
         with patch.object(MODULE._h1, "safe_get", return_value=(mock_client, None)):
-            result = await MODULE.hackerone_search_reports(
-                program="example", severity="critical", state="resolved"
-            )
+            result = await MODULE.hackerone_search_reports(program="example", severity="critical", state="resolved")
 
         assert "No reports found" in result
         # Verify filters were passed
@@ -448,10 +466,14 @@ class TestSubmitReportTool:
         mock_client.post.return_value = _mock_response(
             status_code=201,
             json_data={
-                "data": _jsonapi_resource("77777", "report", {
-                    "title": "SSRF via URL parameter",
-                    "state": "new",
-                }),
+                "data": _jsonapi_resource(
+                    "77777",
+                    "report",
+                    {
+                        "title": "SSRF via URL parameter",
+                        "state": "new",
+                    },
+                ),
             },
         )
 
@@ -527,12 +549,16 @@ class TestSearchHacktivityTool:
         mock_client.get.return_value = _mock_response(
             json_data={
                 "data": [
-                    _jsonapi_resource("1", "hacktivity_item", {
-                        "title": "Stored XSS in comments",
-                        "severity_rating": "high",
-                        "disclosed_at": "2026-02-10T00:00:00Z",
-                        "total_awarded_amount": "2500",
-                    }),
+                    _jsonapi_resource(
+                        "1",
+                        "hacktivity_item",
+                        {
+                            "title": "Stored XSS in comments",
+                            "severity_rating": "high",
+                            "disclosed_at": "2026-02-10T00:00:00Z",
+                            "total_awarded_amount": "2500",
+                        },
+                    ),
                 ],
             }
         )
@@ -562,18 +588,26 @@ class TestGetReportActivitiesTool:
         mock_client.get.return_value = _mock_response(
             json_data={
                 "data": [
-                    _jsonapi_resource("a1", "activity-comment", {
-                        "created_at": "2026-03-10T14:00:00Z",
-                        "message": "Thanks for the report. We are investigating.",
-                        "internal": False,
-                        "automated_response": False,
-                    }),
-                    _jsonapi_resource("a2", "activity-bug-triaged", {
-                        "created_at": "2026-03-11T09:00:00Z",
-                        "message": "",
-                        "internal": False,
-                        "automated_response": True,
-                    }),
+                    _jsonapi_resource(
+                        "a1",
+                        "activity-comment",
+                        {
+                            "created_at": "2026-03-10T14:00:00Z",
+                            "message": "Thanks for the report. We are investigating.",
+                            "internal": False,
+                            "automated_response": False,
+                        },
+                    ),
+                    _jsonapi_resource(
+                        "a2",
+                        "activity-bug-triaged",
+                        {
+                            "created_at": "2026-03-11T09:00:00Z",
+                            "message": "",
+                            "internal": False,
+                            "automated_response": True,
+                        },
+                    ),
                 ],
             }
         )
@@ -594,12 +628,16 @@ class TestGetEarningsTool:
         mock_client.get.return_value = _mock_response(
             json_data={
                 "data": [
-                    _jsonapi_resource("e1", "earning", {
-                        "amount": "1500.00",
-                        "currency": "USD",
-                        "awarded_by": "Example Corp",
-                        "created_at": "2026-03-01T00:00:00Z",
-                    }),
+                    _jsonapi_resource(
+                        "e1",
+                        "earning",
+                        {
+                            "amount": "1500.00",
+                            "currency": "USD",
+                            "awarded_by": "Example Corp",
+                            "created_at": "2026-03-01T00:00:00Z",
+                        },
+                    ),
                 ],
             }
         )

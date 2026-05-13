@@ -82,18 +82,14 @@ async def _http_get_json(
 
 async def _get_catalog(session: aiohttp.ClientSession) -> list[str]:
     """Fetch the full MCR repository catalog."""
-    data = await _http_get_json(
-        session, f"{REGISTRY}/v2/_catalog", timeout=CATALOG_TIMEOUT
-    )
+    data = await _http_get_json(session, f"{REGISTRY}/v2/_catalog", timeout=CATALOG_TIMEOUT)
     return data["repositories"]
 
 
 async def _get_tags(session: aiohttp.ClientSession, repo: str) -> list[str]:
     """Fetch all available tags for a repo. Returns [] on error."""
     try:
-        result = await _http_get_json(
-            session, f"{REGISTRY}/v2/{repo}/tags/list", timeout=TAGS_TIMEOUT
-        )
+        result = await _http_get_json(session, f"{REGISTRY}/v2/{repo}/tags/list", timeout=TAGS_TIMEOUT)
         return result.get("tags") or []
     except (aiohttp.ClientResponseError, KeyError):
         return []
@@ -176,9 +172,7 @@ async def _resolve_layers(
 
     # Case 1: manifest list — pick platform, then get layers
     if "manifests" in data:
-        platform_manifest = await _resolve_platform_manifest(
-            session, repo, data["manifests"], platform
-        )
+        platform_manifest = await _resolve_platform_manifest(session, repo, data["manifests"], platform)
         return platform_manifest.get("layers", [])
 
     # Case 2: single v2 manifest — layers inline
@@ -241,9 +235,7 @@ async def _peek_layer(
             break
 
         try:
-            decompressed = zlib.decompressobj(16 + zlib.MAX_WBITS).decompress(
-                buffer.read()
-            )
+            decompressed = zlib.decompressobj(16 + zlib.MAX_WBITS).decompress(buffer.read())
             names: list[str] = []
             with tarfile.open(mode="r|", fileobj=BytesIO(decompressed)) as tar:
                 try:
@@ -289,16 +281,11 @@ async def _find_app_layers(
         return []
 
     # Peek all candidate layers concurrently
-    peek_results = await asyncio.gather(
-        *(_peek_layer(session, repo, digest) for digest, _ in candidates)
-    )
+    peek_results = await asyncio.gather(*(_peek_layer(session, repo, digest) for digest, _ in candidates))
 
     app_layers: list[tuple[str, int, list[str]]] = []
     for (digest, size), files in zip(candidates, peek_results):
-        if files and (
-            any(_is_app_path(f) for f in files)
-            or any(_is_dotnet_binary(f) for f in files)
-        ):
+        if files and (any(_is_app_path(f) for f in files) or any(_is_dotnet_binary(f) for f in files)):
             app_layers.append((digest, size, files))
 
     return app_layers
@@ -326,17 +313,12 @@ async def _download_layer(
             resp.raise_for_status()
             content_length = resp.content_length
             if content_length is not None and content_length > MAX_LAYER_SIZE:
-                raise RuntimeError(
-                    f"Layer {digest} is {content_length} bytes, "
-                    f"exceeds {MAX_LAYER_SIZE} byte limit"
-                )
+                raise RuntimeError(f"Layer {digest} is {content_length} bytes, " f"exceeds {MAX_LAYER_SIZE} byte limit")
             downloaded = 0
             async for chunk in resp.content.iter_chunked(1024 * 1024):
                 downloaded += len(chunk)
                 if downloaded > MAX_LAYER_SIZE:
-                    raise RuntimeError(
-                        f"Layer {digest} download exceeded {MAX_LAYER_SIZE} byte limit"
-                    )
+                    raise RuntimeError(f"Layer {digest} download exceeded {MAX_LAYER_SIZE} byte limit")
                 tmp.write(chunk)
         tmp.flush()
         tmp.seek(0)
@@ -379,9 +361,7 @@ async def _download_layer(
 # ---------------------------------------------------------------------------
 
 
-def _format_extraction_summary(
-    out_dir: Path, repo: str, tag: str, files: list[str], cached: bool = False
-) -> str:
+def _format_extraction_summary(out_dir: Path, repo: str, tag: str, files: list[str], cached: bool = False) -> str:
     """Format the extraction summary for the agent."""
     lines: list[str] = []
 
@@ -453,9 +433,7 @@ async def mcr_search_repositories(
 async def mcr_list_tags(
     repository: t.Annotated[str, "MCR repository path, e.g. 'dotnet/aspnet'"],
     filter_pattern: t.Annotated[str, "Optional substring filter for tag names"] = "",
-    include_windows: t.Annotated[
-        bool, "Include Windows tags (excluded by default)"
-    ] = False,
+    include_windows: t.Annotated[bool, "Include Windows tags (excluded by default)"] = False,
 ) -> str:
     """List available tags for an MCR repository, sorted by version (newest first).
 
@@ -499,12 +477,8 @@ async def mcr_pull_and_extract(
         str,
         "MCR image ref, e.g. 'dotnet/aspnet:8.0' or 'dotnet/aspnet' (defaults to latest tag)",
     ],
-    platform: t.Annotated[
-        str, "Target platform: 'linux/amd64' (default) or 'linux/arm64'"
-    ] = "linux/amd64",
-    dll_only: t.Annotated[
-        bool, "Only extract .dll and .exe files (default True)"
-    ] = True,
+    platform: t.Annotated[str, "Target platform: 'linux/amd64' (default) or 'linux/arm64'"] = "linux/amd64",
+    dll_only: t.Annotated[bool, "Only extract .dll and .exe files (default True)"] = True,
 ) -> str:
     """Extract .NET assemblies from an MCR image without running any container code.
 
@@ -553,9 +527,7 @@ async def mcr_pull_and_extract(
         all_files: list[str] = []
         for digest, _size, _peeked_files in app_layers:
             try:
-                extracted = await _download_layer(
-                    session, repo, digest, out_dir, dll_only
-                )
+                extracted = await _download_layer(session, repo, digest, out_dir, dll_only)
                 all_files.extend(extracted)
             except Exception as e:
                 logger.warning(f"Failed to extract layer {digest}: {e}")

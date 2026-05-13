@@ -16,7 +16,7 @@ Execute one or more mimikatz commands.
 #### Command
 The command you would like mimikatz to run. Some commands require certain privileges and may need the `token::elevate` Mimikatz command or the builtin equivalent [`getprivs`](/agents/apollo/commands/getprivs/) to be executed first.
 
-The `mimikatz` binary takes space-separated commands. For example, if you wanted to ensure your token had the correct privileges before dumping LSASS, you could do `mimikatz token::elevate sekurlsa::logonpasswords` to first elevate your token before running `logonpasswords`. Due to this space-separated command list, if you wish to run a command that has arguments (or spaces in its command name), you'll need to encapsulate that command in _escaped_ quotes. 
+The `mimikatz` binary takes space-separated commands. For example, if you wanted to ensure your token had the correct privileges before dumping LSASS, you could do `mimikatz token::elevate sekurlsa::logonpasswords` to first elevate your token before running `logonpasswords`. Due to this space-separated command list, if you wish to run a command that has arguments (or spaces in its command name), you'll need to encapsulate that command in _escaped_ quotes.
 
 ## Usage
 ```

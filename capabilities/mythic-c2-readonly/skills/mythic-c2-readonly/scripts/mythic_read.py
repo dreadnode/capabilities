@@ -378,11 +378,12 @@ async def cmd_tasks(client: Any, args: argparse.Namespace) -> None:
         "operator{username},callback{display_id,host}"
     )
     tasks_raw = await mythic_sdk.get_all_tasks(
-        client, custom_return_attributes=attrs,
+        client,
+        custom_return_attributes=attrs,
         callback_display_id=args.callback,
     )
     tasks_raw.sort(key=lambda x: x.get("id", 0), reverse=True)
-    page_raw = tasks_raw[args.offset: args.offset + args.limit]
+    page_raw = tasks_raw[args.offset : args.offset + args.limit]
 
     if args.json or args.detail:
         print_json(page_raw)
@@ -403,13 +404,13 @@ async def cmd_tasks(client: Any, args: argparse.Namespace) -> None:
     ]
     print_table(headers, rows, max_widths={2: 60})
     if len(tasks_raw) > args.offset + args.limit:
-        print(f"\n({len(tasks_raw)} total tasks — showing {args.offset + 1}-{args.offset + len(tasks)}, use --offset to page)")
+        print(
+            f"\n({len(tasks_raw)} total tasks — showing {args.offset + 1}-{args.offset + len(tasks)}, use --offset to page)"
+        )
 
 
 async def cmd_task_output(client: Any, args: argparse.Namespace) -> None:
-    responses = await mythic_sdk.get_all_task_and_subtask_output_by_id(
-        mythic=client, task_display_id=args.id
-    )
+    responses = await mythic_sdk.get_all_task_and_subtask_output_by_id(mythic=client, task_display_id=args.id)
     if not responses:
         print(f"No output for task {args.id}")
         return
@@ -423,9 +424,9 @@ async def cmd_task_output(client: Any, args: argparse.Namespace) -> None:
     total = len(lines)
 
     if args.offset > 0 or args.max_lines is not None:
-        sliced = lines[args.offset:]
+        sliced = lines[args.offset :]
         if args.max_lines is not None:
-            sliced = sliced[:args.max_lines]
+            sliced = sliced[: args.max_lines]
         print("\n".join(sliced))
         shown_end = min(args.offset + len(sliced), total)
         if shown_end < total:
@@ -454,10 +455,7 @@ async def cmd_credentials(client: Any, args: argparse.Namespace) -> None:
 
     creds = _parse_list(CredentialInList, creds_raw)
     headers = ["ID", "TYPE", "REALM", "ACCOUNT", "CREDENTIAL", "COMMENT"]
-    rows = [
-        [str(c.id), c.type, c.realm, c.account, c.credential_text, c.comment]
-        for c in creds
-    ]
+    rows = [[str(c.id), c.type, c.realm, c.account, c.credential_text, c.comment] for c in creds]
     print_table(headers, rows, max_widths={4: 50, 5: 40})
 
 
@@ -478,7 +476,7 @@ async def cmd_files(client: Any, args: argparse.Namespace) -> None:
             results.extend(batch)
             if len(results) >= args.limit:
                 break
-    page_raw = results[:args.limit]
+    page_raw = results[: args.limit]
 
     if args.json or args.detail:
         print_json(page_raw)
@@ -611,7 +609,7 @@ async def cmd_screenshots(client: Any, args: argparse.Namespace) -> None:
         results.extend(batch)
         if len(results) >= args.limit:
             break
-    page_raw = results[:args.limit]
+    page_raw = results[: args.limit]
 
     if args.json or args.detail:
         print_json(page_raw)
@@ -619,10 +617,7 @@ async def cmd_screenshots(client: Any, args: argparse.Namespace) -> None:
 
     screenshots = _parse_list(ScreenshotInList, page_raw)
     headers = ["FILE_ID", "HOST", "TIMESTAMP"]
-    rows = [
-        [s.agent_file_id, s.host, s.timestamp[:16]]
-        for s in screenshots
-    ]
+    rows = [[s.agent_file_id, s.host, s.timestamp[:16]] for s in screenshots]
     print_table(headers, rows)
 
 
@@ -704,14 +699,16 @@ async def cmd_file_browser(client: Any, args: argparse.Namespace) -> None:
     rows = []
     for e in entries:
         perms = e.metadata.get("permissions", {})
-        rows.append([
-            e.name_text,
-            e.full_path_text,
-            e.host,
-            "dir" if e.can_have_children else "file",
-            str(e.metadata.get("size", "")),
-            perms.get("permissions", "") if isinstance(perms, dict) else "",
-        ])
+        rows.append(
+            [
+                e.name_text,
+                e.full_path_text,
+                e.host,
+                "dir" if e.can_have_children else "file",
+                str(e.metadata.get("size", "")),
+                perms.get("permissions", "") if isinstance(perms, dict) else "",
+            ]
+        )
     print_table(headers, rows, max_widths={1: 50})
 
 
@@ -751,10 +748,7 @@ async def cmd_tokens(client: Any, args: argparse.Namespace) -> None:
 
     tokens = _parse_list(TokenInList, tokens_raw)
     headers = ["ID", "USER", "HOST", "GROUPS", "PRIVILEGES", "DESCRIPTION"]
-    rows = [
-        [str(t.id), t.user, t.host, str(t.groups), str(t.privileges), t.description]
-        for t in tokens
-    ]
+    rows = [[str(t.id), t.user, t.host, str(t.groups), str(t.privileges), t.description] for t in tokens]
     print_table(headers, rows, max_widths={3: 40, 4: 40})
 
 
@@ -764,46 +758,66 @@ async def cmd_search(client: Any, args: argparse.Namespace) -> None:
 
     queries = {}
     if "tasks" in types:
-        queries["tasks"] = gql(client, """
+        queries["tasks"] = gql(
+            client,
+            """
             query SearchTasks($s: String!, $l: Int!) {
                 task(where: {_or: [{display_params: {_ilike: $s}}, {command_name: {_ilike: $s}}, {comment: {_ilike: $s}}]},
                      order_by: {id: desc}, limit: $l) {
                     display_id, command_name, display_params, status, timestamp,
                     callback { display_id, host }
                 }
-            }""", {"s": term, "l": args.limit})
+            }""",
+            {"s": term, "l": args.limit},
+        )
     if "credentials" in types:
-        queries["credentials"] = gql(client, """
+        queries["credentials"] = gql(
+            client,
+            """
             query SearchCreds($s: String!, $l: Int!) {
                 credential(where: {_or: [{account: {_ilike: $s}}, {realm: {_ilike: $s}}, {credential_text: {_ilike: $s}}, {comment: {_ilike: $s}}]},
                            order_by: {id: desc}, limit: $l) {
                     id, type, realm, account, credential_text, comment
                 }
-            }""", {"s": term, "l": args.limit})
+            }""",
+            {"s": term, "l": args.limit},
+        )
     if "files" in types:
-        queries["files"] = gql(client, """
+        queries["files"] = gql(
+            client,
+            """
             query SearchFiles($s: String!, $l: Int!) {
                 filemeta(where: {_or: [{filename_utf8: {_ilike: $s}}, {full_remote_path_utf8: {_ilike: $s}}]},
                          order_by: {id: desc}, limit: $l) {
                     agent_file_id, filename_utf8, full_remote_path_utf8, host, is_download_from_agent
                 }
-            }""", {"s": term, "l": args.limit})
+            }""",
+            {"s": term, "l": args.limit},
+        )
     if "artifacts" in types:
-        queries["artifacts"] = gql(client, """
+        queries["artifacts"] = gql(
+            client,
+            """
             query SearchArtifacts($s: String!, $l: Int!) {
                 taskartifact(where: {_or: [{artifact_text: {_ilike: $s}}, {base_artifact: {_ilike: $s}}]},
                              order_by: {id: desc}, limit: $l) {
                     id, artifact_text, base_artifact, host
                 }
-            }""", {"s": term, "l": args.limit})
+            }""",
+            {"s": term, "l": args.limit},
+        )
     if "keylogs" in types:
-        queries["keylogs"] = gql(client, """
+        queries["keylogs"] = gql(
+            client,
+            """
             query SearchKeylogs($s: String!, $l: Int!) {
                 keylog(where: {_or: [{keystrokes_text: {_ilike: $s}}, {window: {_ilike: $s}}]},
                        order_by: {id: desc}, limit: $l) {
                     id, keystrokes_text, window
                 }
-            }""", {"s": term, "l": args.limit})
+            }""",
+            {"s": term, "l": args.limit},
+        )
 
     keys = list(queries.keys())
     raw = await asyncio.gather(*queries.values(), return_exceptions=True)
@@ -931,11 +945,21 @@ async def main() -> None:
     client = await connect()
 
     commands = {
-        "status": cmd_status, "callbacks": cmd_callbacks, "callback": cmd_callback,
-        "tasks": cmd_tasks, "task-output": cmd_task_output, "credentials": cmd_credentials,
-        "files": cmd_files, "file-contents": cmd_file_contents, "artifacts": cmd_artifacts,
-        "keylogs": cmd_keylogs, "screenshots": cmd_screenshots, "processes": cmd_processes,
-        "file-browser": cmd_file_browser, "tokens": cmd_tokens, "search": cmd_search,
+        "status": cmd_status,
+        "callbacks": cmd_callbacks,
+        "callback": cmd_callback,
+        "tasks": cmd_tasks,
+        "task-output": cmd_task_output,
+        "credentials": cmd_credentials,
+        "files": cmd_files,
+        "file-contents": cmd_file_contents,
+        "artifacts": cmd_artifacts,
+        "keylogs": cmd_keylogs,
+        "screenshots": cmd_screenshots,
+        "processes": cmd_processes,
+        "file-browser": cmd_file_browser,
+        "tokens": cmd_tokens,
+        "search": cmd_search,
     }
     await commands[args.command](client, args)
 

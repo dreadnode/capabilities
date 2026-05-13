@@ -244,9 +244,7 @@ class TestModelAliases:
     )
     def test_model_alias_prefix(self, alias: str, expected_prefix: str) -> None:
         resolved = runner.MODEL_ALIASES.get(alias, alias)
-        assert resolved.startswith(
-            expected_prefix
-        ), f"'{alias}' → '{resolved}' doesn't start with '{expected_prefix}'"
+        assert resolved.startswith(expected_prefix), f"'{alias}' → '{resolved}' doesn't start with '{expected_prefix}'"
 
     def test_model_alias_count(self) -> None:
         """Should have 100+ model aliases."""
@@ -293,15 +291,11 @@ class TestScriptGeneration:
     """Generated scripts must be valid Python that compiles."""
 
     def test_single_attack(self) -> None:
-        result = _generate(
-            {"attack_type": "tap", "goal": "test", "target_model": "groq"}
-        )
+        result = _generate({"attack_type": "tap", "goal": "test", "target_model": "groq"})
         assert "error" not in result
 
     def test_campaign(self) -> None:
-        result = _generate(
-            {"attack_type": "tap,goat", "goal": "test", "target_model": "groq"}
-        )
+        result = _generate({"attack_type": "tap,goat", "goal": "test", "target_model": "groq"})
         assert "error" not in result
 
     def test_transform_study(self) -> None:
@@ -365,12 +359,8 @@ class TestScriptGeneration:
             "drattack",
             "deep_inception",
         ]:
-            result = _generate(
-                {"attack_type": atk, "goal": "test", "target_model": "groq"}
-            )
-            assert (
-                "error" not in result
-            ), f"Attack '{atk}' failed: {result.get('error', '')}"
+            result = _generate({"attack_type": atk, "goal": "test", "target_model": "groq"})
+            assert "error" not in result, f"Attack '{atk}' failed: {result.get('error', '')}"
 
 
 # =============================================================================
@@ -392,40 +382,26 @@ class TestGeneratedScriptQuality:
         wf_dir = Path("/tmp/airt_test/airt/workflows")
         if not wf_dir.exists():
             wf_dir = Path(os.path.expanduser("~/workspace/airt/workflows"))
-        files = sorted(
-            wf_dir.glob("*.py"), key=lambda f: f.stat().st_mtime, reverse=True
-        )
+        files = sorted(wf_dir.glob("*.py"), key=lambda f: f.stat().st_mtime, reverse=True)
         return files[0].read_text() if files else ""
 
     def test_script_compiles(self) -> None:
-        script = self._get_script(
-            {"attack_type": "tap", "goal": "test", "target_model": "groq"}
-        )
+        script = self._get_script({"attack_type": "tap", "goal": "test", "target_model": "groq"})
         compile(script, "test.py", "exec")  # Raises SyntaxError if invalid
 
     def test_script_has_retry_logic(self) -> None:
-        script = self._get_script(
-            {"attack_type": "tap", "goal": "test", "target_model": "groq"}
-        )
-        assert (
-            "for attempt in range(3)" in script
-        ), "Target function should have 3-attempt retry"
+        script = self._get_script({"attack_type": "tap", "goal": "test", "target_model": "groq"})
+        assert "for attempt in range(3)" in script, "Target function should have 3-attempt retry"
 
     def test_script_has_assessment(self) -> None:
-        script = self._get_script(
-            {"attack_type": "tap", "goal": "test", "target_model": "groq"}
-        )
+        script = self._get_script({"attack_type": "tap", "goal": "test", "target_model": "groq"})
         assert "Assessment(" in script
 
     def test_script_has_sdk_configure(self) -> None:
-        script = self._get_script(
-            {"attack_type": "tap", "goal": "test", "target_model": "groq"}
-        )
+        script = self._get_script({"attack_type": "tap", "goal": "test", "target_model": "groq"})
         assert "dn.configure(" in script
 
     def test_campaign_script_has_multiple_attacks(self) -> None:
-        script = self._get_script(
-            {"attack_type": "tap,goat", "goal": "test", "target_model": "groq"}
-        )
+        script = self._get_script({"attack_type": "tap,goat", "goal": "test", "target_model": "groq"})
         assert "tap_attack(" in script
         assert "goat_attack(" in script

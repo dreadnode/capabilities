@@ -53,9 +53,7 @@ class TestToolRegistration:
             "list_notes",
             "search",
         }
-        assert expected == tool_names, (
-            f"Unexpected: {tool_names - expected}, Missing: {expected - tool_names}"
-        )
+        assert expected == tool_names, f"Unexpected: {tool_names - expected}, Missing: {expected - tool_names}"
 
     def test_tool_count(self):
         import asyncio
@@ -122,34 +120,42 @@ class TestBuildWhere:
         assert variables == {}
 
     def test_none_value_skipped(self):
-        where, decls, variables = server._build_where({
-            "projectId": {"predicate": "projectId: {_eq: $projectId}", "value": None},
-        })
+        where, decls, variables = server._build_where(
+            {
+                "projectId": {"predicate": "projectId: {_eq: $projectId}", "value": None},
+            }
+        )
         assert where == ""
         assert decls == ""
         assert variables == {}
 
     def test_int_filter_uses_bigint(self):
-        where, decls, variables = server._build_where({
-            "projectId": {"predicate": "projectId: {_eq: $projectId}", "value": 42},
-        })
+        where, decls, variables = server._build_where(
+            {
+                "projectId": {"predicate": "projectId: {_eq: $projectId}", "value": 42},
+            }
+        )
         assert ", where: {projectId: {_eq: $projectId}}" == where
         assert ", $projectId: bigint" == decls
         assert variables == {"projectId": 42}
 
     def test_str_filter_uses_string(self):
-        where, decls, variables = server._build_where({
-            "severity": {"predicate": "severity: {severity: {_ilike: $severity}}", "value": "High"},
-        })
+        where, decls, variables = server._build_where(
+            {
+                "severity": {"predicate": "severity: {severity: {_ilike: $severity}}", "value": "High"},
+            }
+        )
         assert "severity" in where
         assert ", $severity: String" == decls
         assert variables == {"severity": "High"}
 
     def test_multiple_filters_combined(self):
-        where, decls, variables = server._build_where({
-            "projectId": {"predicate": "projectId: {_eq: $projectId}", "value": 1},
-            "severity": {"predicate": "severity: {severity: {_ilike: $severity}}", "value": "High"},
-        })
+        where, decls, variables = server._build_where(
+            {
+                "projectId": {"predicate": "projectId: {_eq: $projectId}", "value": 1},
+                "severity": {"predicate": "severity: {severity: {_ilike: $severity}}", "value": "High"},
+            }
+        )
         assert "projectId" in where
         assert "severity" in where
         assert "$projectId: bigint" in decls
@@ -216,9 +222,9 @@ class TestSearchTypes:
         """Each _SEARCH_QUERIES entry's 'field' must exist on SearchResult."""
         sr_fields = set(server.SearchResult.model_fields)
         for key, entry in server._SEARCH_QUERIES.items():
-            assert entry["field"] in sr_fields, (
-                f"search entry {key!r} references nonexistent SearchResult.{entry['field']}"
-            )
+            assert (
+                entry["field"] in sr_fields
+            ), f"search entry {key!r} references nonexistent SearchResult.{entry['field']}"
 
 
 if __name__ == "__main__":
