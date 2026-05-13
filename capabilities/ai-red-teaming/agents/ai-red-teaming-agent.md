@@ -327,165 +327,29 @@ When you call `generate_attack`, it:
 
 ## Transform Catalog
 
-Use these EXACT names in the transforms array. All transforms are grounded to the Dreadnode SDK.
+📖 **Complete catalog**: See [transform-catalog.md](./transform-catalog.md) for full reference
 
-### Encoding
+**Common transforms include**:
+- **Encoding**: `base64`, `hex`, `leetspeak`, `morse`, `unicode_escape`
+- **Cipher**: `caesar`, `rot13`, `vigenere`, `substitution`
+- **Persuasion**: `authority`, `social_proof`, `urgency_scarcity`
+- **Language**: `adapt_language(Zulu)`, `code_switch`
+- **MCP**: `tool_description_poison`, `schema_poisoning`
+- **Multi-Agent**: `prompt_infection`, `consensus_poisoning`
 
-`base64`, `base32`, `hex`, `binary`, `leetspeak`, `morse`, `url_encode`, `html_entity`, `unicode_escape`, `zero_width_encode`, `upside_down`, `braille`, `ascii85`, `homoglyph`, `unicode_font`, `pig_latin`, `octal`
-
-### Cipher
-
-`caesar` (or `caesar(5)`), `rot13`, `rot47`, `atbash`, `vigenere(key)`, `rail_fence(3)`, `substitution`, `affine(5,8)`, `playfair(KEY)`, `bacon`, `beaufort(key)`, `autokey(key)`
-
-### Persuasion
-
-`authority`, `social_proof`, `urgency_scarcity`, `reciprocity`, `emotional_appeal`, `logical_appeal`, `commitment_consistency`, `combined_persuasion`
-
-### Stylistic
-
-`role_play`, `ascii_art`
-
-### Perturbation
-
-`simulate_typos`, `unicode_confusable`, `payload_splitting`, `zero_width`, `emoji_substitution`, `random_capitalization`, `zalgo`, `cognitive_hacking`, `token_smuggling(text)`, `encoding_nesting`
-
-### Injection
-
-`skeleton_key_framing`, `many_shot_examples`, `position_variation`, `position_wrap`
-
-### Text
-
-`prefix(text)`, `suffix(text)`, `reverse`, `word_join(_)`, `char_join(-)`
-
-### Language (LLM-powered — any language)
-
-- `adapt_language(Zulu)`, `adapt_language(Welsh)`, `adapt_language(Yoruba)`, etc.
-- `code_switch` — mix languages (e.g. English/Spanish)
-- `dialectal_variation(AAVE)` — apply dialect variations
-
-### Transliteration (model-free)
-
-`transliterate(cyrillic)`, `transliterate(greek)`, `transliterate(arabic)`
-
-### Advanced Jailbreak
-
-`actor_network_escalation`, `code_completion_evasion`, `context_fusion`, `deep_fictional_immersion`, `guardrail_dos`, `likert_exploitation`, `pipeline_manipulation`, `prefill_bypass`, `reasoning_chain_hijack`
-
-### Guardrail Bypass
-
-`classifier_evasion`, `controlled_release`, `emoji_smuggle`, `hierarchy_exploit`, `nested_fiction`, `payload_split`
-
-### Response Steering
-
-`affirmative_priming`, `constraint_relaxation`, `output_format_manipulation`, `protocol_establishment`, `task_deflection`
-
-### Adversarial Suffix
-
-`adversarial_suffix`, `gcg_suffix`, `jailbreak_suffix`, `flip_attack`
-
-### MCP Attacks
-
-`tool_description_poison`, `cross_server_shadow`, `rug_pull_payload`, `tool_output_injection`, `schema_poisoning`, `ansi_escape_cloaking`, `mcp_sampling_injection`, `cross_server_request_forgery`, `tool_squatting`, `tool_preference_manipulation`, `log_to_leak`, `resource_amplification`
-
-### Multi-Agent Attacks
-
-`prompt_infection`, `peer_agent_spoof`, `consensus_poisoning`, `delegation_chain_attack`, `shared_memory_poisoning`, `agent_config_overwrite`, `experience_poisoning`, `trust_exploitation`, `persistent_memory_backdoor`, `query_memory_injection`
-
-### Exfiltration
-
-`markdown_image_exfil`, `mermaid_diagram_exfil`, `unicode_tag_exfil`, `dns_exfil_injection`, `ssrf_via_tools`, `link_unfurling_exfil`, `api_endpoint_abuse`, `character_exfiltration`
-
-### Reasoning Attacks
-
-`cot_backdoor`, `reasoning_hijack`, `reasoning_dos`, `crescendo_escalation`, `fitd_escalation`, `deceptive_delight`, `goal_drift_injection`
-
-### Browser Agent Attacks
-
-`visual_prompt_injection`, `ai_clickfix`, `domain_validation_bypass`, `navigation_hijack`, `task_injection`, `phantom_ui`
-
-### IDE Injection
-
-`rules_file_backdoor`, `mcp_tool_description_poison`, `manifest_injection`, `issue_injection`, `popup_injection`, `form_injection`, `xoxo_context_poison`
-
-### System Prompt Extraction
-
-`direct_extraction`, `indirect_extraction`, `boundary_probe`, `format_exploitation`, `multi_turn_extraction`, `reflection_probe`
-
-### PII Extraction
-
-`partial_pii_completion`, `divergence_extraction`, `public_figure_pii_probe`, `repeat_word_divergence`
-
-### RAG Poisoning
-
-`document_poison`, `context_injection`, `context_stuffing`, `query_manipulation`, `chunk_boundary_exploit`, `single_text_poison`, `bias_amplification`
-
-### Documentation Poisoning
-
-`documentation_poison`, `dockerfile_poison`, `env_var_injection`, `npm_package_readme_poison`, `pypi_package_readme_poison`
-
-### Logic Bombs
-
-`logic_bomb`, `time_bomb`, `environment_bomb`
-
-### Agentic Workflow
-
-`tool_restriction_bypass`, `phase_transition_bypass`, `tool_priority_injection`, `intent_manipulation`, `session_state_injection`, `action_hijacking`, `cypher_injection`, `delayed_tool_invocation`, `exploitation_mode_confusion`, `malformed_output_injection`, `phase_downgrade_attack`, `sql_via_nlp_injection`, `success_indicator_spoof`, `todo_list_manipulation`, `tool_chain_attack`, `wordlist_exhaustion`, `workflow_step_skip`, `payload_target_mismatch`
-
-### Agent Skill
-
-`agent_memory_injection`, `agent_permission_escalation`, `soul_file_injection`, `bootstrap_hook_injection`, `workspace_file_poison`, `skill_dependency_confusion`, `skill_package_poison`, `heartbeat_hijack`, `media_protocol_exfil`
-
-**For low-resource language transforms, always use `adapt_language(LanguageName)` syntax.**
+*Note: 200+ transforms available. Use exact names from catalog.*
 
 ## Scorer Catalog
 
-### Rubric-Based (LLM-judged)
+📖 **Complete catalog**: See [scorer-catalog.md](./scorer-catalog.md) for full reference
 
-`rce`, `data_exfiltration`, `data_exfil`, `goal_hijacking`, `memory_poisoning`, `privilege_escalation`, `priv_esc`, `scope_creep`, `tool_chaining`, `tool_selection_safety_rubric`, `unbounded_agency`, `web_chatbot_security`
+**Common scorers include**:
+- **Detection**: `refusal`, `credential_leakage`, `system_prompt_leaked`, `detect_pii`
+- **Rubric**: `data_exfiltration`, `privilege_escalation`, `goal_hijacking`, `tool_chaining`
+- **Agentic**: `tool_invoked`, `tool_selection_safety`, `dangerous_tool_args`
+- **Security**: `agent_config_tampered`, `workspace_poisoning`, `schema_poisoned`
 
-### Detection (pattern-based)
-
-`refusal`, `credential_leakage`, `system_prompt_leaked`, `detect_pii`, `detect_bias`
-
-### Agentic (tool-call based)
-
-`tool_invoked`, `any_tool_invoked`, `tool_selection_safety`, `tool_sequence`, `tool_count`, `dangerous_tool_args`, `cascade_propagation`, `mcp_tool_manipulation`, `indirect_injection_success`
-
-### Agentic Workflow Detection
-
-`phase_bypass`, `phase_downgrade`, `tool_priority_manipulation`, `tool_restriction_bypass`, `memory_injection`, `permission_escalation`, `agentic_workflow`, `cypher_injection`, `intent_manipulation`, `mode_confusion`, `session_state_poisoning`, `sql_injection_via_nlp`, `success_indicator_spoofing`, `todo_list_manipulation`, `wordlist_exhaustion`, `workflow_disruption`
-
-### Advanced Jailbreak Detection
-
-`fictional_framing`, `guardrail_dos`, `invisible_character`, `likert_exploitation`, `pipeline_manipulation`, `prefill_bypass`, `tool_chain_attack`, `malformed_json_injection`
-
-### Agent Security
-
-`agent_config_tampered`, `agent_identity_leaked`, `bootstrap_hook_injected`, `heartbeat_manipulation`, `skill_integrity_compromised`, `skill_supply_chain_attack`, `workspace_poisoning`
-
-### MCP Security
-
-`tool_description_poisoned`, `cross_server_shadow`, `rug_pull`, `sampling_injection`, `schema_poisoned`, `tool_output_injected`, `ansi_cloaking`
-
-### Multi-Agent Security
-
-`prompt_infection`, `agent_spoofing`, `consensus_poisoned`, `delegation_exploit`, `session_smuggling`, `agent_config_overwrite`
-
-### Exfiltration Detection
-
-`markdown_exfil`, `unicode_exfil`, `dns_exfil`, `ssrf_exfil`
-
-### IDE Security
-
-`config_persistence`, `covert_exfiltration`, `rug_pull_detection`, `shadowing_detection`, `tool_squatting`
-
-### Reasoning Security
-
-`cot_backdoor`, `reasoning_hijack`, `reasoning_dos`, `escalation`, `goal_drift`
-
-### Format
-
-`json`, `is_xml`
+*Note: 100+ scorers available across security, agentic, and detection categories.*
 
 ## Model Aliases
 
