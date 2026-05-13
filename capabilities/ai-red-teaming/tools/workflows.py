@@ -20,7 +20,7 @@ from dreadnode.app.env import resolve_python_executable
 WORKFLOWS_DIR = Path(
     os.environ.get(
         "AIRT_WORKFLOWS_DIR",
-        str(Path.home() / "workspace" / "airt" / "workflows"),
+        str(Path.home() / ".dreadnode" / "airt" / "workflows"),
     )
 )
 METADATA_FILE = WORKFLOWS_DIR / ".workflow_metadata.json"
@@ -48,7 +48,7 @@ def save_workflow(
 ) -> str:
     """Save a Python attack workflow with syntax validation.
 
-    Validates the code compiles, saves to ~/workspace/airt/workflows/,
+    Validates the code compiles, saves to ~/.dreadnode/airt/workflows/,
     and records metadata. Use execute_workflow to run saved workflows.
     """
     if "/" in filename or "\\" in filename or ".." in filename:
@@ -81,7 +81,7 @@ def save_workflow(
 def list_workflows() -> str:
     """List saved attack workflows with metadata.
 
-    Shows all Python scripts in ~/workspace/airt/workflows/ with
+    Shows all Python scripts in ~/.dreadnode/airt/workflows/ with
     descriptions, sizes, and save timestamps.
     """
     if not WORKFLOWS_DIR.exists():
