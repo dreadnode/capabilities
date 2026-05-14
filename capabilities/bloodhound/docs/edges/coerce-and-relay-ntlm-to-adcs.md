@@ -16,7 +16,7 @@ This section provides general guidance about abusing this edge. For detailed ins
 1. **Start the Relay Server**
 
    The NTLM relay can be executed with [ntlmrelayx.py](https://github.com/fortra/impacket/blob/master/examples/ntlmrelayx.py). To relay to the enterprise CA and enroll a certificate, specify the HTTP(S) endpoint as the target and use the following arguments:
-
+   
    ```bash
    impacket-ntlmrelayx -t {Target} --adcs --template {Template Name} -smb2support
    ```
@@ -65,9 +65,9 @@ Authentication using the obtained certificate is another detection opportunity. 
 
 ## Edge Schema
 
-Source: `Authenticated Users`, [Group](/resources/nodes/group)
-Destination: [Computer](/resources/nodes/computer)
-Traversable: **Yes**
+Source: `Authenticated Users`, [Group](/resources/nodes/group)  
+Destination: [Computer](/resources/nodes/computer)  
+Traversable: **Yes**  
 
 ## References
 

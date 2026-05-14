@@ -27,3 +27,4 @@ Properties which are blank/null will not be shown in the Entity Panel.
 | Password Last Set | The human-readable date for when the user’s password last changed. This is stored internally in Unix epoch format |
 | Tenant ID | Unique identifier for the Azure tenant. |
 | User Principal Name | The user's login name following the format of an email address, typically mapped to the user's email address |
+

@@ -95,7 +95,9 @@ class AssetGroupTools(Toolset):
         params = {"skip": skip, "limit": limit}
         client = get_client()
         try:
-            data = await client.get_json(f"/api/v2/asset-group-tags/{tag_id}/members", params=params)
+            data = await client.get_json(
+                f"/api/v2/asset-group-tags/{tag_id}/members", params=params
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -108,7 +110,9 @@ class AssetGroupTools(Toolset):
         """Member count broken down by node kind (User / Computer / ...)."""
         client = get_client()
         try:
-            data = await client.get_json(f"/api/v2/asset-group-tags/{tag_id}/members/count")
+            data = await client.get_json(
+                f"/api/v2/asset-group-tags/{tag_id}/members/count"
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -118,7 +122,8 @@ class AssetGroupTools(Toolset):
         self,
         query: t.Annotated[
             str,
-            "Free-text query — matches against tag names, member names, " "and member object_ids.",
+            "Free-text query — matches against tag names, member names, "
+            "and member object_ids.",
         ],
     ) -> str:
         """Search tags and members by name or id.
@@ -129,7 +134,9 @@ class AssetGroupTools(Toolset):
         """
         client = get_client()
         try:
-            data = await client.get_json("/api/v2/asset-group-tags/search", params={"query": query})
+            data = await client.get_json(
+                "/api/v2/asset-group-tags/search", params={"query": query}
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -150,7 +157,9 @@ class AssetGroupTools(Toolset):
         """
         client = get_client()
         try:
-            data = await client.get_json(f"/api/v2/asset-group-tags/{tag_id}/selectors")
+            data = await client.get_json(
+                f"/api/v2/asset-group-tags/{tag_id}/selectors"
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -189,7 +198,9 @@ class AssetGroupTools(Toolset):
         }
         client = get_client()
         try:
-            data = await client.post_json(f"/api/v2/asset-group-tags/{tag_id}/selectors", json=body)
+            data = await client.post_json(
+                f"/api/v2/asset-group-tags/{tag_id}/selectors", json=body
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -203,7 +214,9 @@ class AssetGroupTools(Toolset):
         """Remove a selector. Members it contributed are recomputed."""
         client = get_client()
         try:
-            await client.delete_json(f"/api/v2/asset-group-tags/{tag_id}/selectors/{selector_id}")
+            await client.delete_json(
+                f"/api/v2/asset-group-tags/{tag_id}/selectors/{selector_id}"
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return f"deleted selector {selector_id} from tag {tag_id}"
@@ -277,7 +290,8 @@ class AssetGroupTools(Toolset):
         self,
         tag_id: t.Annotated[
             int,
-            "Tag id whose certified nodes to enumerate. Pass 0 to query " "across every tag.",
+            "Tag id whose certified nodes to enumerate. Pass 0 to query "
+            "across every tag.",
         ] = 0,
     ) -> str:
         """List certification status for the tag's nodes."""
@@ -286,7 +300,9 @@ class AssetGroupTools(Toolset):
             params["tag_id"] = tag_id
         client = get_client()
         try:
-            data = await client.get_json("/api/v2/asset-group-tags/certifications", params=params)
+            data = await client.get_json(
+                "/api/v2/asset-group-tags/certifications", params=params
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -312,7 +328,9 @@ class AssetGroupTools(Toolset):
             params["tag_id"] = tag_id
         client = get_client()
         try:
-            data = await client.get_json("/api/v2/asset-group-tags/history", params=params)
+            data = await client.get_json(
+                "/api/v2/asset-group-tags/history", params=params
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)

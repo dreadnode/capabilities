@@ -49,7 +49,9 @@ DEFAULT_TIMEOUT = int(os.environ.get("VOLATILITY_TIMEOUT", "600"))
 # volatility3.cli reads its own argv. We invoke main() but argparse uses
 # sys.argv[0] as the program name — "-c" (from python -c) collides with
 # the --config flag. Set it explicitly so the fallback works.
-_VOLATILITY3_BOOTSTRAP = "import sys; sys.argv[0]='vol'; from volatility3.cli import main; main()"
+_VOLATILITY3_BOOTSTRAP = (
+    "import sys; sys.argv[0]='vol'; from volatility3.cli import main; main()"
+)
 
 OSType = Literal["windows", "linux", "mac"]
 
@@ -201,7 +203,11 @@ async def volatility_info(
     and run the matching info plugin directly.
     """
     if os_hint is not None:
-        plugin = "linux.banners.Banners" if os_hint == "linux" else _plugin_for(os_hint, "info.Info")
+        plugin = (
+            "linux.banners.Banners"
+            if os_hint == "linux"
+            else _plugin_for(os_hint, "info.Info")
+        )
         return await _run_plugin(image, plugin, timeout=timeout)
 
     attempts: list[tuple[OSType, str]] = [
@@ -229,7 +235,9 @@ async def volatility_processes(
     extra: list[str] = []
     if pid is not None:
         extra.extend(["--pid", str(pid)])
-    return await _run_plugin(image, _plugin_for(os_kind, "pslist.PsList"), extra, timeout=timeout)
+    return await _run_plugin(
+        image, _plugin_for(os_kind, "pslist.PsList"), extra, timeout=timeout
+    )
 
 
 @mcp.tool
@@ -239,7 +247,9 @@ async def volatility_process_tree(
     timeout: Annotated[int, "Command timeout in seconds"] = DEFAULT_TIMEOUT,
 ) -> str:
     """Display the parent/child process tree (pstree)."""
-    return await _run_plugin(image, _plugin_for(os_kind, "pstree.PsTree"), timeout=timeout)
+    return await _run_plugin(
+        image, _plugin_for(os_kind, "pstree.PsTree"), timeout=timeout
+    )
 
 
 @mcp.tool
@@ -254,7 +264,9 @@ async def volatility_process_scan(
     but missing from pslist indicate DKOM hiding or recently exited
     processes.
     """
-    return await _run_plugin(image, _plugin_for(os_kind, "psscan.PsScan"), timeout=timeout)
+    return await _run_plugin(
+        image, _plugin_for(os_kind, "psscan.PsScan"), timeout=timeout
+    )
 
 
 @mcp.tool
@@ -265,7 +277,11 @@ async def volatility_cmdlines(
     timeout: Annotated[int, "Command timeout in seconds"] = DEFAULT_TIMEOUT,
 ) -> str:
     """Recover command-line arguments from the PEB/task (cmdline)."""
-    plugin = "windows.cmdline.CmdLine" if os_kind == "windows" else _plugin_for(os_kind, "psaux.PsAux")
+    plugin = (
+        "windows.cmdline.CmdLine"
+        if os_kind == "windows"
+        else _plugin_for(os_kind, "psaux.PsAux")
+    )
     extra: list[str] = []
     if pid is not None:
         extra.extend(["--pid", str(pid)])
@@ -307,7 +323,9 @@ async def volatility_malfind(
     extra: list[str] = []
     if pid is not None:
         extra.extend(["--pid", str(pid)])
-    return await _run_plugin(image, _plugin_for(os_kind, "malfind.Malfind"), extra, timeout=timeout)
+    return await _run_plugin(
+        image, _plugin_for(os_kind, "malfind.Malfind"), extra, timeout=timeout
+    )
 
 
 @mcp.tool
@@ -326,7 +344,9 @@ async def volatility_dll_list(
 @mcp.tool
 async def volatility_handles(
     image: Annotated[str, "Path to the memory image file"],
-    pid: Annotated[int | None, "PID to enumerate handles for (omit to scan all)"] = None,
+    pid: Annotated[
+        int | None, "PID to enumerate handles for (omit to scan all)"
+    ] = None,
     object_types: Annotated[
         list[str] | None,
         "Filter by object types, e.g. ['Process', 'File', 'Key']. Omit for all.",
@@ -356,7 +376,9 @@ async def volatility_registry_hives(
 
     Hive offsets feed volatility_registry_key.
     """
-    return await _run_plugin(image, "windows.registry.hivelist.HiveList", timeout=timeout)
+    return await _run_plugin(
+        image, "windows.registry.hivelist.HiveList", timeout=timeout
+    )
 
 
 @mcp.tool
@@ -379,7 +401,9 @@ async def volatility_registry_key(
         extra.extend(["--offset", hex(hive_offset)])
     if recurse:
         extra.append("--recurse")
-    return await _run_plugin(image, "windows.registry.printkey.PrintKey", extra, timeout=timeout)
+    return await _run_plugin(
+        image, "windows.registry.printkey.PrintKey", extra, timeout=timeout
+    )
 
 
 @mcp.tool
@@ -411,7 +435,9 @@ async def volatility_yara_scan(
         str | None,
         "Path to a YARA rules file (.yar). Mutually exclusive with rules_inline.",
     ] = None,
-    rules_inline: Annotated[str | None, "Inline YARA rule source. Written to a temp file before scanning."] = None,
+    rules_inline: Annotated[
+        str | None, "Inline YARA rule source. Written to a temp file before scanning."
+    ] = None,
     pid: Annotated[int | None, "Restrict scan to a single PID"] = None,
     os_kind: Annotated[OSType, "Image OS"] = "windows",
     timeout: Annotated[int, "Command timeout in seconds"] = DEFAULT_TIMEOUT,
@@ -479,7 +505,9 @@ async def volatility_dump_process(
         "memmap": f"{os_kind}.memmap.Memmap",
     }
     extra = ["--pid", str(pid), "--dump"]
-    return await _run_plugin(image, plugin_map[mode], extra, timeout=timeout, output_dir=str(out))
+    return await _run_plugin(
+        image, plugin_map[mode], extra, timeout=timeout, output_dir=str(out)
+    )
 
 
 @mcp.tool
@@ -510,7 +538,9 @@ async def volatility_list_plugins(
 @mcp.tool
 async def volatility_run_plugin(
     image: Annotated[str, "Path to the memory image file"],
-    plugin: Annotated[str, "Fully qualified plugin name, e.g. 'windows.lsadump.Lsadump'"],
+    plugin: Annotated[
+        str, "Fully qualified plugin name, e.g. 'windows.lsadump.Lsadump'"
+    ],
     args: Annotated[
         list[str] | None,
         "Extra CLI args for the plugin (e.g. ['--pid', '1234'])",

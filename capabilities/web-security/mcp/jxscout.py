@@ -94,7 +94,11 @@ async def jxscout_list_projects() -> str:
     projects_dir = JXSCOUT_HOME / "projects"
     if not projects_dir.exists():
         return "No jxscout projects found."
-    projects = sorted(d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "project.db").exists())
+    projects = sorted(
+        d.name
+        for d in projects_dir.iterdir()
+        if d.is_dir() and (d / "project.db").exists()
+    )
     if not projects:
         return "No jxscout projects found."
     return "\n".join(projects)
@@ -157,7 +161,9 @@ async def jxscout_security_matches(
         return str(e)
     if not rows:
         return "No security-relevant matches found."
-    return "\n".join(f"{kind}\t{value}\t{path or '(unknown)'}" for kind, value, path in rows)[:MAX_OUTPUT_CHARS]
+    return "\n".join(
+        f"{kind}\t{value}\t{path or '(unknown)'}" for kind, value, path in rows
+    )[:MAX_OUTPUT_CHARS]
 
 
 @mcp.tool
@@ -197,16 +203,22 @@ async def jxscout_list_match_kinds(
     project: Annotated[str, "Project name"],
 ) -> str:
     """List all match kinds available in a project."""
-    return await _run_cli(["-c", "list-match-kinds", "--project-name", project, "--json"])
+    return await _run_cli(
+        ["-c", "list-match-kinds", "--project-name", project, "--json"]
+    )
 
 
 @mcp.tool
 async def jxscout_get_matches(
     project: Annotated[str, "Project name"],
-    match_kind: Annotated[str, "Match kind (e.g. 'api_path', 'hostname', 'jwt', 'html_manipulation')"],
+    match_kind: Annotated[
+        str, "Match kind (e.g. 'api_path', 'hostname', 'jwt', 'html_manipulation')"
+    ],
     limit: Annotated[int, "Maximum results"] = 50,
     show_only_unseen: Annotated[bool, "Only show unreviewed matches"] = False,
-    value_include: Annotated[str | None, "Filter: match value must contain this string"] = None,
+    value_include: Annotated[
+        str | None, "Filter: match value must contain this string"
+    ] = None,
 ) -> str:
     """Get matches by kind with file paths and positions (JSON output)."""
     args = [
@@ -354,7 +366,9 @@ async def jxscout_get_loaded_js_files(
     page_url: Annotated[str, "Page URL to check which JS files it loads"],
 ) -> str:
     """Get JS files loaded by a specific page URL."""
-    return await _run_cli(["-c", "get-loaded-js-files", "--project-name", project, page_url, "--json"])
+    return await _run_cli(
+        ["-c", "get-loaded-js-files", "--project-name", project, page_url, "--json"]
+    )
 
 
 @mcp.tool
@@ -381,7 +395,9 @@ async def jxscout_get_loaded_iframes(
     page_url: Annotated[str, "Page URL to check for embedded iframes"],
 ) -> str:
     """Get iframes embedded by a specific page."""
-    return await _run_cli(["-c", "get-loaded-iframes", "--project-name", project, page_url, "--json"])
+    return await _run_cli(
+        ["-c", "get-loaded-iframes", "--project-name", project, page_url, "--json"]
+    )
 
 
 @mcp.tool
@@ -390,7 +406,9 @@ async def jxscout_get_related_assets(
     file_path: Annotated[str, "Path to file"],
 ) -> str:
     """Get full relationship graph for a file."""
-    return await _run_cli(["-c", "get-related-assets", "--project-name", project, file_path, "--json"])
+    return await _run_cli(
+        ["-c", "get-related-assets", "--project-name", project, file_path, "--json"]
+    )
 
 
 @mcp.tool
@@ -399,7 +417,9 @@ async def jxscout_bookmark_create_group(
     name: Annotated[str, "Bookmark group name"],
 ) -> str:
     """Create a bookmark group."""
-    return await _run_cli(["-c", "bookmark", "create-group", "--project-name", project, "--name", name])
+    return await _run_cli(
+        ["-c", "bookmark", "create-group", "--project-name", project, "--name", name]
+    )
 
 
 @mcp.tool
@@ -444,7 +464,9 @@ async def jxscout_repeater(
     request_file: Annotated[str, "Path to .req file to send"],
 ) -> str:
     """Send a raw HTTP request via jxscout repeater."""
-    return await _run_cli(["-c", "repeater", "--project-name", project, request_file], timeout=30)
+    return await _run_cli(
+        ["-c", "repeater", "--project-name", project, request_file], timeout=30
+    )
 
 
 @mcp.tool
@@ -471,7 +493,9 @@ async def jxscout_print_settings(
     project: Annotated[str, "Project name"],
 ) -> str:
     """Print the full resolved project settings."""
-    return await _run_cli(["-c", "print-full-project-settings", "--project-name", project])
+    return await _run_cli(
+        ["-c", "print-full-project-settings", "--project-name", project]
+    )
 
 
 if __name__ == "__main__":

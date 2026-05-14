@@ -210,7 +210,8 @@ class SpectraAssure(Toolset):
         self,
         purl: t.Annotated[
             str,
-            "Package URL without the version, " "e.g. 'pkg:community/npm/lodash' or 'pkg:pypi/requests'.",
+            "Package URL without the version, "
+            "e.g. 'pkg:community/npm/lodash' or 'pkg:pypi/requests'.",
         ],
         version: t.Annotated[str, "Version string (e.g. '4.17.21')"],
     ) -> str:
@@ -264,7 +265,8 @@ class SpectraAssure(Toolset):
         version: t.Annotated[str, "Version string"],
         download: t.Annotated[
             bool,
-            "If true, response carries a short-lived (60s) download URL " "for the version artifact.",
+            "If true, response carries a short-lived (60s) download URL "
+            "for the version artifact.",
         ] = False,
     ) -> str:
         """Check analysis status of a Portal package version.
@@ -294,7 +296,8 @@ class SpectraAssure(Toolset):
         ] = "rl-json",
         save_as: t.Annotated[
             str,
-            "Optional local filename to save the report to. Relative paths " "resolve under SECURE_SOFTWARE_DIR.",
+            "Optional local filename to save the report to. Relative paths "
+            "resolve under SECURE_SOFTWARE_DIR.",
         ] = "",
     ) -> str:
         """Export an analysis report for a Portal package version.
@@ -304,7 +307,10 @@ class SpectraAssure(Toolset):
         the absolute path back.
         """
         if report_type not in REPORT_FORMATS:
-            return f"Error: unknown report_type '{report_type}'. " f"Valid: {', '.join(REPORT_FORMATS)}"
+            return (
+                f"Error: unknown report_type '{report_type}'. "
+                f"Valid: {', '.join(REPORT_FORMATS)}"
+            )
         org, group = self._require_portal_scope()
         rl_path = f"pkg:rl/{project}/{package}@{version}"
         accept = "application/pdf" if report_type == "rl-summary-pdf" else "application/json"
@@ -319,9 +325,14 @@ class SpectraAssure(Toolset):
             dest = _resolve_download_path(save_as)
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(resp.content)
-            return f"Saved {report_type} report ({len(resp.content)} bytes) to {dest}"
+            return (
+                f"Saved {report_type} report ({len(resp.content)} bytes) to {dest}"
+            )
         if report_type == "rl-summary-pdf":
-            return f"PDF report fetched ({len(resp.content)} bytes). " "Re-run with save_as=<file.pdf> to persist it."
+            return (
+                f"PDF report fetched ({len(resp.content)} bytes). "
+                "Re-run with save_as=<file.pdf> to persist it."
+            )
         return self._format(resp, raw=report_type in {"sarif", "cyclonedx", "spdx"})
 
     @tool_method(name="spectra_download_artifact", catch=True)

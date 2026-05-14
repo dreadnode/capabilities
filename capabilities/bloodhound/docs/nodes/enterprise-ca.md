@@ -1,6 +1,6 @@
 ---
 title: EnterpriseCA
-description:
+description: 
 ---
 <img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
 
@@ -79,3 +79,4 @@ The following edge types may be linked to/from this node. See the [edges documen
 
 * [https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/designing-and-implementing-a-pki-part-i-design-and-planning/ba-p/396953](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/designing-and-implementing-a-pki-part-i-design-and-planning/ba-p/396953) 
 * [https://learn.microsoft.com/en-us/windows/win32/adschema/c-pkienrollmentservice](https://learn.microsoft.com/en-us/windows/win32/adschema/c-pkienrollmentservice)
+

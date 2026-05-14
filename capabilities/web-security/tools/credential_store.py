@@ -16,7 +16,9 @@ from typing import Any, Literal
 from dreadnode.agents.tools import Toolset, tool_method
 from pydantic import PrivateAttr
 
-CredentialType = Literal["api_key", "bearer_token", "cookie", "basic_auth", "custom_header", "http_request"]
+CredentialType = Literal[
+    "api_key", "bearer_token", "cookie", "basic_auth", "custom_header", "http_request"
+]
 
 
 class CredentialStore(Toolset):
@@ -53,7 +55,8 @@ class CredentialStore(Toolset):
                 f"Use get_credential with format='raw' to see the full request."
             )
         return (
-            f"Credential '{name}' stored as {credential_type}. " f"Use get_credential with format='header' to use it."
+            f"Credential '{name}' stored as {credential_type}. "
+            f"Use get_credential with format='header' to use it."
         )
 
     @tool_method(name="get_credential", catch=True)
@@ -88,7 +91,9 @@ class CredentialStore(Toolset):
             if cred_type == "bearer_token":
                 return f"Authorization: Bearer {data['token']}"
             if cred_type == "basic_auth":
-                b64 = base64.b64encode(f"{data['username']}:{data['password']}".encode()).decode()
+                b64 = base64.b64encode(
+                    f"{data['username']}:{data['password']}".encode()
+                ).decode()
                 return f"Authorization: Basic {b64}"
             if cred_type == "custom_header":
                 return f"{data['header_name']}: {data['value']}"
@@ -156,7 +161,9 @@ class CredentialStore(Toolset):
             with open(twofa_file, "a") as f:
                 f.write(f"{name} {digits} {secret}\n")
 
-            result = subprocess.run(["2fa", name], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["2fa", name], capture_output=True, text=True, timeout=5
+            )
             if result.returncode == 0:
                 return f"Added TOTP credential '{name}'. Current code: {result.stdout.strip()}"
             return f"Added credential but failed to generate initial code: {result.stderr}"
@@ -177,7 +184,9 @@ class CredentialStore(Toolset):
             Current 6-8 digit MFA code (valid for ~30 seconds)
         """
         try:
-            result = subprocess.run(["2fa", name], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["2fa", name], capture_output=True, text=True, timeout=5
+            )
             if result.returncode == 0:
                 return result.stdout.strip()
             error = result.stderr.strip()
@@ -193,7 +202,9 @@ class CredentialStore(Toolset):
     def list_mfa_credentials(self) -> str:
         """List all stored MFA credentials with their current codes."""
         try:
-            result = subprocess.run(["2fa"], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["2fa"], capture_output=True, text=True, timeout=5
+            )
             if result.returncode == 0 and result.stdout.strip():
                 return f"MFA Credentials:\n{result.stdout.strip()}"
             return "No MFA credentials stored. Use add_totp_credential to add one."

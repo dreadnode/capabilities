@@ -25,3 +25,4 @@ Properties which are blank/null will not be shown in the Entity Panel.
 | Service Principal ID | The unique identifier for the service principal. |
 | Sign In Audience | The sign-in audience for the app. |
 | Tenant ID | Unique identifier for the Azure tenant. |
+

@@ -62,9 +62,9 @@ Remote desktop will create Logon and Logoff events with the access type RemoteIn
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [Computer](/resources/nodes/computer)
-Traversable: **Yes**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [Computer](/resources/nodes/computer)  
+Traversable: **Yes**  
 
 ## References
 

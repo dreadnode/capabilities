@@ -15,10 +15,11 @@ This edge has no opsec considerations.
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [Domain](/resources/nodes/domain)
-Traversable: **No**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
+Destination: [Domain](/resources/nodes/domain)  
+Traversable: **No**  
 
 ## References
 
 * [https://simondotsh.com/infosec/2022/07/11/dirsync.html](https://simondotsh.com/infosec/2022/07/11/dirsync.html)
+

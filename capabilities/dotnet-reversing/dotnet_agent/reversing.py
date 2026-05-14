@@ -214,13 +214,18 @@ def decompile_type(path: str, type_name: str) -> str:
             if candidate == search:
                 return _decompile_token(path, module_type.MetadataToken)
 
-    raise ValueError(f"Type '{type_name}' not found in {path}. " f"Use dotnet_list_types to see available types.")
+    raise ValueError(
+        f"Type '{type_name}' not found in {path}. "
+        f"Use dotnet_list_types to see available types."
+    )
 
 
 def decompile_methods(path: str, method_names: list[str]) -> dict[str, str]:
     """Decompile specific methods by name and return a dict of name -> source."""
     logger.info(f"decompile_methods({path}, {method_names})")
-    flexible_method_names = [_shorten_dotnet_name(name).lower() for name in method_names]
+    flexible_method_names = [
+        _shorten_dotnet_name(name).lower() for name in method_names
+    ]
     assembly = AssemblyDefinition.ReadAssembly(path)
     methods: dict[str, str] = {}
     for module in assembly.Modules:
@@ -228,7 +233,9 @@ def decompile_methods(path: str, method_names: list[str]) -> dict[str, str]:
             for method in module_type.Methods:
                 method_name = _shorten_dotnet_name(method.FullName).lower()
                 if method_name in flexible_method_names:
-                    methods[method.FullName] = _decompile_token(path, method.MetadataToken)
+                    methods[method.FullName] = _decompile_token(
+                        path, method.MetadataToken
+                    )
     return methods
 
 
@@ -259,7 +266,8 @@ def list_types_in_namespace(path: str, namespace: str) -> list[str]:
         for module_type in _all_types(module):
             if namespace == "<root>":
                 if "." not in module_type.FullName or (
-                    module_type.FullName.count(".") == 1 and module_type.FullName.endswith("Module")
+                    module_type.FullName.count(".") == 1
+                    and module_type.FullName.endswith("Module")
                 ):
                     types.append(module_type.FullName)
             elif module_type.FullName.startswith(f"{namespace}."):
@@ -289,7 +297,11 @@ def list_types(path: str) -> list[str]:
     """List all types in the assembly and return their full names."""
     logger.info(f"list_types({path})")
     assembly = AssemblyDefinition.ReadAssembly(path)
-    return [module_type.FullName for module in assembly.Modules for module_type in _all_types(module)]
+    return [
+        module_type.FullName
+        for module in assembly.Modules
+        for module_type in _all_types(module)
+    ]
 
 
 def list_methods(path: str) -> list[str]:

@@ -211,10 +211,14 @@ class CallbackClient(Toolset):
 
                 lines = [f"Received {len(interactions)} callback interactions:"]
                 for i, ix in enumerate(interactions[:10], 1):
-                    lines.append(f"  {i}. [{ix['time']}] {ix['method']} {ix['path']} from {ix['ip']}")
+                    lines.append(
+                        f"  {i}. [{ix['time']}] {ix['method']} {ix['path']} from {ix['ip']}"
+                    )
 
                 if interactions:
-                    lines.append(f"\nMost recent request:\n{interactions[-1]['raw_request']}")
+                    lines.append(
+                        f"\nMost recent request:\n{interactions[-1]['raw_request']}"
+                    )
 
                 return "\n".join(lines)
 

@@ -1,6 +1,6 @@
 ---
 title: SameForestTrust
-description: The SameForestTrust edge represents a trust relationship between two domains within the same AD forest.
+description: The SameForestTrust edge represents a trust relationship between two domains within the same AD forest. 
 ---
 
 <img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
@@ -110,9 +110,9 @@ There is no OPSEC associated with this edge.
 
 ## Edge Schema
 
-Source: [Domain](/resources/nodes/domain)
-Destination: [Domain](/resources/nodes/domain)
-Traversable: **Yes**
+Source: [Domain](/resources/nodes/domain)   
+Destination: [Domain](/resources/nodes/domain)   
+Traversable: **Yes**  
 
 ## References
 

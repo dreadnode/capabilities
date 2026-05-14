@@ -108,12 +108,16 @@ CATEGORY_DESCRIPTIONS = {
 
 
 async def fetch_completed(mythic: Mythic) -> list[dict[str, t.Any]]:
-    rows = await mythic_sdk.get_all_tasks(mythic, custom_return_attributes=COMPLETED_TASK_ATTRS)
+    rows = await mythic_sdk.get_all_tasks(
+        mythic, custom_return_attributes=COMPLETED_TASK_ATTRS
+    )
     return [r for r in rows if r.get("completed")]
 
 
 async def fetch_decoded_output(mythic: Mythic, display_id: int) -> str:
-    responses = await mythic_sdk.get_all_task_and_subtask_output_by_id(mythic=mythic, task_display_id=display_id)
+    responses = await mythic_sdk.get_all_task_and_subtask_output_by_id(
+        mythic=mythic, task_display_id=display_id
+    )
     parts: list[str] = []
     for row in responses or []:
         raw = row.get("response_text") or row.get("response") or ""
@@ -193,7 +197,9 @@ async def _apply_callback_tag(tagtype_id: int, *, callback_id: int, note: str) -
     )
 
 
-async def _apply_credential_tag(tagtype_id: int, *, credential_id: int, note: str) -> None:
+async def _apply_credential_tag(
+    tagtype_id: int, *, credential_id: int, note: str
+) -> None:
     await gql(
         "mutation ApplyCredentialTag($tagtype_id: Int!, $credential_id: Int!, $data: jsonb!, $source: String!) {"
         "  insert_tag_one(object: {"
@@ -238,7 +244,9 @@ async def _update_task_comment(task_id: int, comment: str) -> None:
     )
 
 
-def _format_comment(*, body: str, category: str, severity: str, citations: list[str], existing: str) -> str:
+def _format_comment(
+    *, body: str, category: str, severity: str, citations: list[str], existing: str
+) -> str:
     stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     header = f"{MARKER_PREFIX} {stamp} | {category} | {severity}]"
     cites = "\nCites: " + "; ".join(citations[:4]) if citations else ""
@@ -309,7 +317,9 @@ async def write_finding(
 
 async def _existing_trails() -> set[str]:
     data = await gql(
-        "query TrailTagTypes($prefix: String!) {" "  tagtype(where: {name: {_like: $prefix}}) { name }" "}",
+        "query TrailTagTypes($prefix: String!) {"
+        "  tagtype(where: {name: {_like: $prefix}}) { name }"
+        "}",
         {"prefix": f"{TRAIL_PREFIX}%"},
     )
     return {row["name"] for row in (data.get("tagtype") or [])}
@@ -386,7 +396,9 @@ async def write_trail(
 
     resolved = await _resolve_related(related)
     if len(resolved) < 2:
-        logger.info("correlator: trail collapsed to <2 objects after resolve — skipping")
+        logger.info(
+            "correlator: trail collapsed to <2 objects after resolve — skipping"
+        )
         return None
 
     trail_id = _trail_uuid8(resolved)
@@ -489,7 +501,9 @@ def _build_correlator_message(
     parts.append("")
     parts.append(f"Findings ({len(findings)}) — prior AI comments on tasks:")
     for r in findings:
-        body_preview = (r.get("comment") or "").replace("\n", " ")[:CORRELATOR_BODY_PREVIEW]
+        body_preview = (r.get("comment") or "").replace("\n", " ")[
+            :CORRELATOR_BODY_PREVIEW
+        ]
         cb = r.get("callback") or {}
         parts.append(
             f"  task display_id={r.get('display_id')} "
@@ -548,7 +562,9 @@ async def run_correlator(client: RuntimeClient) -> int:
 
     non_empty = sum(1 for s in (findings, callbacks, credentials) if s)
     if non_empty < 2:
-        logger.debug("correlator: only {} source(s) non-empty — skipping tick", non_empty)
+        logger.debug(
+            "correlator: only {} source(s) non-empty — skipping tick", non_empty
+        )
         return 0
 
     existing = await _existing_trails()
@@ -558,7 +574,9 @@ async def run_correlator(client: RuntimeClient) -> int:
     await _ensure_session(client, session_id, CORRELATOR_AGENT)
 
     try:
-        result = await client.run_turn(session_id=session_id, message=user_message, reset=True)
+        result = await client.run_turn(
+            session_id=session_id, message=user_message, reset=True
+        )
     except (TurnCancelledError, TurnFailedError) as exc:
         logger.warning("correlator: turn failed: {}", exc)
         return 0
@@ -573,10 +591,15 @@ async def run_correlator(client: RuntimeClient) -> int:
         severity = trail.get("severity")
         body = (trail.get("body") or "").strip()
         summary_raw = trail.get("summary")
-        summary = summary_raw.strip() if isinstance(summary_raw, str) and summary_raw.strip() else None
+        summary = (
+            summary_raw.strip()
+            if isinstance(summary_raw, str) and summary_raw.strip()
+            else None
+        )
         if not body or severity not in SEVERITY_COLORS or not related:
             logger.warning(
-                "correlator: dropping malformed trail proposal: " "severity={!r} body_len={} related_len={}",
+                "correlator: dropping malformed trail proposal: "
+                "severity={!r} body_len={} related_len={}",
                 severity,
                 len(body),
                 len(related) if isinstance(related, list) else -1,
@@ -611,13 +634,19 @@ def _build_user_message(task: dict[str, t.Any], decoded: str) -> str:
     lines.append("")
     if decoded:
         lines.append("Decoded output (line-numbered):")
-        lines.append("\n".join(f"{i + 1:>5}: {line}" for i, line in enumerate(decoded.split("\n"))))
+        lines.append(
+            "\n".join(
+                f"{i + 1:>5}: {line}" for i, line in enumerate(decoded.split("\n"))
+            )
+        )
     else:
         lines.append("(no decoded output returned from Mythic)")
     return "\n".join(lines)
 
 
-def _parse_finding(response_text: str, *, session_key: str = "?") -> dict[str, t.Any] | None:
+def _parse_finding(
+    response_text: str, *, session_key: str = "?"
+) -> dict[str, t.Any] | None:
     """Parse the analyzer's JSON response into a validated finding dict, or
     ``None`` if the analyzer said no-finding or produced something invalid.
 
@@ -647,7 +676,9 @@ def _parse_finding(response_text: str, *, session_key: str = "?") -> dict[str, t
     severity = parsed.get("severity")
     category = parsed.get("category")
     body = (parsed.get("body") or "").strip()
-    citations = [str(c).strip() for c in (parsed.get("citations") or []) if str(c).strip()]
+    citations = [
+        str(c).strip() for c in (parsed.get("citations") or []) if str(c).strip()
+    ]
     if severity not in SEVERITY_COLORS:
         logger.warning("analyzer: invalid severity {!r} on {}", severity, session_key)
         return None
@@ -658,7 +689,9 @@ def _parse_finding(response_text: str, *, session_key: str = "?") -> dict[str, t
         logger.warning("analyzer: empty body on {}", session_key)
         return None
     if not citations:
-        logger.warning("analyzer: finding without citations on {} — rejecting", session_key)
+        logger.warning(
+            "analyzer: finding without citations on {} — rejecting", session_key
+        )
         return None
 
     summary = parsed.get("summary")
@@ -674,14 +707,18 @@ def _parse_finding(response_text: str, *, session_key: str = "?") -> dict[str, t
 
 async def _ensure_session(client: RuntimeClient, session_id: str, agent: str) -> None:
     try:
-        await client.create_session(capability="mythic-c2", agent=agent, session_id=session_id)
+        await client.create_session(
+            capability="mythic-c2", agent=agent, session_id=session_id
+        )
     except Exception as exc:
         msg = str(exc).lower()
         if not any(s in msg for s in ("exist", "already", "duplicate")):
             raise
 
 
-async def _run_analyzer(client: RuntimeClient, *, session_key: str, user_message: str) -> dict[str, t.Any] | None:
+async def _run_analyzer(
+    client: RuntimeClient, *, session_key: str, user_message: str
+) -> dict[str, t.Any] | None:
     """Shared path: run the task-analyzer agent and return a validated finding.
 
     Returns ``None`` when the analyzer ran to completion but produced no
@@ -696,14 +733,18 @@ async def _run_analyzer(client: RuntimeClient, *, session_key: str, user_message
     """
     session_id = str(uuid5(_SESSION_NS, session_key))
     await _ensure_session(client, session_id, ANALYZER_AGENT)
-    result = await client.run_turn(session_id=session_id, message=user_message, reset=True)
+    result = await client.run_turn(
+        session_id=session_id, message=user_message, reset=True
+    )
     response_text = (result.get("response_text") or "").strip()
     if not response_text:
         return None
     return _parse_finding(response_text, session_key=session_key)
 
 
-async def analyze_task(client: RuntimeClient, mythic: Mythic, task: dict[str, t.Any]) -> bool:
+async def analyze_task(
+    client: RuntimeClient, mythic: Mythic, task: dict[str, t.Any]
+) -> bool:
     display_id = int(task.get("display_id") or 0)
     if display_id == 0:
         return False
@@ -769,11 +810,15 @@ def _build_keylog_message(task: dict[str, t.Any], rows: list[dict[str, t.Any]]) 
         user = r.get("user") or "?"
         keys = r.get("keystrokes_text") or ""
         keys_one_line = keys.replace("\n", "\\n").replace("\r", "\\r")
-        lines.append(f"  id={r.get('id')} user={user} window={window!r}: {keys_one_line}")
+        lines.append(
+            f"  id={r.get('id')} user={user} window={window!r}: {keys_one_line}"
+        )
     return "\n".join(lines)
 
 
-async def analyze_keylog_batch(client: RuntimeClient, task: dict[str, t.Any], rows: list[dict[str, t.Any]]) -> bool:
+async def analyze_keylog_batch(
+    client: RuntimeClient, task: dict[str, t.Any], rows: list[dict[str, t.Any]]
+) -> bool:
     display_id = int(task.get("display_id") or 0)
     if display_id == 0:
         return False
@@ -847,10 +892,14 @@ def _decode_filename(raw: str | None) -> str:
         decoded = json.loads(raw)
     except (json.JSONDecodeError, TypeError):
         return str(raw)
-    return str(decoded) if not isinstance(decoded, list) else "/".join(map(str, decoded))
+    return (
+        str(decoded) if not isinstance(decoded, list) else "/".join(map(str, decoded))
+    )
 
 
-def _build_file_message(task: dict[str, t.Any], file: dict[str, t.Any], body: str) -> str:
+def _build_file_message(
+    task: dict[str, t.Any], file: dict[str, t.Any], body: str
+) -> str:
     cb = task.get("callback") or {}
     filename = _decode_filename(file.get("filename_utf8"))
     remote_path = _decode_filename(file.get("full_remote_path_utf8"))
@@ -870,11 +919,15 @@ def _build_file_message(task: dict[str, t.Any], file: dict[str, t.Any], body: st
         "",
         "File contents (line-numbered):",
     ]
-    lines.append("\n".join(f"{i + 1:>5}: {line}" for i, line in enumerate(body.split("\n"))))
+    lines.append(
+        "\n".join(f"{i + 1:>5}: {line}" for i, line in enumerate(body.split("\n")))
+    )
     return "\n".join(lines)
 
 
-async def analyze_file(client: RuntimeClient, mythic: Mythic, file: dict[str, t.Any]) -> bool:
+async def analyze_file(
+    client: RuntimeClient, mythic: Mythic, file: dict[str, t.Any]
+) -> bool:
     task = file.get("task") or {}
     display_id = int(task.get("display_id") or 0)
     if display_id == 0:
@@ -889,7 +942,9 @@ async def analyze_file(client: RuntimeClient, mythic: Mythic, file: dict[str, t.
     try:
         data = await mythic_sdk.download_file(mythic=mythic, file_uuid=agent_file_id)
     except Exception:
-        logger.opt(exception=True).debug("file finder: download failed for agent_file_id={}", agent_file_id)
+        logger.opt(exception=True).debug(
+            "file finder: download failed for agent_file_id={}", agent_file_id
+        )
         return False
     if not data:
         return False
@@ -959,7 +1014,9 @@ async def _ensure_bootstrapped() -> Mythic | None:
         try:
             mythic = await ensure_connected()
         except Exception as exc:
-            logger.warning("annotator: Mythic unreachable ({}) — retrying on next tick", exc)
+            logger.warning(
+                "annotator: Mythic unreachable ({}) — retrying on next tick", exc
+            )
             return None
 
         seed_tasks: set[int] = set()
@@ -967,26 +1024,34 @@ async def _ensure_bootstrapped() -> Mythic | None:
             completed = await fetch_completed(mythic)
             seed_tasks = {int(t_["id"]) for t_ in completed if t_.get("id") is not None}
         except Exception:
-            logger.opt(exception=True).warning("annotator seed (tasks) failed — poll will self-heal")
+            logger.opt(exception=True).warning(
+                "annotator seed (tasks) failed — poll will self-heal"
+            )
 
         seed_keylogs: set[int] = set()
         try:
             rows = await fetch_recent_keylogs()
             seed_keylogs = {int(r["id"]) for r in rows if r.get("id") is not None}
         except Exception:
-            logger.opt(exception=True).warning("annotator seed (keylogs) failed — poll will self-heal")
+            logger.opt(exception=True).warning(
+                "annotator seed (keylogs) failed — poll will self-heal"
+            )
 
         seed_files: set[int] = set()
         try:
             rows = await fetch_recent_downloads()
             seed_files = {int(r["id"]) for r in rows if r.get("id") is not None}
         except Exception:
-            logger.opt(exception=True).warning("annotator seed (downloads) failed — poll will self-heal")
+            logger.opt(exception=True).warning(
+                "annotator seed (downloads) failed — poll will self-heal"
+            )
 
         current_op = "unknown"
         try:
             me = await mythic_sdk.get_me(mythic=mythic)
-            current_op = (me or {}).get("meHook", {}).get("current_operation", "unknown")
+            current_op = (
+                (me or {}).get("meHook", {}).get("current_operation", "unknown")
+            )
         except Exception:
             logger.opt(exception=True).debug("annotator: get_me failed at bootstrap")
 
@@ -996,7 +1061,8 @@ async def _ensure_bootstrapped() -> Mythic | None:
         worker.state["mythic"] = mythic
 
         logger.info(
-            "mythic-c2 annotator connected | operation={} | " "seeded {} tasks / {} keylogs / {} files",
+            "mythic-c2 annotator connected | operation={} | "
+            "seeded {} tasks / {} keylogs / {} files",
             current_op,
             len(seed_tasks),
             len(seed_keylogs),
@@ -1013,7 +1079,9 @@ async def startup(client: RuntimeClient) -> None:
     worker.state["known_task_ids"] = set()
     worker.state["known_keylog_ids"] = set()
     worker.state["known_file_ids"] = set()
-    logger.info("mythic-c2 annotator starting — Mythic connect will happen on first tick")
+    logger.info(
+        "mythic-c2 annotator starting — Mythic connect will happen on first tick"
+    )
 
 
 @worker.on_shutdown
@@ -1027,7 +1095,9 @@ async def shutdown(client: RuntimeClient) -> None:
     try:
         await asyncio.wait_for(session.close(), timeout=3)
     except (TimeoutError, Exception):
-        logger.opt(exception=True).debug("annotator shutdown: mythic client close failed")
+        logger.opt(exception=True).debug(
+            "annotator shutdown: mythic client close failed"
+        )
 
 
 @worker.every(seconds=TICK_SECONDS)
@@ -1042,7 +1112,9 @@ async def poll_and_analyze(client: RuntimeClient) -> None:
         return
 
     known: set[int] = worker.state["known_task_ids"]
-    fresh = [t_ for t_ in completed if int(t_.get("id") or 0) and int(t_["id"]) not in known]
+    fresh = [
+        t_ for t_ in completed if int(t_.get("id") or 0) and int(t_["id"]) not in known
+    ]
     if not fresh:
         return
 
@@ -1136,7 +1208,8 @@ async def poll_keylogs(client: RuntimeClient) -> None:
             else:
                 failures[task_id] = n
                 logger.warning(
-                    "keylog finder: analyzer turn failed on task display_id={} " "({}x/{}): {}",
+                    "keylog finder: analyzer turn failed on task display_id={} "
+                    "({}x/{}): {}",
                     display_id,
                     n,
                     MAX_ANALYZER_RETRIES,
@@ -1144,7 +1217,9 @@ async def poll_keylogs(client: RuntimeClient) -> None:
                 )
             continue
         except Exception:
-            logger.opt(exception=True).warning("keylog finder: analyze failed for task display_id={}", display_id)
+            logger.opt(exception=True).warning(
+                "keylog finder: analyze failed for task display_id={}", display_id
+            )
             continue
         failures.pop(task_id, None)
         known.update(row_ids)
@@ -1195,7 +1270,9 @@ async def poll_downloads(client: RuntimeClient) -> None:
                 )
             continue
         except Exception:
-            logger.opt(exception=True).warning("file finder: analyze failed for file id={}", fid)
+            logger.opt(exception=True).warning(
+                "file finder: analyze failed for file id={}", fid
+            )
             continue
         failures.pop(fid, None)
         known.add(fid)

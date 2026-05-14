@@ -20,3 +20,4 @@ Properties which are blank/null will not be shown in the Entity Panel.
 | Object ID | The object's security identifier (SID), a unique identifier in the directory. |
 | Created | The time when the object was created in the directory. |
 | Tenant ID | Unique identifier for the Azure tenant. |
+

@@ -62,9 +62,9 @@ Access to registry hives can be monitored and alerted via event ID 4656 (A handl
 
 ## Edge Schema
 
-Source: [Computer](/resources/nodes/computer)
-Destination: [User](/resources/nodes/user)
-Traversable: **Yes**
+Source: [Computer](/resources/nodes/computer)  
+Destination: [User](/resources/nodes/user)   
+Traversable: **Yes**   
 
 ## References
 

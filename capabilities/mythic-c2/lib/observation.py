@@ -65,8 +65,12 @@ async def get_status() -> dict[str, Any]:
 
 
 async def list_callbacks(
-    active_only: Annotated[bool, "Drop callbacks Mythic has marked inactive (default True)"] = True,
-    host: Annotated[str | None, "Substring filter on hostname (case-insensitive)"] = None,
+    active_only: Annotated[
+        bool, "Drop callbacks Mythic has marked inactive (default True)"
+    ] = True,
+    host: Annotated[
+        str | None, "Substring filter on hostname (case-insensitive)"
+    ] = None,
     user: Annotated[str | None, "Substring filter on user (case-insensitive)"] = None,
     limit: Annotated[int, "Maximum results to return"] = 100,
 ) -> list[dict[str, Any]]:
@@ -167,7 +171,9 @@ _TASK_ATTRS = (
 
 
 async def list_tasks(
-    callback_display_id: Annotated[int | None, "Filter to one callback by its display ID"] = None,
+    callback_display_id: Annotated[
+        int | None, "Filter to one callback by its display ID"
+    ] = None,
     limit: Annotated[int, "Maximum results to return"] = 20,
     offset: Annotated[int, "Skip N results before returning (for pagination)"] = 0,
 ) -> list[dict[str, Any]]:
@@ -191,7 +197,9 @@ async def list_tasks(
             callback_display_id=callback_display_id,
         )
     else:
-        rows = await mythic_sdk.get_all_tasks(client, custom_return_attributes=_TASK_ATTRS)
+        rows = await mythic_sdk.get_all_tasks(
+            client, custom_return_attributes=_TASK_ATTRS
+        )
     tasks = [clean(row) for row in rows]
     tasks.sort(key=lambda t: t.get("id", 0), reverse=True)
     return tasks[offset : offset + limit]
@@ -274,16 +282,24 @@ async def get_task_output(
     # "task doesn't exist" and "task exists but has no output", and we want
     # those to surface differently. One extra cheap GraphQL call isolates it.
     exists = await gql(
-        "query TaskExists($display_id: Int!) {" "  task(where: {display_id: {_eq: $display_id}}, limit: 1) { id }" "}",
+        "query TaskExists($display_id: Int!) {"
+        "  task(where: {display_id: {_eq: $display_id}}, limit: 1) { id }"
+        "}",
         {"display_id": task_display_id},
     )
     if not (exists.get("task") or []):
         raise LookupError(f"task display_id={task_display_id} not found")
 
     client = await ensure_connected()
-    responses = await mythic_sdk.get_all_task_and_subtask_output_by_id(mythic=client, task_display_id=task_display_id)
+    responses = await mythic_sdk.get_all_task_and_subtask_output_by_id(
+        mythic=client, task_display_id=task_display_id
+    )
 
-    parts = [decode_b64(str(text)) for r in (responses or []) if (text := r.get("response_text") or r.get("response"))]
+    parts = [
+        decode_b64(str(text))
+        for r in (responses or [])
+        if (text := r.get("response_text") or r.get("response"))
+    ]
     lines = "\n".join(parts).split("\n") if parts else []
     stop = offset + max_lines if max_lines is not None else None
     sliced = lines[offset:stop]
@@ -333,7 +349,11 @@ async def get_recent_callback_activity(
             preview = body
         else:
             half = preview_chars // 2
-            preview = body[:half] + f"\n...[truncated {len(body) - preview_chars} chars]...\n" + body[-half:]
+            preview = (
+                body[:half]
+                + f"\n...[truncated {len(body) - preview_chars} chars]...\n"
+                + body[-half:]
+            )
         activity.append(
             {
                 "task": task,
@@ -457,12 +477,16 @@ async def list_files(
     client = await ensure_connected()
     files: list[dict[str, Any]] = []
     if scope in ("downloads", "both"):
-        async for batch in mythic_sdk.get_all_downloaded_files(client, custom_return_attributes=_FILE_ATTRS):
+        async for batch in mythic_sdk.get_all_downloaded_files(
+            client, custom_return_attributes=_FILE_ATTRS
+        ):
             files.extend(clean(row) for row in batch)
             if len(files) >= limit:
                 break
     if scope in ("uploads", "both"):
-        async for batch in mythic_sdk.get_all_uploaded_files(client, custom_return_attributes=_FILE_ATTRS):
+        async for batch in mythic_sdk.get_all_uploaded_files(
+            client, custom_return_attributes=_FILE_ATTRS
+        ):
             files.extend(clean(row) for row in batch)
             if len(files) >= limit:
                 break
@@ -499,7 +523,9 @@ _BLOODHOUND_HINTS = ("bloodhound", "sharphound", "azurehound", "bh_data", "bh-da
 
 
 async def find_bloodhound_data(
-    callback_display_id: Annotated[int | None, "Optional callback display ID to scope to"] = None,
+    callback_display_id: Annotated[
+        int | None, "Optional callback display ID to scope to"
+    ] = None,
     limit: Annotated[int, "Maximum matches to return"] = 25,
 ) -> dict[str, Any]:
     """Scan agent-downloaded files for likely BloodHound / SharpHound / AzureHound output.
@@ -537,7 +563,9 @@ async def find_bloodhound_data(
 
 async def get_file_contents(
     agent_file_id: Annotated[str, "File UUID from list_files / find_bloodhound_data"],
-    as_text: Annotated[bool, "When True, decode as UTF-8; otherwise return base64-encoded bytes"] = True,
+    as_text: Annotated[
+        bool, "When True, decode as UTF-8; otherwise return base64-encoded bytes"
+    ] = True,
     max_bytes: Annotated[
         int | None,
         "Cap on bytes returned in ``content`` (default 65536 ≈ 64 KB). Pass None for unbounded — a full agent download can be tens of MB, enough to blow context on a single call. Size/hashes always reflect the full file.",
@@ -630,7 +658,9 @@ async def list_artifacts(
 
 
 async def list_keylogs(
-    callback_display_id: Annotated[int | None, "Filter to one callback by its display ID"] = None,
+    callback_display_id: Annotated[
+        int | None, "Filter to one callback by its display ID"
+    ] = None,
     limit: Annotated[int, "Maximum results to return"] = 50,
     offset: Annotated[int, "Skip N results before returning"] = 0,
 ) -> list[dict[str, Any]]:
@@ -680,7 +710,9 @@ async def list_screenshots(
     client = await ensure_connected()
     attrs = "id,agent_file_id,host,timestamp"
     screenshots: list[dict[str, Any]] = []
-    async for batch in mythic_sdk.get_all_screenshots(client, custom_return_attributes=attrs):
+    async for batch in mythic_sdk.get_all_screenshots(
+        client, custom_return_attributes=attrs
+    ):
         screenshots.extend(clean(row) for row in batch)
         if len(screenshots) >= limit:
             break
@@ -740,7 +772,10 @@ async def list_processes(
         host=host,
         path=None,
         limit=limit,
-        columns=("id, task_id, timestamp, host, name_text, parent_path_text, " "full_path_text, metadata, os, success"),
+        columns=(
+            "id, task_id, timestamp, host, name_text, parent_path_text, "
+            "full_path_text, metadata, os, success"
+        ),
     )
 
 
@@ -769,7 +804,9 @@ async def list_file_browser(
 
 
 async def list_tokens(
-    callback_display_id: Annotated[int | None, "Filter to one callback by its display ID"] = None,
+    callback_display_id: Annotated[
+        int | None, "Filter to one callback by its display ID"
+    ] = None,
     limit: Annotated[int, "Maximum results to return"] = 50,
 ) -> list[dict[str, Any]]:
     """List Windows token captures, newest first.

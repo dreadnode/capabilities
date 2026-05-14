@@ -1,6 +1,6 @@
 ---
 title: PublishedTo
-description: The certificate template is published to an enterprise certification authority.
+description: The certificate template is published to an enterprise certification authority. 
 ---
 
 <img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
@@ -18,9 +18,9 @@ When an attacker abuses an escalation or impersonation primitive that relies on 
 
 ## Edge Schema
 
-Source: [CertTemplate](/resources/nodes/cert-template)
-Destination: [EnterpriseCA](/resources/nodes/enterprise-ca)
-Traversable: **No**
+Source: [CertTemplate](/resources/nodes/cert-template)   
+Destination: [EnterpriseCA](/resources/nodes/enterprise-ca)   
+Traversable: **No**  
 
 ## References
 
@@ -31,3 +31,4 @@ This edge is related to the following MITRE ATT&CK tactic and techniques:
 ### Abuse and Opsec references
 
 * [https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf](https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf)
+

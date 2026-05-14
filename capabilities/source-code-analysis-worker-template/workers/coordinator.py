@@ -156,7 +156,9 @@ async def _run_pipeline(
         repo_dir = Path(tmp) / "repo"
 
         # Stage 1: clone the repo into a temp dir the agents can inspect.
-        await _publish_progress(client, run_id, "clone_started", f"Cloning {github_url}")
+        await _publish_progress(
+            client, run_id, "clone_started", f"Cloning {github_url}"
+        )
         await _git_clone(github_url, repo_dir)
 
         # Stage 2: attack surface mapper. One agent. Output is the lead list
@@ -206,7 +208,9 @@ async def _run_pipeline(
             agent=FINAL_REVIEWER,
             model=model,
             max_steps=max_steps,
-            prompt=_final_review_prompt(github_url, repo_dir, max_steps, specialist_reports, attack_surface),
+            prompt=_final_review_prompt(
+                github_url, repo_dir, max_steps, specialist_reports, attack_surface
+            ),
         )
         await _publish_report(client, run_id, github_url, FINAL_REVIEWER, final_report)
 
@@ -257,7 +261,9 @@ async def _run_specialists(
                 agent=agent,
                 model=model,
                 max_steps=max_steps,
-                prompt=_specialist_prompt(agent, github_url, repo_dir, max_steps, attack_surface),
+                prompt=_specialist_prompt(
+                    agent, github_url, repo_dir, max_steps, attack_surface
+                ),
             )
         # Stream the report as soon as this specialist finishes — consumers
         # see progress without waiting for the slowest one.
@@ -295,7 +301,9 @@ async def _run_validators(
                 agent=VALIDATOR,
                 model=model,
                 max_steps=max_steps,
-                prompt=_validator_prompt(github_url, repo_dir, max_steps, finding, truncated),
+                prompt=_validator_prompt(
+                    github_url, repo_dir, max_steps, finding, truncated
+                ),
                 # Tag the validator's session with its finding id so it's
                 # easy to find in the trace UI.
                 extra_labels={"finding_id": finding_id},
@@ -337,7 +345,9 @@ async def _run_agent_turn(
         policy={"name": "headless", "max_steps": max_steps},
         labels=labels,
     )
-    await client.set_session_title(session.session_id, f"source-analysis {run_id[:8]} · {agent}")
+    await client.set_session_title(
+        session.session_id, f"source-analysis {run_id[:8]} · {agent}"
+    )
     result = await client.run_turn(
         session_id=session.session_id,
         message=prompt,
@@ -366,7 +376,9 @@ def _mapper_prompt(github_url: str, repo_dir: Path, max_steps: int) -> str:
     )
 
 
-def _specialist_prompt(agent: str, github_url: str, repo_dir: Path, max_steps: int, attack_surface: str) -> str:
+def _specialist_prompt(
+    agent: str, github_url: str, repo_dir: Path, max_steps: int, attack_surface: str
+) -> str:
     return (
         f"Analyze {github_url} as the {agent} specialist.\n"
         f"Local checkout: {repo_dir}\n"
@@ -463,21 +475,27 @@ async def _git_clone(url: str, dest: Path) -> None:
     )
     _, stderr = await proc.communicate()
     if proc.returncode != 0:
-        raise RuntimeError(f"git clone failed: {stderr.decode('utf-8', 'replace').strip()}")
+        raise RuntimeError(
+            f"git clone failed: {stderr.decode('utf-8', 'replace').strip()}"
+        )
 
 
 def _truncate(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[:limit] + "\n... truncated ..."
 
 
-async def _publish_progress(client: RuntimeClient, run_id: str, stage: str, detail: str | None = None) -> None:
+async def _publish_progress(
+    client: RuntimeClient, run_id: str, stage: str, detail: str | None = None
+) -> None:
     payload: dict[str, t.Any] = {"run_id": run_id, "stage": stage}
     if detail:
         payload["detail"] = detail
     await client.publish(PROGRESS_EVENT, payload)
 
 
-async def _publish_report(client: RuntimeClient, run_id: str, github_url: str, agent: str, report: str) -> None:
+async def _publish_report(
+    client: RuntimeClient, run_id: str, github_url: str, agent: str, report: str
+) -> None:
     await client.publish(
         REPORT_READY_EVENT,
         {"run_id": run_id, "github_url": github_url, "agent": agent, "report": report},
@@ -492,9 +510,13 @@ def _build_final_markdown(
     """Stitch validator reports onto the final review."""
     sections = [final_report.rstrip(), "", "## Validator Results"]
     if not findings:
-        sections.append("No high or critical findings recorded; validators were not run.")
+        sections.append(
+            "No high or critical findings recorded; validators were not run."
+        )
         return "\n".join(sections).rstrip() + "\n"
-    sections.append(f"Reviewed {len(validation_reports)} of {len(findings)} high or critical findings.")
+    sections.append(
+        f"Reviewed {len(validation_reports)} of {len(findings)} high or critical findings."
+    )
     for finding in findings:
         finding_id = str(finding.get("id") or "unknown-finding")
         title = str(finding.get("title") or "Untitled finding")

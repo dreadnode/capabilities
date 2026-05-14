@@ -37,7 +37,7 @@ The **Attack Paths** table displays the Attack Paths with active findings during
   />
 </Frame>
 
-BloodHound Enterprise calculates the severity from percentage of users and computers that can abuse the Attack Path. For example, a **CRITICAL** attack path is one that is abusable by 95% - 100% of all users and computers in the environment.
+BloodHound Enterprise calculates the severity from percentage of users and computers that can abuse the Attack Path. For example, a **CRITICAL** attack path is one that is abusable by 95% - 100% of all users and computers in the environment. 
 
 The different severity rankings and exposure levels are:
 
@@ -103,7 +103,7 @@ This series of visualizations shows posture over time. They provide insights abo
     />
   </Frame>
 
-* **Tier Zero Objects** \- This graph represents the trend in the total number of objects in the Tier Zero Privilege Zone within the selected filter parameters over time.
+* **Tier Zero Objects** \- This graph represents the trend in the total number of objects in the Tier Zero Privilege Zone within the selected filter parameters over time. 
 
   As you add or remove objects from the Tier Zero Privilege Zone, this chart helps you track the changes in the number of Tier Zero objects over time.
 

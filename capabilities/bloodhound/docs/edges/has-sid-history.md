@@ -19,9 +19,9 @@ No opsec considerations apply to this edge.
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Traversable: **Yes**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Traversable: **Yes**  
 
 ## References
 
@@ -31,3 +31,4 @@ Traversable: **Yes**
 * [https://adsecurity.org/?tag=sidhistory](https://adsecurity.org/?tag=sidhistory)
 * [https://attack.mitre.org/techniques/T1178/](https://attack.mitre.org/techniques/T1178/)
 * [https://dirkjanm.io/active-directory-forest-trusts-part-one-how-does-sid-filtering-work/](https://dirkjanm.io/active-directory-forest-trusts-part-one-how-does-sid-filtering-work/)
+

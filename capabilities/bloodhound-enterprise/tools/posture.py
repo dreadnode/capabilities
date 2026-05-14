@@ -43,7 +43,9 @@ class PostureTools(Toolset):
             params["domain_sid"] = domain_sid
         client = get_client()
         try:
-            data = await client.get_json("/api/v2/posture-stats", params=params)
+            data = await client.get_json(
+                "/api/v2/posture-stats", params=params
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -70,7 +72,9 @@ class PostureTools(Toolset):
             params["to"] = to_date
         client = get_client()
         try:
-            data = await client.get_json("/api/v2/posture-stats/history", params=params)
+            data = await client.get_json(
+                "/api/v2/posture-stats/history", params=params
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -82,11 +86,18 @@ class PostureTools(Toolset):
         limit: t.Annotated[int, "Cap on rows returned"] = 100,
         action: t.Annotated[
             str,
-            "Optional action filter (e.g. 'CreateUser', 'AcceptRisk', " "'CertifyMember'). Empty for all.",
+            "Optional action filter (e.g. 'CreateUser', 'AcceptRisk', "
+            "'CertifyMember'). Empty for all.",
         ] = "",
-        actor_email: t.Annotated[str, "Filter by actor email address"] = "",
-        from_date: t.Annotated[str, "RFC3339 start of search window"] = "",
-        to_date: t.Annotated[str, "RFC3339 end of search window"] = "",
+        actor_email: t.Annotated[
+            str, "Filter by actor email address"
+        ] = "",
+        from_date: t.Annotated[
+            str, "RFC3339 start of search window"
+        ] = "",
+        to_date: t.Annotated[
+            str, "RFC3339 end of search window"
+        ] = "",
     ) -> str:
         """Query the BHE audit log.
 
@@ -105,7 +116,9 @@ class PostureTools(Toolset):
             params["to"] = to_date
         client = get_client()
         try:
-            data = await client.get_json("/api/v2/audit/logs", params=params)
+            data = await client.get_json(
+                "/api/v2/audit/logs", params=params
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)

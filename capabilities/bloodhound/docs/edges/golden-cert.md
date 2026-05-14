@@ -62,9 +62,9 @@ When an attacker abuses a privilege escalation or impersonation primitive that r
 
 ## Edge Schema
 
-Source: [Computer](/resources/nodes/computer)
-Destination: [Domain](/resources/nodes/domain)
-Traversable: **Yes**
+Source: [Computer](/resources/nodes/computer)  
+Destination: [Domain](/resources/nodes/domain)  
+Traversable: **Yes**  
 
 ## References
 
@@ -78,3 +78,4 @@ This edge is related to the following MITRE ATT&CK tactic and techniques:
 * [https://github.com/GhostPack/Certify/wiki/3-%E2%80%90-Domain-Persistence-Techniques#dpersist1---forging-certificates-with-stolen-ca-certificates](https://github.com/GhostPack/Certify/wiki/3-%E2%80%90-Domain-Persistence-Techniques#dpersist1---forging-certificates-with-stolen-ca-certificates)
 * [https://github.com/GhostPack/Certify](https://github.com/GhostPack/Certify)
 * [https://github.com/GhostPack/Rubeus](https://github.com/GhostPack/Rubeus)
+

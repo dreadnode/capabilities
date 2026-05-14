@@ -1,6 +1,6 @@
 ---
 title: RootCAFor
-description: The CA is trusted as a root certification authority by the domain.
+description: The CA is trusted as a root certification authority by the domain. 
 ---
 
 <img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
@@ -19,9 +19,9 @@ When the affected certificate authority issues the certificate to the attacker, 
 
 ## Edge Schema
 
-Source: [RootCA](/resources/nodes/root-ca)
-Destination: [Domain](/resources/nodes/domain)
-Traversable: **No**
+Source: [RootCA](/resources/nodes/root-ca)   
+Destination: [Domain](/resources/nodes/domain)   
+Traversable: **No**  
 
 ## References
 
@@ -34,3 +34,4 @@ This edge is related to the following MITRE ATT&CK tactic and techniques:
 * [https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf](https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf)
 * [https://www.pkisolutions.com/understanding-active-directory-certificate-services-containers-in-active-directory/](https://www.pkisolutions.com/understanding-active-directory-certificate-services-containers-in-active-directory/)
 * [https://www.ravenswoodtechnology.com/components-of-a-pki-part-2](https://www.ravenswoodtechnology.com/components-of-a-pki-part-2)
+

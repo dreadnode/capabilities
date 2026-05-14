@@ -112,9 +112,9 @@ There is no opsec information for this edge.
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Computer](/resources/nodes/computer)
-Destination: [Domain](/resources/nodes/domain)
-Traversable: **Yes**
+Source: [User](/resources/nodes/user), [Computer](/resources/nodes/computer)  
+Destination: [Domain](/resources/nodes/domain)  
+Traversable: **Yes**  
 
 ## References
 

@@ -30,7 +30,8 @@ class AuthTools(Toolset):
         self,
         url: t.Annotated[
             str,
-            "BHE base URL (e.g. https://bhe.example.com). If blank, " "BLOODHOUND_URL from the environment is used.",
+            "BHE base URL (e.g. https://bhe.example.com). If blank, "
+            "BLOODHOUND_URL from the environment is used.",
         ] = "",
         token_id: t.Annotated[
             str,
@@ -132,7 +133,8 @@ class AuthTools(Toolset):
         name: t.Annotated[str, "Human-readable name for the new token"],
         user_id: t.Annotated[
             str,
-            "User id the token authenticates as. If blank, defaults to " "the calling user's id (from /self).",
+            "User id the token authenticates as. If blank, defaults to "
+            "the calling user's id (from /self).",
         ] = "",
     ) -> str:
         """Create a new HMAC API token.
@@ -188,6 +190,9 @@ def _trim_self(payload: t.Any) -> t.Any:
         "principal_name": data.get("principal_name") or data.get("principalName"),
         "first_name": data.get("first_name") or data.get("firstName"),
         "last_name": data.get("last_name") or data.get("lastName"),
-        "roles": [r.get("name") if isinstance(r, dict) else r for r in (data.get("roles") or [])],
+        "roles": [
+            r.get("name") if isinstance(r, dict) else r
+            for r in (data.get("roles") or [])
+        ],
         "is_disabled": data.get("is_disabled") or data.get("isDisabled"),
     }

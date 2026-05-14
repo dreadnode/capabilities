@@ -26,7 +26,8 @@ class AttackPathTools(Toolset):
         self,
         domain_sid: t.Annotated[
             str,
-            "Filter to a specific domain SID (e.g. 'S-1-5-21-...'). " "Empty returns paths across every domain.",
+            "Filter to a specific domain SID (e.g. 'S-1-5-21-...'). "
+            "Empty returns paths across every domain.",
         ] = "",
         finding: t.Annotated[
             str,
@@ -36,7 +37,8 @@ class AttackPathTools(Toolset):
         limit: t.Annotated[int, "Cap on rows returned"] = 100,
         sort_by: t.Annotated[
             str,
-            "Field to sort on. Common: 'finding', 'principal', 'severity'. " "Prefix with '-' for descending.",
+            "Field to sort on. Common: 'finding', 'principal', 'severity'. "
+            "Prefix with '-' for descending.",
         ] = "",
     ) -> str:
         """List active attack-path findings.
@@ -119,7 +121,9 @@ class AttackPathTools(Toolset):
             params["finding"] = finding
         client = get_client()
         try:
-            data = await client.get_json(f"/api/v2/attack-paths/{domain_sid}/details", params=params)
+            data = await client.get_json(
+                f"/api/v2/attack-paths/{domain_sid}/details", params=params
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -153,7 +157,9 @@ class AttackPathTools(Toolset):
             params["to"] = to_date
         client = get_client()
         try:
-            data = await client.get_json("/api/v2/attack-paths/sparklines", params=params)
+            data = await client.get_json(
+                "/api/v2/attack-paths/sparklines", params=params
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -180,7 +186,9 @@ class AttackPathTools(Toolset):
             params.setdefault("environments", []).append(env)
         client = get_client()
         try:
-            data = await client.get_json("/api/v2/attack-paths/trends", params=params)
+            data = await client.get_json(
+                "/api/v2/attack-paths/trends", params=params
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -205,7 +213,9 @@ class AttackPathTools(Toolset):
         }
         client = get_client()
         try:
-            response = await client.get("/api/v2/attack-paths/findings/export", params=params)
+            response = await client.get(
+                "/api/v2/attack-paths/findings/export", params=params
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         if response.status_code >= 400:
@@ -241,7 +251,9 @@ class AttackPathTools(Toolset):
             body["accepted_until"] = accepted_until
         client = get_client()
         try:
-            data = await client.put_json(f"/api/v2/attack-paths/{finding_id}/risk", json=body)
+            data = await client.put_json(
+                f"/api/v2/attack-paths/{finding_id}/risk", json=body
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data or {"updated": finding_id}, indent=2, default=str)

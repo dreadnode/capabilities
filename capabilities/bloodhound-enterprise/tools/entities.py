@@ -232,7 +232,9 @@ class EntityTools(Toolset):
             return "error: template_id is required"
         client = get_client()
         try:
-            data = await client.get_json(f"/api/v2/cert-templates/{template_id}")
+            data = await client.get_json(
+                f"/api/v2/cert-templates/{template_id}"
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -247,7 +249,9 @@ class EntityTools(Toolset):
             return "error: template_id is required"
         client = get_client()
         try:
-            data = await client.get_json(f"/api/v2/cert-templates/{template_id}/cas")
+            data = await client.get_json(
+                f"/api/v2/cert-templates/{template_id}/cas"
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -266,7 +270,9 @@ class EntityTools(Toolset):
             return "error: object_id is required"
         client = get_client()
         try:
-            data = await client.get_json(f"/api/v2/azure-entities/{object_id}")
+            data = await client.get_json(
+                f"/api/v2/azure-entities/{object_id}"
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)

@@ -15,11 +15,12 @@ This edge has no opsec considerations.
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [Domain](/resources/nodes/domain)
-Traversable: **No**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [Domain](/resources/nodes/domain)  
+Traversable: **No**  
 
 ## References
 
 * [https://adsecurity.org/?p=1729](https://adsecurity.org/?p=1729)
 * [https://blog.harmj0y.net/redteaming/mimikatz-and-dcsync-and-extrasids-oh-my/](https://blog.harmj0y.net/redteaming/mimikatz-and-dcsync-and-extrasids-oh-my/)
+

@@ -224,7 +224,9 @@ class TestRequestSigning:
         assert "signature" not in captured["headers"]
 
     @pytest.mark.asyncio
-    async def test_signature_covers_query_string(self, hmac_config: BHEConfig) -> None:
+    async def test_signature_covers_query_string(
+        self, hmac_config: BHEConfig
+    ) -> None:
         """The request URI used for signing must include the query
         string the runtime sends — otherwise the server's
         recomputed signature won't match."""
@@ -252,7 +254,9 @@ class TestRequestSigning:
 
 class TestPostBody:
     @pytest.mark.asyncio
-    async def test_json_body_serialised_consistently(self, hmac_config: BHEConfig) -> None:
+    async def test_json_body_serialised_consistently(
+        self, hmac_config: BHEConfig
+    ) -> None:
         """The signed body must match what httpx sends. We sign before
         the request goes out, so the runtime serialises once and
         signs the same bytes."""

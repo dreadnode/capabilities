@@ -67,7 +67,9 @@ class BBScope(Toolset):
             url = p.get("url", "")
             lines.append(f"  - [{platform}] {handle}: {url}")
 
-        lines.append(f"\nUse bbscope_program with platform and handle to get full scope details.")
+        lines.append(
+            f"\nUse bbscope_program with platform and handle to get full scope details."
+        )
         return "\n".join(lines)
 
     @tool_method(name="bbscope_program", catch=True)

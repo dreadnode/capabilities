@@ -35,7 +35,8 @@ class Certipy(Toolset):
         """Initialize Certipy toolset and verify certipy is installed."""
         if not shutil.which(self.certipy_cmd):
             logger.warning(
-                f"certipy command '{self.certipy_cmd}' not found in PATH. " "Install with: pip install certipy-ad"
+                f"certipy command '{self.certipy_cmd}' not found in PATH. "
+                "Install with: pip install certipy-ad"
             )
         else:
             logger.info(f"Certipy toolset initialized, using command: {self.certipy_cmd}")
@@ -281,7 +282,9 @@ class Certipy(Toolset):
             args: List of arguments for the command.
             input: Optional input string to pass to the command's stdin.
         """
-        return await execute([self.certipy_cmd, "account", *args], timeout=self.timeout, input=input)
+        return await execute(
+            [self.certipy_cmd, "account", *args], timeout=self.timeout, input=input
+        )
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_auth(self, args: list[str], input: str | None = "y") -> str:
@@ -679,4 +682,6 @@ class Certipy(Toolset):
             args: List of arguments for the command.
             input: Optional input string to pass to the command's stdin.
         """
-        return await execute([self.certipy_cmd, "template", *args], timeout=self.timeout, input=input)
+        return await execute(
+            [self.certipy_cmd, "template", *args], timeout=self.timeout, input=input
+        )

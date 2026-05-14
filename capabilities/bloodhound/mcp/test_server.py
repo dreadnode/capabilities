@@ -34,9 +34,8 @@ class TestQueryCatalog:
     def test_all_queries_have_nonempty_cypher(self):
         for name, entry in server.STANDARD_QUERIES.items():
             assert entry["cypher"].strip(), f"{name} has empty cypher"
-            assert (
-                "MATCH" in entry["cypher"] or "RETURN" in entry["cypher"]
-            ), f"{name} cypher doesn't look like Cypher: {entry['cypher'][:50]}"
+            assert "MATCH" in entry["cypher"] or "RETURN" in entry["cypher"], \
+                f"{name} cypher doesn't look like Cypher: {entry['cypher'][:50]}"
 
     @pytest.mark.asyncio
     async def test_list_queries_returns_all(self):
@@ -101,7 +100,6 @@ class TestConnectionState:
 class TestToolRegistration:
     def test_expected_tools_registered(self):
         import asyncio
-
         tools = asyncio.run(server.mcp.list_tools())
         tool_names = {t.name for t in tools}
         expected = {"connect", "query", "standard_query", "list_queries"}

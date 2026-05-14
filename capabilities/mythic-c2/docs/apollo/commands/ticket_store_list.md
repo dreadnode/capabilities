@@ -6,7 +6,7 @@ hidden = false
 +++
 
 {{% notice info %}}
-Artifacts Generated:
+Artifacts Generated: 
 {{% /notice %}}
 
 ## Summary

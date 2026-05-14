@@ -44,7 +44,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("runtime_id", help="Runtime UUID")
     parser.add_argument(
         "--platform-url",
-        default=os.environ.get("DREADNODE_PLATFORM_URL", "https://platform.dreadnode.io"),
+        default=os.environ.get(
+            "DREADNODE_PLATFORM_URL", "https://platform.dreadnode.io"
+        ),
         help="Platform base URL (default: $DREADNODE_PLATFORM_URL or platform.dreadnode.io).",
     )
     parser.add_argument(
@@ -124,7 +126,9 @@ def main() -> int:
 
     url = keepalive_url(args.platform_url, args.org, args.workspace, args.runtime_id)
     print(f"[{now_iso()}] Keepalive loop targeting {url}")
-    print(f"[{now_iso()}] Extending by {args.extend_seconds}s every {args.interval}s. Ctrl+C to stop.")
+    print(
+        f"[{now_iso()}] Extending by {args.extend_seconds}s every {args.interval}s. Ctrl+C to stop."
+    )
 
     backoff = 5
     consecutive_failures = 0
@@ -134,20 +138,28 @@ def main() -> int:
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace").strip()[:300]
             consecutive_failures += 1
-            print(f"[{now_iso()}] Keepalive failed: HTTP {exc.code} {exc.reason} — {detail}")
+            print(
+                f"[{now_iso()}] Keepalive failed: HTTP {exc.code} {exc.reason} — {detail}"
+            )
             if exc.code in (401, 403, 404):
                 print(f"[{now_iso()}] Fatal status; not retrying.")
                 return 2
             if consecutive_failures >= 5:
-                print(f"[{now_iso()}] Giving up after {consecutive_failures} consecutive failures.")
+                print(
+                    f"[{now_iso()}] Giving up after {consecutive_failures} consecutive failures."
+                )
                 return 3
             sleep_for = min(backoff, args.interval)
             backoff = min(backoff * 2, 120)
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             consecutive_failures += 1
-            print(f"[{now_iso()}] Keepalive transport error: {type(exc).__name__}: {exc}")
+            print(
+                f"[{now_iso()}] Keepalive transport error: {type(exc).__name__}: {exc}"
+            )
             if consecutive_failures >= 5:
-                print(f"[{now_iso()}] Giving up after {consecutive_failures} consecutive failures.")
+                print(
+                    f"[{now_iso()}] Giving up after {consecutive_failures} consecutive failures."
+                )
                 return 3
             sleep_for = min(backoff, args.interval)
             backoff = min(backoff * 2, 120)

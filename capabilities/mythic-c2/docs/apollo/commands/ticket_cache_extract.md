@@ -12,7 +12,7 @@ Artifacts Generated: WindowsAPIInvoke
 ## Summary
 Extract the specified ticket(s) from the current logon session, this uses LSA APIs to extract a ticket from the active logon session on the host.
 This includes all details and a base64 encoded copy of the ticket.
-If ran from an elevated context this also can get a ticket from any session.
+If ran from an elevated context this also can get a ticket from any session. 
 
 
 ### Arguments

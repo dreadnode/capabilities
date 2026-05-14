@@ -49,7 +49,11 @@ def _install_dreadnode_tools_stub() -> None:
 
     def _schema_for(method: Any) -> dict[str, Any]:
         signature = inspect.signature(method)
-        properties = {name: {"type": "string"} for name in signature.parameters if name != "self"}
+        properties = {
+            name: {"type": "string"}
+            for name in signature.parameters
+            if name != "self"
+        }
         return {"type": "object", "properties": properties}
 
     def tool_method(*, name: str | None = None, catch: bool = False, **_: Any):

@@ -10,8 +10,8 @@ Artifacts Generated: WindowsAPIInvoke
 {{% /notice %}}
 
 ## Summary
-list information about all loaded tickets in the current active logon session. This uses lsa apis to return all relevant information about the tickets in the current session.
-If ran from an elevated context this also gets information on tickets in all sessions.
+list information about all loaded tickets in the current active logon session. This uses lsa apis to return all relevant information about the tickets in the current session. 
+If ran from an elevated context this also gets information on tickets in all sessions. 
 
 
 ### Arguments

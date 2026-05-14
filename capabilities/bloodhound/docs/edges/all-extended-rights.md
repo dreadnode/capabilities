@@ -47,9 +47,9 @@ This will depend on the actual attack performed. See the particular opsec consid
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Domain](/resources/nodes/domain), [CertTemplate](/resources/nodes/cert-template)
-Traversable: **Yes**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Domain](/resources/nodes/domain), [CertTemplate](/resources/nodes/cert-template)  
+Traversable: **Yes**  
 
 ## References
 

@@ -17,9 +17,9 @@ The attacker may create artifacts of abusing this relationship in both on-prem A
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user)
-Destination: [AZUser](/resources/nodes/az-user)
-Traversable: **Yes**
+Source: [User](/resources/nodes/user)   
+Destination: [AZUser](/resources/nodes/az-user)   
+Traversable: **Yes**  
 
 ## References
 

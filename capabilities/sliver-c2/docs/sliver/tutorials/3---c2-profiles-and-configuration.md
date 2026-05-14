@@ -11,7 +11,7 @@ We would want to update the session messages and staging with something more rea
 
 We would also use a list of common Urls and filenames for Wordpress like `https://github.com/danielmiessler/SecLists/blob/master/Discovery/Web-Content/URLs/urls-wordpress-3.3.1.txt` for the `files` and `paths` variables. You could alternatively reuse Urls discovered while enumerating your target's external perimeter in a similar way.
 
-You can use `c2profiles generate -f urls-wordpress-3.3.1.txt -n wordpress -i` to generate a new c2 profile using the urls we just downloaded. By default this command will use the default c2 profile as a template for all other variables, if you want to edit any of those you can export and re-import the modified profile.
+You can use `c2profiles generate -f urls-wordpress-3.3.1.txt -n wordpress -i` to generate a new c2 profile using the urls we just downloaded. By default this command will use the default c2 profile as a template for all other variables, if you want to edit any of those you can export and re-import the modified profile. 
 
 At this point we can generate a new implant using our new profile.
 
@@ -25,4 +25,5 @@ If we review the debug logs of our implant we can see that the connections now u
 {"src": "/asciinema/implant_debug_logs.cast", "cols": "132", "rows": "28", "idleTimeLimit": 8}
 ```
 
-Ideally during engagements your recon phase should inform your C2 infrastructure, reusing similar hosting providers, technologies and communication protocols can help your implant fly under the radar.
+Ideally during engagements your recon phase should inform your C2 infrastructure, reusing similar hosting providers, technologies and communication protocols can help your implant fly under the radar. 
+

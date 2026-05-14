@@ -63,7 +63,9 @@ def summarise_graph(
             "label": (n.get("label") if isinstance(n, dict) else None),
             "kind": (n.get("kind") if isinstance(n, dict) else None),
             "objectId": (n.get("objectId") if isinstance(n, dict) else None),
-            "isTierZero": (n.get("isTierZero") if isinstance(n, dict) else None),
+            "isTierZero": (
+                n.get("isTierZero") if isinstance(n, dict) else None
+            ),
         }
         for nid, n in node_items[:max_nodes]
     ]

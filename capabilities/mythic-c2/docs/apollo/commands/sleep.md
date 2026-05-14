@@ -9,7 +9,7 @@ hidden = false
 Change the agent's callback interval in seconds. Optionally specify the agent's jitter percentage for callback intervals.
 
 ### Arguments (Positional)
-#### interval
+#### interval 
 The amount of time an agent will wait before callback to the Mythic server in _seconds_.
 
 #### jitter

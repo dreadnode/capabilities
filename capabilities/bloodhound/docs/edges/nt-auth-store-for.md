@@ -19,9 +19,9 @@ When an attacker abuses a privilege escalation or impersonation primitive that r
 
 ## Edge Schema
 
-Source: [NTAuthStore](/resources/nodes/nt-auth-store)
-Destination: [Domain](/resources/nodes/domain)
-Traversable: **No**
+Source: [NTAuthStore](/resources/nodes/nt-auth-store)   
+Destination: [Domain](/resources/nodes/domain)   
+Traversable: **No**  
 
 ## References
 
@@ -35,3 +35,4 @@ This edge is related to the following MITRE ATT&CK tactic and techniques:
 * [https://learn.microsoft.com/en-us/windows-server/security/windows-authentication/credentials-processes-in-windows-authentication#BKMK_CertificatesInWindowsAuthentication](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-crtd/ec71fd43-61c2-407b-83c9-b52272dec8a1)
 * [https://www.pkisolutions.com/understanding-active-directory-certificate-services-containers-in-active-directory/](https://www.pkisolutions.com/understanding-active-directory-certificate-services-containers-in-active-directory/)
 * [https://www.ravenswoodtechnology.com/components-of-a-pki-part-2/](https://www.ravenswoodtechnology.com/components-of-a-pki-part-2/)
+

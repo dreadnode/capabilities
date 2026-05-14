@@ -39,7 +39,9 @@ class TestSkills:
             assert "name" in fm, f"{skill_dir.name} missing name"
             assert "description" in fm, f"{skill_dir.name} missing description"
             # Description must include trigger phrases for auto-discovery.
-            assert len(fm["description"]) > 80, f"{skill_dir.name} description too short for triggering"
+            assert len(fm["description"]) > 80, (
+                f"{skill_dir.name} description too short for triggering"
+            )
 
 
 class TestAgents:

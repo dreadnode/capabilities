@@ -25,3 +25,4 @@ Properties which are blank/null will not be shown in the Entity Panel.
 | Security Enabled | Whether the group is a Security Principal, meaning it can be used to secure objects in Entra ID. |
 | Security Identifier | -   |
 | Tenant ID | Unique identifier for the Azure tenant. |
+

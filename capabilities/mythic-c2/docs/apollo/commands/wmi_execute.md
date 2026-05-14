@@ -36,7 +36,7 @@ wmi_execute -command [Value] -host [Value] -username [Value] -password [Value] -
 
 Example
 ```
-wmi_execute -command "c:\windows\tasks\apollo.exe" -host dc01.domain.local -username admin -password mypassword -domain domain.local
+wmi_execute -command "c:\windows\tasks\apollo.exe" -host dc01.domain.local -username admin -password mypassword -domain domain.local 
 ```
 
 ## MITRE ATT&CK Mapping

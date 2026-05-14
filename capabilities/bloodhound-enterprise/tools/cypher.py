@@ -97,7 +97,9 @@ class CypherTools(Toolset):
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(
-            summarise_graph(payload, max_nodes=self.max_nodes, max_edges=self.max_edges),
+            summarise_graph(
+                payload, max_nodes=self.max_nodes, max_edges=self.max_edges
+            ),
             indent=2,
             default=str,
         )
@@ -116,7 +118,9 @@ class CypherTools(Toolset):
         """
         client = get_client()
         try:
-            data = await client.get_json("/api/v2/saved-queries", params={"skip": skip, "limit": limit})
+            data = await client.get_json(
+                "/api/v2/saved-queries", params={"skip": skip, "limit": limit}
+            )
         except BHEAPIError as exc:
             return f"error: {exc}"
         return json.dumps(data, indent=2, default=str)
@@ -208,7 +212,10 @@ class CypherTools(Toolset):
         if category:
             entries = patterns_by_category(category)
             if not entries:
-                return f"error: unknown category {category!r}. " f"Known: {', '.join(CATEGORIES)}"
+                return (
+                    f"error: unknown category {category!r}. "
+                    f"Known: {', '.join(CATEGORIES)}"
+                )
         elif finding_type:
             entries = patterns_for_finding(finding_type)
         else:
@@ -256,7 +263,10 @@ class CypherTools(Toolset):
         """
         pattern = get_pattern(pattern_id)
         if pattern is None:
-            return f"error: no pattern with id {pattern_id!r}. " f"Use list_attack_patterns to browse the catalog."
+            return (
+                f"error: no pattern with id {pattern_id!r}. "
+                f"Use list_attack_patterns to browse the catalog."
+            )
         return await self.run_cypher(
             pattern.cypher,
             include_properties=include_properties,

@@ -9,7 +9,7 @@ Basic profile to send and receive taskings from Mythic over the hyper text trans
 
 ### Profile Options
 
-#### GET Requests
+#### GET Requests 
 
 Currently the agent does not support any parameters in regards to GET parameters.
 

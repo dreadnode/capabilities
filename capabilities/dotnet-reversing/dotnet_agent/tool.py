@@ -71,7 +71,9 @@ def _load_tools() -> None:
                     download_nuget_package(
                         package=kwargs["package"],
                         version=kwargs.get("version") or None,
-                        output_dir=Path(kwargs["output_dir"]) if kwargs.get("output_dir") else None,
+                        output_dir=Path(kwargs["output_dir"])
+                        if kwargs.get("output_dir")
+                        else None,
                     )
                 )
             ),

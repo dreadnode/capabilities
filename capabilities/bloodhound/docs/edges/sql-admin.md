@@ -150,9 +150,9 @@ A summary of the what will show up in the logs, along with the TSQL queries for 
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [Computer](/resources/nodes/computer)
-Traversable: **Yes**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
+Destination: [Computer](/resources/nodes/computer)   
+Traversable: **Yes**  
 
 
 ## References

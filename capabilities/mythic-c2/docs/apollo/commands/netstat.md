@@ -10,7 +10,7 @@ Task an agent to retrieve network connections.
 
 ### Arguments
 
-The `netstat`has multiple boolean flags to filter what data gets returned.
+The `netstat`has multiple boolean flags to filter what data gets returned. 
 
 - `-Tcp`
 - `-Udp`
@@ -35,4 +35,4 @@ netstat
 ```
 
 ## Detailed Summary
-The `netstat` command uses the Win32 API calling `GetExtendedTcpTable` and `GetExtendedUdpTable` from `iphlpapi.dll` to retrieve netstat.
+The `netstat` command uses the Win32 API calling `GetExtendedTcpTable` and `GetExtendedUdpTable` from `iphlpapi.dll` to retrieve netstat. 

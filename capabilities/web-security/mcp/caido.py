@@ -118,7 +118,9 @@ async def caido_health() -> str:
 
 @mcp.tool
 async def caido_search_requests(
-    filter: Annotated[str | None, "HTTPQL filter query (e.g. 'host:example.com AND method:POST')"] = None,
+    filter: Annotated[
+        str | None, "HTTPQL filter query (e.g. 'host:example.com AND method:POST')"
+    ] = None,
     limit: Annotated[int, "Maximum number of results to return"] = 20,
 ) -> str:
     """Search HTTP requests captured by Caido."""
@@ -187,7 +189,8 @@ async def caido_get_request(
         header_end = raw_str.find("\r\n\r\n")
         if want_headers:
             lines.append(
-                f"\n--- request headers ---\n" f"{raw_str[:header_end] if header_end != -1 else raw_str[:2000]}"
+                f"\n--- request headers ---\n"
+                f"{raw_str[:header_end] if header_end != -1 else raw_str[:2000]}"
             )
         if want_body and header_end != -1:
             body = raw_str[header_end + 4 :]
@@ -199,7 +202,8 @@ async def caido_get_request(
         header_end = raw_str.find("\r\n\r\n")
         if want_headers:
             lines.append(
-                f"\n--- response headers ---\n" f"{raw_str[:header_end] if header_end != -1 else raw_str[:2000]}"
+                f"\n--- response headers ---\n"
+                f"{raw_str[:header_end] if header_end != -1 else raw_str[:2000]}"
             )
         if want_body and header_end != -1:
             body = raw_str[header_end + 4 :]
@@ -207,7 +211,9 @@ async def caido_get_request(
                 truncated = body[:MAX_OUTPUT_CHARS]
                 if len(body) > MAX_OUTPUT_CHARS:
                     truncated += f"\n\n... [TRUNCATED: {len(body)} chars total]"
-                lines.append(f"\n--- response body ({len(body)} chars) ---\n{truncated}")
+                lines.append(
+                    f"\n--- response body ({len(body)} chars) ---\n{truncated}"
+                )
 
     return "\n".join(lines)
 
@@ -216,7 +222,9 @@ async def caido_get_request(
 async def caido_replay_request(
     raw_request: Annotated[str, "Raw HTTP request including request line"],
     host: Annotated[str, "Target host"],
-    port: Annotated[int | None, "Target port (default: 443 for TLS, 80 otherwise)"] = None,
+    port: Annotated[
+        int | None, "Target port (default: 443 for TLS, 80 otherwise)"
+    ] = None,
     tls: Annotated[bool, "Use TLS"] = True,
 ) -> str:
     """Send/replay an HTTP request through Caido."""
@@ -236,7 +244,11 @@ async def caido_replay_request(
         ),
     )
 
-    status_str = result.task_status if isinstance(result.task_status, str) else str(result.task_status)
+    status_str = (
+        result.task_status
+        if isinstance(result.task_status, str)
+        else str(result.task_status)
+    )
     lines = [f"status: {status_str}"]
     if result.error:
         lines.append(f"error: {result.error}")
@@ -248,7 +260,9 @@ async def caido_replay_request(
             lines.append(f"request_id: {entry.request.id}")
         if getattr(entry, "response", None):
             resp = entry.response
-            lines.append(f"response: {resp.status_code} ({resp.length} bytes, {resp.roundtrip_time}ms)")
+            lines.append(
+                f"response: {resp.status_code} ({resp.length} bytes, {resp.roundtrip_time}ms)"
+            )
             if resp.raw:
                 raw_str = resp.raw.decode(errors="replace")
                 truncated = raw_str[:MAX_OUTPUT_CHARS]
@@ -271,7 +285,10 @@ async def caido_list_scopes() -> str:
     if not scopes:
         return "No scopes defined."
 
-    return "\n".join(f"{scope.id}\t{scope.name}\tallow={scope.allowlist}\tdeny={scope.denylist}" for scope in scopes)
+    return "\n".join(
+        f"{scope.id}\t{scope.name}\tallow={scope.allowlist}\tdeny={scope.denylist}"
+        for scope in scopes
+    )
 
 
 @mcp.tool
@@ -360,7 +377,10 @@ async def caido_replay_sessions(
     if not conn.edges:
         return "No replay sessions found."
 
-    lines = [f"{session.id}\t{session.name}" for session in (edge.node for edge in conn.edges)]
+    lines = [
+        f"{session.id}\t{session.name}"
+        for session in (edge.node for edge in conn.edges)
+    ]
     if conn.page_info.has_next_page:
         lines.append("# more results available")
     return "\n".join(lines)

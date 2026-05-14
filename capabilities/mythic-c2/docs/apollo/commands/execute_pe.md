@@ -23,7 +23,7 @@ This is based on the work put forward by Nettitude's [RunPE](https://github.com/
 ![exepe](../images/execute_pe.png)
 
 #### PE
-The name of the assembly to execute. This must match the file name used with `register_file`.
+The name of the assembly to execute. This must match the file name used with `register_file`. 
 
 #### Arguments (optional)
 Arguments to pass to the assembly.

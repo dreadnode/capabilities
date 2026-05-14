@@ -26,7 +26,7 @@ link
 In pop up menu
 ```
 Host: [drop down list of hosts]
-Payload: [drop down list of payloads]
+Payload: [drop down list of payloads] 
 ```
 
 Exmaple

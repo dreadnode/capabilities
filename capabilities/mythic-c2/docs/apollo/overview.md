@@ -20,7 +20,7 @@ Apollo is a Windows-platform integration into the Mythic command-and-control fra
 - SOCKS Support
 - Unmanaged PowerShell Execution
 - Built-in Keylogger
-
+  
 ## Authors
 
 - [@djhohnstein](https://twitter.com/djhohnstein)

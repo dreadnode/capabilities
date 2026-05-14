@@ -1,6 +1,6 @@
 ---
 title: ReadGMSAPassword
-description: This privilege allows you to read the password for a Group Managed Service Account (GMSA).
+description: This privilege allows you to read the password for a Group Managed Service Account (GMSA). 
 ---
 
 <img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
@@ -44,9 +44,9 @@ When retrieving the GMSA password from Active Directory, you may generate a 4662
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [User](/resources/nodes/user)
-Traversable: **Yes**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
+Destination: [User](/resources/nodes/user)   
+Traversable: **Yes**  
 
 
 ## References
@@ -57,3 +57,4 @@ Traversable: **Yes**
 * [https://adsecurity.org/?p=36](https://adsecurity.org/?p=36)
 * [https://adsecurity.org/?p=2535](https://adsecurity.org/?p=2535)
 * [https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4662](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4662)
+

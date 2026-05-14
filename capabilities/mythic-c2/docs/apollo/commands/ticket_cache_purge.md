@@ -16,7 +16,7 @@ Remove the specified ticket(s) from the current logon session, this uses LSA API
 ### Arguments
 
 
-#### serviceName
+#### serviceName 
 the name of the service to remove, needs to include the domain name, not required if -all flag is present
 
 #### All (Optional)

@@ -16,9 +16,9 @@ When an attacker abuses a privilege escalation or impersonation primitive that r
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [CertTemplate](/resources/nodes/cert-template)
-Traversable: **No**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
+Destination: [CertTemplate](/resources/nodes/cert-template)  
+Traversable: **No**  
 
 ## References
 
@@ -30,3 +30,4 @@ This edge is related to the following MITRE ATT&CK tactic and techniques:
 
 * [https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf](https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf)
 * https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-crtd/1192823c-d839-4bc3-9b6b-fa8c53507ae1
+

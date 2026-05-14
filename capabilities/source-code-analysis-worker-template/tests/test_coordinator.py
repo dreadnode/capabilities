@@ -108,7 +108,9 @@ class TestExtractFindings:
 
 class TestMapperPrompt:
     def test_includes_url_path_and_budget(self) -> None:
-        prompt = coordinator._mapper_prompt("https://github.com/owner/repo", Path("/tmp/x"), 200)
+        prompt = coordinator._mapper_prompt(
+            "https://github.com/owner/repo", Path("/tmp/x"), 200
+        )
         assert "https://github.com/owner/repo" in prompt
         assert "/tmp/x" in prompt
         assert "200" in prompt

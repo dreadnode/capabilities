@@ -53,9 +53,9 @@ To execute this attack, the Rubeus C# assembly needs to be executed on some syst
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [Computer](/resources/nodes/computer)
-Traversable: **Yes**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [Computer](/resources/nodes/computer)  
+Traversable: **Yes**  
 
 ## References
 

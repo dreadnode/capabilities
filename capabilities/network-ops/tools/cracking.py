@@ -58,7 +58,9 @@ class Cracking(Toolset):
             if not os.path.exists(wordlist_path):
                 raise FileNotFoundError(f"Wordlist file {wordlist_path} does not exist.")
 
-            logger.info(f"Cracking {hash_file_path} with mode {hashcat_mode} using wordlist {wordlist_path}")
+            logger.info(
+                f"Cracking {hash_file_path} with mode {hashcat_mode} using wordlist {wordlist_path}"
+            )
 
             # Execute the cracking command
             await execute(
@@ -119,7 +121,9 @@ class Cracking(Toolset):
         if not os.path.exists(wordlist_path):
             raise FileNotFoundError(f"Wordlist file {wordlist_path} does not exist.")
 
-        logger.info(f"Cracking {hash_file_path} with format {hash_format} using wordlist {wordlist_path}")
+        logger.info(
+            f"Cracking {hash_file_path} with format {hash_format} using wordlist {wordlist_path}"
+        )
 
         # Execute the cracking command
         # Note: John's --max-run-time is not a standard feature, we rely on the timeout

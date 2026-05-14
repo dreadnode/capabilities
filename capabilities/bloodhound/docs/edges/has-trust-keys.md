@@ -1,6 +1,6 @@
 ---
 title: HasTrustKeys
-description: The relationship's source node is a domain which has the trust keys for the end node trust account.
+description: The relationship's source node is a domain which has the trust keys for the end node trust account. 
 ---
 
 <img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
@@ -56,9 +56,9 @@ Authentication via a trust account is unusual and can be detected by Windows sec
 
 ## Edge Schema
 
-Source: [Domain](/resources/nodes/domain)
-Destination: [User](/resources/nodes/user)
-Traversable: **Yes**
+Source: [Domain](/resources/nodes/domain)  
+Destination: [User](/resources/nodes/user)  
+Traversable: **Yes**  
 
 ## References
 

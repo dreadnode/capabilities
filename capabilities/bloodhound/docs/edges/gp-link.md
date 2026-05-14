@@ -26,12 +26,13 @@ There is no opsec information for this edge.
 
 ## Edge Schema
 
-Source: [GPO](/resources/nodes/gpo)
-Destination: [Domain](/resources/nodes/domain), [OU](/resources/nodes/ou)
-Traversable: **Yes**
+Source: [GPO](/resources/nodes/gpo)  
+Destination: [Domain](/resources/nodes/domain), [OU](/resources/nodes/ou)   
+Traversable: **Yes**  
 
 ## References
 
 * [A Red Teamer's Guide to GPOs and OUs](https://wald0.com/?p=179)
 * [GitHub: SharpGPOAbuse](https://github.com/FSecureLABS/SharpGPOAbuse)
 * [GitHub: pyGPOAbuse](https://github.com/Hackndo/pyGPOAbuse)
+

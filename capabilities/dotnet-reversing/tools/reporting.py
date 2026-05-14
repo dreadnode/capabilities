@@ -40,7 +40,9 @@ def finish_task(
 
 @tool
 def report_auth(
-    auth_material: t.Annotated[str, "Markdown details or code showing the auth material"],
+    auth_material: t.Annotated[
+        str, "Markdown details or code showing the auth material"
+    ],
 ) -> str:
     """Report authentication material such as hardcoded keys, tokens, or passwords.
 
@@ -86,11 +88,15 @@ def report_finding(
     normalized_criticality = criticality.lower()
     if normalized_criticality not in valid_criticalities:
         allowed_values = ", ".join(sorted(valid_criticalities))
-        raise ValueError(f"Invalid criticality '{criticality}'. Allowed values: {allowed_values}")
+        raise ValueError(
+            f"Invalid criticality '{criticality}'. Allowed values: {allowed_values}"
+        )
 
     dn.log_output(
         "finding",
-        Markdown(f"### Finding in {file} - {method}\n\n**Criticality:** {normalized_criticality}\n\n{content}"),
+        Markdown(
+            f"### Finding in {file} - {method}\n\n**Criticality:** {normalized_criticality}\n\n{content}"
+        ),
     )
     dn.log_metric("num_reports", 1, aggregation="count")
     dn.tag(normalized_criticality)

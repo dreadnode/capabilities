@@ -326,7 +326,9 @@ async def mvt_sms_messages(
 @mcp.tool
 async def mvt_calls(
     source: Annotated[str, "Path to the backup dir or FFS extraction"],
-    source_kind: Annotated[SourceKind, "'backup' recommended — CallHistory.storedata lives in HomeDomain"] = "backup",
+    source_kind: Annotated[
+        SourceKind, "'backup' recommended — CallHistory.storedata lives in HomeDomain"
+    ] = "backup",
     timeout: Annotated[int, "Command timeout in seconds"] = DEFAULT_TIMEOUT,
 ) -> str:
     """Call history from CallHistory.storedata (calls module)."""
@@ -362,7 +364,9 @@ async def mvt_configuration_profiles(
     Anything unsigned, recently installed, or lacking a well-known
     enterprise issuer deserves scrutiny.
     """
-    return await _run_check(source, source_kind, module="configuration_profiles", iocs=iocs, timeout=timeout)
+    return await _run_check(
+        source, source_kind, module="configuration_profiles", iocs=iocs, timeout=timeout
+    )
 
 
 @mcp.tool
@@ -434,7 +438,9 @@ async def ios_backup_list(
     domain_filter: Annotated[
         str | None, "Exact domain match, e.g. 'HomeDomain' or 'AppDomain-com.apple.MobileSMS'"
     ] = None,
-    path_substring: Annotated[str | None, "Case-insensitive substring to match against relativePath"] = None,
+    path_substring: Annotated[
+        str | None, "Case-insensitive substring to match against relativePath"
+    ] = None,
     limit: Annotated[int, "Maximum rows to return"] = 500,
 ) -> str:
     """List logical files in an iTunes backup via Manifest.db.
@@ -457,7 +463,10 @@ async def ios_backup_list(
         conditions.append("lower(relativePath) LIKE ?")
         params.append(f"%{path_substring.lower()}%")
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-    query = f"SELECT fileID, domain, relativePath, flags FROM Files {where} " f"ORDER BY domain, relativePath LIMIT ?"
+    query = (
+        f"SELECT fileID, domain, relativePath, flags FROM Files {where} "
+        f"ORDER BY domain, relativePath LIMIT ?"
+    )
     params.append(limit)
 
     conn: sqlite3.Connection | None = None

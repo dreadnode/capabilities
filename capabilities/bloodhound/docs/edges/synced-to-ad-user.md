@@ -18,11 +18,12 @@ The attacker may create artifacts of abusing this relationship in both on-prem A
 
 ## Edge Schema
 
-Source: [AZUser](/resources/nodes/az-user)
-Destination: [User](/resources/nodes/user)
-Traversable: **Yes**
+Source: [AZUser](/resources/nodes/az-user)   
+Destination: [User](/resources/nodes/user)   
+Traversable: **Yes**  
 
 ## References
 
 * [Concept SSPR WriteBack](https://learn.microsoft.com/en-us/entra/identity/authentication/concept-sspr-writeback)
 * [Hybrid Attack Paths: New Views and Your Favorite Dog Learns an Old Trick](https://specterops.io/blog/2024/08/02/hybrid-attack-paths-new-views-and-your-favorite-dog-learns-an-old-trick/)
+

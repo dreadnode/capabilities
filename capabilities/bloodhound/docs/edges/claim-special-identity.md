@@ -50,9 +50,9 @@ No OPSEC considerations are available for this edge.
 
 ## Edge Schema
 
-Source: [Group](/resources/nodes/group)
-Destination: [User](/resources/nodes/user), [Group](/resources/nodes/group)
-Traversable: **Yes**
+Source: [Group](/resources/nodes/group)   
+Destination: [User](/resources/nodes/user), [Group](/resources/nodes/group)  
+Traversable: **Yes**  
 
 ## References
 

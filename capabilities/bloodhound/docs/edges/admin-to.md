@@ -42,9 +42,9 @@ Additionally, an EDR product may detect your attempt to inject into lsass and al
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [Computer](/resources/nodes/computer)
-Traversable: **Yes**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)  
+Destination: [Computer](/resources/nodes/computer)  
+Traversable: **Yes**  
 
 ## References
 

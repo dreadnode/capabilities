@@ -43,7 +43,9 @@ async def download_nuget_package(
             f"{NUGET_BASE_URL}/{package_lower}/index.json",
         ) as response:
             if response.status != 200:
-                raise RuntimeError(f"Failed to fetch package {package} from NuGet (status {response.status})")
+                raise RuntimeError(
+                    f"Failed to fetch package {package} from NuGet (status {response.status})"
+                )
 
             data = await response.json()
             versions = data["versions"]
@@ -57,10 +59,15 @@ async def download_nuget_package(
             return extract_dir
 
         # Download the .nupkg
-        nupkg_url = f"{NUGET_BASE_URL}/{package_lower}/{target_version}/" f"{package_lower}.{target_version}.nupkg"
+        nupkg_url = (
+            f"{NUGET_BASE_URL}/{package_lower}/{target_version}/"
+            f"{package_lower}.{target_version}.nupkg"
+        )
         async with client.get(nupkg_url) as response:
             if response.status != 200:
-                raise RuntimeError(f"Failed to download {package} v{target_version} (status {response.status})")
+                raise RuntimeError(
+                    f"Failed to download {package} v{target_version} (status {response.status})"
+                )
 
             data = await response.read()
             with (
@@ -71,7 +78,9 @@ async def download_nuget_package(
                 for member in zip_file.namelist():
                     dest = (extract_dir / member).resolve()
                     if not dest.is_relative_to(resolved_base):
-                        logger.warning(f"Skipping zip entry with path traversal: {member}")
+                        logger.warning(
+                            f"Skipping zip entry with path traversal: {member}"
+                        )
                         continue
                     zip_file.extract(member, extract_dir)
 

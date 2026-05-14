@@ -16,9 +16,9 @@ When an attacker abuses a privilege escalation or impersonation primitive that r
 
 ## Edge Schema
 
-Source: [CertTemplate](/resources/nodes/cert-template)
-Destination: [IssuancePolicy](/resources/nodes/issuance-policy)
-Traversable: **No**
+Source: [CertTemplate](/resources/nodes/cert-template)   
+Destination: [IssuancePolicy](/resources/nodes/issuance-policy)  
+Traversable: **No**  
 
 ## References
 

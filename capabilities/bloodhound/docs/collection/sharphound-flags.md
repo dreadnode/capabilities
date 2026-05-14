@@ -261,3 +261,4 @@ Interval in which to display status in milliseconds
 ### Verbosity or 'v'
 
 Enable verbose output
+

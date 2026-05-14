@@ -41,3 +41,4 @@ The following edge types may be linked to/from this node. See the [edges documen
 | --- | --- |
 | **Edge type** | **Entity panel category** |
 | LocalToComputer | -   |
+

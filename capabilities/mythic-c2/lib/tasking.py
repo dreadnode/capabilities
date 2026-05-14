@@ -81,7 +81,13 @@ async def list_callback_commands(
         # Mythic stores one commandparameter row per parameter-group presentation
         # (String, File, etc.), so the same parameter name can appear multiple
         # times across groups. Dedup while preserving encounter order.
-        required = list(dict.fromkeys(p.get("name") for p in (c.get("commandparameters") or []) if p.get("name")))
+        required = list(
+            dict.fromkeys(
+                p.get("name")
+                for p in (c.get("commandparameters") or [])
+                if p.get("name")
+            )
+        )
         result_list.append(
             clean(
                 {
@@ -147,10 +153,13 @@ async def get_command_details(
     rows = result.get("callback") or []
     if not rows:
         raise LookupError(f"callback display_id={callback_display_id} not found")
-    commands = ((rows[0].get("payload") or {}).get("payloadtype") or {}).get("commands") or []
+    commands = ((rows[0].get("payload") or {}).get("payloadtype") or {}).get(
+        "commands"
+    ) or []
     if not commands:
         raise LookupError(
-            f"command {command!r} not valid for callback " f"display_id={callback_display_id}'s payload type"
+            f"command {command!r} not valid for callback "
+            f"display_id={callback_display_id}'s payload type"
         )
     c = commands[0]
     return clean(
@@ -186,7 +195,9 @@ async def issue_task(
         str | dict[str, Any],
         "Command arguments — typically a dict keyed by parameter name; some commands accept a plain string",
     ] = "",
-    timeout: Annotated[int | None, "Task timeout in seconds; uses Mythic default if unset"] = None,
+    timeout: Annotated[
+        int | None, "Task timeout in seconds; uses Mythic default if unset"
+    ] = None,
 ) -> str:
     """Issue one command against a callback and return the task output.
 
@@ -220,12 +231,16 @@ async def issue_task(
             timeout=effective_timeout,
         )
     except Exception as exc:
-        raise RuntimeError(f"Failed to task '{command}' on callback {callback_display_id}: {exc}") from exc
+        raise RuntimeError(
+            f"Failed to task '{command}' on callback {callback_display_id}: {exc}"
+        ) from exc
 
     if not output_bytes:
         return f"Command '{command}' returned no output."
 
-    text = str(output_bytes.decode() if isinstance(output_bytes, bytes) else output_bytes)
+    text = str(
+        output_bytes.decode() if isinstance(output_bytes, bytes) else output_bytes
+    )
     return truncate(text)
 
 

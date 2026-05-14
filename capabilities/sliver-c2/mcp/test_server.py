@@ -115,7 +115,6 @@ class TestListenerTools:
     async def test_start_dns_listener_requires_domains(self):
         """DNS listener requires a domains parameter (non-optional)."""
         import inspect
-
         sig = inspect.signature(server.start_dns_listener)
         # domains has no default — it is required
         assert sig.parameters["domains"].default is inspect.Parameter.empty
@@ -134,62 +133,34 @@ class TestTruncation:
 class TestToolRegistration:
     def test_expected_tools_registered(self):
         import asyncio
-
         tools = asyncio.run(server.mcp.list_tools())
         tool_names = {t.name for t in tools}
         # Core connection tools
         expected_connection = {"connect", "interact"}
         # Server tools
         expected_server = {
-            "get_sessions",
-            "get_beacons",
-            "get_jobs",
-            "kill_job",
-            "start_mtls_listener",
-            "start_https_listener",
-            "start_http_listener",
-            "start_dns_listener",
-            "kill_session",
-            "kill_beacon",
-            "get_implant_builds",
-            "regenerate_implant",
+            "get_sessions", "get_beacons", "get_jobs", "kill_job",
+            "start_mtls_listener", "start_https_listener",
+            "start_http_listener", "start_dns_listener",
+            "kill_session", "kill_beacon",
+            "get_implant_builds", "regenerate_implant",
         }
         # Implant tools
         expected_implant = {
-            "execute",
-            "ls",
-            "cd",
-            "pwd",
-            "mkdir",
-            "rm",
-            "upload",
-            "download",
-            "download_to_local_file",
-            "ps",
-            "terminate_process",
-            "ifconfig",
-            "netstat",
-            "screenshot",
-            "execute_assembly",
-            "execute_shellcode",
-            "sideload",
-            "get_env",
-            "whoami",
-            "impersonate",
-            "make_token",
-            "revert_to_self",
-            "run_as",
-            "get_system",
-            "process_dump",
-            "registry_read",
-            "registry_write",
+            "execute", "ls", "cd", "pwd", "mkdir", "rm",
+            "upload", "download", "download_to_local_file",
+            "ps", "terminate_process", "ifconfig", "netstat",
+            "screenshot", "execute_assembly", "execute_shellcode",
+            "sideload", "get_env", "whoami",
+            "impersonate", "make_token", "revert_to_self", "run_as",
+            "get_system", "process_dump",
+            "registry_read", "registry_write",
         }
         all_expected = expected_connection | expected_server | expected_implant
         assert all_expected.issubset(tool_names), f"Missing: {all_expected - tool_names}"
 
     def test_tool_count(self):
         import asyncio
-
         tools = asyncio.run(server.mcp.list_tools())
         # Should have 40+ tools total
         assert len(tools) >= 40, f"Expected >=40 tools, got {len(tools)}"

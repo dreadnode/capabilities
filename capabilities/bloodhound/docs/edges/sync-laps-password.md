@@ -20,9 +20,9 @@ Executing the attack will generate a 4662 (An operation was performed on an obje
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [Domain](/resources/nodes/domain)
-Traversable: **Yes**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
+Destination: [Domain](/resources/nodes/domain)   
+Traversable: **Yes**  
 
 
 ## References

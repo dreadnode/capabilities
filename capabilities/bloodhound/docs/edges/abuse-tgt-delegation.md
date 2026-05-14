@@ -125,9 +125,9 @@ The attack can be detected by correlating Windows security events from the attac
 
 ## Edge Schema
 
-Source: [Domain](/resources/nodes/domain)
-Destination: [Domain](/resources/nodes/domain)
-Traversable: **Yes**
+Source: [Domain](/resources/nodes/domain)  
+Destination: [Domain](/resources/nodes/domain)   
+Traversable: **Yes**   
 
 ## References
 

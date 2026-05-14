@@ -1,6 +1,6 @@
 ---
 title: WriteAccountRestrictions
-description: This edge indicates the principal has the ability to modify several properties on the target principal, most notably the msDS-AllowedToActOnBehalfOfOtherIdentity attribute.
+description: This edge indicates the principal has the ability to modify several properties on the target principal, most notably the msDS-AllowedToActOnBehalfOfOtherIdentity attribute. 
 ---
 
 <img noZoom src="/assets/enterprise-AND-community-edition-pill-tag.svg" alt="Applies to BloodHound Enterprise and CE"/>
@@ -22,9 +22,9 @@ See the AllowedToAct edge section for opsec considerations
 
 ## Edge Schema
 
-Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)
-Destination: [User](/resources/nodes/user), [Computer](/resources/nodes/computer)
-Traversable: **Yes**
+Source: [User](/resources/nodes/user), [Group](/resources/nodes/group), [Computer](/resources/nodes/computer)   
+Destination: [User](/resources/nodes/user), [Computer](/resources/nodes/computer)   
+Traversable: **Yes**  
 
 ## References
 

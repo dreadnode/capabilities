@@ -12,7 +12,7 @@ Let's take a couple minutes to discuss what Sliver actually is and how it's set 
 
 Now that Sliver is running, lets generate and execute your first implant to try out some of the basic features of Sliver, for now we’re going to run everything on the local host.
 
-Here's what we're going to do:
+Here's what we're going to do: 
 * Generate your implant using the `generate` command as shown below.
 * Start HTTP listener on port 80
 * Execute implant in a separate terminal
@@ -25,7 +25,7 @@ Now let’s select our implant and run our first command using the `use` command
 
 ```bash
 [server] sliver > use
-? Select a session or beacon:
+? Select a session or beacon: 
 SESSION  1884a365  RELATED_EARDRUM  [::1]:49153      test.local  tester  darwin/amd64
 [*] Active session RELATED_EARDRUM (1884a365-085f-4506-b28e-80c481730fd0)
 

@@ -100,17 +100,25 @@ def _patch_mythic_for_selfsigned_certs() -> None:
 
     async def _http_get_dictionary(mythic: Mythic, url: str) -> dict:
         async with _session_with_ctx() as session:
-            async with session.get(url, headers=mythic_utilities.get_headers(mythic), ssl=ctx) as resp:
+            async with session.get(
+                url, headers=mythic_utilities.get_headers(mythic), ssl=ctx
+            ) as resp:
                 return await resp.json()
 
     async def _http_get(mythic: Mythic, url: str) -> bytes:
         async with _session_with_ctx() as session:
-            async with session.get(url, headers=mythic_utilities.get_headers(mythic), ssl=ctx) as resp:
+            async with session.get(
+                url, headers=mythic_utilities.get_headers(mythic), ssl=ctx
+            ) as resp:
                 return await resp.content.read()
 
-    async def _http_get_chunked(mythic: Mythic, url: str, chunk_size: int = 512000) -> Any:
+    async def _http_get_chunked(
+        mythic: Mythic, url: str, chunk_size: int = 512000
+    ) -> Any:
         async with _session_with_ctx() as session:
-            async with session.get(url, headers=mythic_utilities.get_headers(mythic), ssl=ctx) as resp:
+            async with session.get(
+                url, headers=mythic_utilities.get_headers(mythic), ssl=ctx
+            ) as resp:
                 async for chunk in resp.content.iter_chunked(abs(chunk_size)):
                     yield chunk
 
@@ -227,7 +235,9 @@ def reset_connection() -> None:
 async def gql(query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
     """Post a GraphQL query against the authenticated Mythic client."""
     client = await ensure_connected()
-    result = await mythic_utilities.graphql_post(mythic=client, query=query, variables=variables or {})
+    result = await mythic_utilities.graphql_post(
+        mythic=client, query=query, variables=variables or {}
+    )
     return result if isinstance(result, dict) else {}
 
 

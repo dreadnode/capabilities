@@ -17,9 +17,9 @@ When an attacker abuses a privilege escalation or impersonation primitive that r
 
 ## Edge Schema
 
-Source: [CertTemplate](/resources/nodes/cert-template)
-Destination: [CertTemplate](/resources/nodes/cert-template)
-Traversable: **No**
+Source: [CertTemplate](/resources/nodes/cert-template)  
+Destination: [CertTemplate](/resources/nodes/cert-template)   
+Traversable: **No**   
 
 ## References
 This edge is related to the following MITRE ATT&CK tactic and techniques:
