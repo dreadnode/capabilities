@@ -204,7 +204,7 @@ The capability ships 41 LLM attack algorithms plus 4 adversarial ML samplers; th
 | compare_transforms | No | true = N+1 study (baseline + each transform individually) |
 | scorers | No | Additional scorers (see scorer catalog below) |
 | n_iterations | No | Max iterations (defaults vary by attack) |
-| goal_category | No | Category: jailbreak, credential_leak, tool_misuse, system_prompt_leak, harmful_content, pii, refusal_bypass, bias, content_policy |
+| goal_category | No | Canonical slug. Core: `jailbreak_general`, `credential_leak`, `tool_misuse`, `system_prompt_leak`, `harmful_content`, `pii_extraction`, `refusal_bypass`, `bias_fairness`, `content_policy`. Extended: `reasoning_exploitation`, `supply_chain`, `resource_exhaustion`, `quantization_safety`, `alignment_integrity`, `multi_turn_escalation`. Short aliases (e.g. `pii`, `bias`, `jailbreak`) also resolve. |
 | assessment_name | No | Name for assessment tracking |
 
 ## Transform Catalog
