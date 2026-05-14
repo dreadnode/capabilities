@@ -68,7 +68,7 @@ def save_workflow(
 ) -> str:
     """Save a Python attack workflow with syntax validation.
 
-    Validates the code compiles, saves to ~/workspace/airt/workflows/,
+    Validates the code compiles, saves to ~/.dreadnode/airt/[org]/[workspace]/workflows/,
     and records metadata. Use execute_workflow to run saved workflows.
     """
     if "/" in filename or "\\" in filename or ".." in filename:
@@ -101,7 +101,7 @@ def save_workflow(
 def list_workflows() -> str:
     """List saved attack workflows with metadata.
 
-    Shows all Python scripts in ~/workspace/airt/workflows/ with
+    Shows all Python scripts in ~/.dreadnode/airt/[org]/[workspace]/workflows/ with
     descriptions, sizes, and save timestamps.
     """
     if not WORKFLOWS_DIR.exists():
