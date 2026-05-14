@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Workflow helper for saving and listing Python attack scripts.
 
-Saves workflow scripts to ~/workspace/airt/workflows/ with syntax
+Saves workflow scripts to ~/.dreadnode/airt/[org]/[workspace]/workflows/ with syntax
 validation via compile(). Provides listing of saved workflows.
 
 Protocol: reads JSON from stdin, writes JSON to stdout.
@@ -39,7 +39,9 @@ def _get_workspace_path() -> Path:
 
 
 WORKFLOWS_DIR = (
-    Path(os.environ.get("AIRT_WORKFLOWS_DIR")) if os.environ.get("AIRT_WORKFLOWS_DIR") else _get_workspace_path()
+    Path(os.environ.get("AIRT_WORKFLOWS_DIR"))
+    if os.environ.get("AIRT_WORKFLOWS_DIR")
+    else _get_workspace_path()
 )
 METADATA_FILE = WORKFLOWS_DIR / ".workflow_metadata.json"
 
@@ -74,7 +76,11 @@ def save_workflow(params: dict) -> dict:
     try:
         compile(content, filename, "exec")
     except SyntaxError as e:
-        return {"error": (f"Syntax error in workflow: {e.msg} (line {e.lineno}, col {e.offset})")}
+        return {
+            "error": (
+                f"Syntax error in workflow: {e.msg} (line {e.lineno}, col {e.offset})"
+            )
+        }
 
     # Save the file
     WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
@@ -90,7 +96,11 @@ def save_workflow(params: dict) -> dict:
     }
     _save_metadata(metadata)
 
-    return {"result": (f"Workflow saved: {filepath}\nSize: {len(content.encode())} bytes\nSyntax: valid")}
+    return {
+        "result": (
+            f"Workflow saved: {filepath}\nSize: {len(content.encode())} bytes\nSyntax: valid"
+        )
+    }
 
 
 def list_workflows(params: dict) -> dict:
@@ -99,7 +109,7 @@ def list_workflows(params: dict) -> dict:
 
     py_files = sorted(WORKFLOWS_DIR.glob("*.py"))
     if not py_files:
-        return {"result": "No workflow files found in ~/workspace/airt/workflows/"}
+        return {"result": f"No workflow files found in {WORKFLOWS_DIR}"}
 
     metadata = _load_metadata()
 
@@ -133,7 +143,11 @@ def execute_workflow(params: dict) -> dict:
     filepath = WORKFLOWS_DIR / filename
     if not filepath.exists():
         # List available workflows
-        available = [f.name for f in WORKFLOWS_DIR.glob("*.py")] if WORKFLOWS_DIR.exists() else []
+        available = (
+            [f.name for f in WORKFLOWS_DIR.glob("*.py")]
+            if WORKFLOWS_DIR.exists()
+            else []
+        )
         return {"error": f"Workflow not found: {filename}. Available: {available}"}
 
     timeout = int(params.get("timeout", 300))
@@ -141,7 +155,10 @@ def execute_workflow(params: dict) -> dict:
 
     try:
         python_executable = resolve_python_executable()
-        print(f"[INFO] Executing workflow with Python: {python_executable}", file=sys.stderr)
+        print(
+            f"[INFO] Executing workflow with Python: {python_executable}",
+            file=sys.stderr,
+        )
         result = subprocess.run(
             [python_executable, str(filepath)],
             cwd=str(WORKFLOWS_DIR.parent),
@@ -159,12 +176,16 @@ def execute_workflow(params: dict) -> dict:
         output = "\n".join(output_parts) or "(no output)"
 
         if result.returncode != 0:
-            return {"result": f"Workflow exited with code {result.returncode}.\n\n{output}"}
+            return {
+                "result": f"Workflow exited with code {result.returncode}.\n\n{output}"
+            }
 
         return {"result": f"Workflow completed successfully.\n\n{output}"}
 
     except subprocess.TimeoutExpired:
-        return {"result": f"Workflow timed out after {timeout}s. Partial output may be in ~/workspace/airt/."}
+        return {
+            "result": f"Workflow timed out after {timeout}s. Partial output may be in {WORKFLOWS_DIR.parent}."
+        }
     except Exception as e:
         return {"error": f"Failed to execute workflow: {e}"}
 

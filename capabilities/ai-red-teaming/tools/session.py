@@ -16,11 +16,32 @@ from pathlib import Path
 
 from dreadnode.agents.tools import tool
 
-SESSION_PATH = Path(
-    os.environ.get(
-        "AIRT_SESSION_PATH",
-        os.path.expanduser("~/workspace/airt/.session_context.json"),
+
+def _default_session_path() -> Path:
+    try:
+        from dreadnode.app.config import UserConfig
+
+        config = UserConfig.read()
+        profile_data = config.active_profile
+        if profile_data:
+            _, profile = profile_data
+            org = profile.organization or "default"
+            workspace = profile.workspace or "main"
+        else:
+            org = "default"
+            workspace = "main"
+    except Exception:
+        org = "default"
+        workspace = "main"
+    return (
+        Path.home() / ".dreadnode" / "airt" / org / workspace / ".session_context.json"
     )
+
+
+SESSION_PATH = (
+    Path(os.environ["AIRT_SESSION_PATH"])
+    if os.environ.get("AIRT_SESSION_PATH")
+    else _default_session_path()
 )
 
 
@@ -89,7 +110,9 @@ def save_session_context(
     session["history"] = history[-20:]
 
     _save(session)
-    return "Session context saved. Target: {}, Goal: {}, Last attack: {}".format(target_model, goal[:60], attack_type)
+    return "Session context saved. Target: {}, Goal: {}, Last attack: {}".format(
+        target_model, goal[:60], attack_type
+    )
 
 
 @tool
@@ -134,10 +157,18 @@ def get_session_context() -> str:
         lines.append("")
         lines.append("Attack History ({} runs):".format(len(history)))
         for h in history[-5:]:  # Show last 5
-            score_str = "ASR={}%".format(h["best_score"]) if h.get("best_score") is not None else "no score"
-            tx_str = "+{}".format(",".join(h["transforms"])) if h.get("transforms") else ""
+            score_str = (
+                "ASR={}%".format(h["best_score"])
+                if h.get("best_score") is not None
+                else "no score"
+            )
+            tx_str = (
+                "+{}".format(",".join(h["transforms"])) if h.get("transforms") else ""
+            )
             lines.append(
-                "  - {} {}: {} ({})".format(h.get("attack_type", "?"), tx_str, h.get("goal", "")[:40], score_str)
+                "  - {} {}: {} ({})".format(
+                    h.get("attack_type", "?"), tx_str, h.get("goal", "")[:40], score_str
+                )
             )
 
     return "\n".join(lines)
