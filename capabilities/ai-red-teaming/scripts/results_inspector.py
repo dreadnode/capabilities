@@ -1,23 +1,38 @@
 #!/usr/bin/env python3
 """Results inspector for AI Red Teaming output files.
 
-Reads analytics JSON, result files, and reports from ~/workspace/airt/
-to provide summaries and detailed inspection of attack outputs.
+Reads analytics JSON, result files, and reports from the active workspace dir
+(~/.dreadnode/airt/[org]/[workspace]/) to provide summaries and detailed
+inspection of attack outputs.
 
 Protocol: reads JSON from stdin, writes JSON to stdout.
 """
 
 import json
-import os
 import sys
 from pathlib import Path
 
-AIRT_DIR = Path(
-    os.environ.get(
-        "AIRT_OUTPUT_DIR",
-        os.path.expanduser("~/workspace/airt"),
-    )
-)
+
+def _resolve_workspace_dir() -> Path:
+    try:
+        from dreadnode.app.config import UserConfig
+
+        config = UserConfig.read()
+        profile_data = config.active_profile
+        if profile_data:
+            _, profile = profile_data
+            org = profile.organization or "default"
+            workspace = profile.workspace or "main"
+        else:
+            org = "default"
+            workspace = "main"
+    except Exception:  # noqa: BLE001
+        org = "default"
+        workspace = "main"
+    return Path.home() / ".dreadnode" / "airt" / org / workspace
+
+
+AIRT_DIR = _resolve_workspace_dir()
 
 
 def inspect_results(params: dict) -> dict:
@@ -58,7 +73,9 @@ def get_analytics_summary(params: dict) -> dict:
         analytics_files.extend(AIRT_DIR.rglob(pattern))
 
     if not analytics_files:
-        return {"error": ("No analytics files found in ~/workspace/airt/. Run an attack workflow first.")}
+        return {
+            "error": f"No analytics files found in {AIRT_DIR}. Run an attack workflow first."
+        }
 
     summaries = []
     for f in sorted(analytics_files):

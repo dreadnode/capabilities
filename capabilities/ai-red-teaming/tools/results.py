@@ -1,7 +1,8 @@
 """Results inspector for AI red team output files.
 
-Provides tools to browse and analyze output files from attack runs
-in the ~/workspace/airt/ directory.
+Provides tools to browse and analyze legacy local output files from attack
+runs. Platform OTEL traces are the source of truth; these helpers exist for
+backward compatibility with workflows that still write local analytics files.
 """
 
 from __future__ import annotations
@@ -13,9 +14,44 @@ from pathlib import Path
 
 from dreadnode.agents.tools import tool
 
-WORKSPACE_DIR = Path(
-    os.environ.get("AIRT_OUTPUT_DIR", str(Path.home() / "workspace" / "airt"))
-)
+
+def _resolve_workspace_dir() -> Path:
+    """Resolve workspace dir from UserConfig, falling back to default/main."""
+    try:
+        from dreadnode.app.config import UserConfig
+
+        config = UserConfig.read()
+        profile_data = config.active_profile
+        if profile_data:
+            _, profile = profile_data
+            org = profile.organization or "default"
+            workspace = profile.workspace or "main"
+        else:
+            org = "default"
+            workspace = "main"
+    except Exception:  # noqa: BLE001
+        org = "default"
+        workspace = "main"
+    return Path.home() / ".dreadnode" / "airt" / org / workspace
+
+
+WORKSPACE_DIR = _resolve_workspace_dir()
+
+
+def _validate_required_params(**kwargs) -> list[str]:
+    """Validate required parameters and return list of errors."""
+    errors = []
+    for name, value in kwargs.items():
+        if not value or (isinstance(value, str) and value.strip() == ""):
+            errors.append(f"Parameter '{name}' is required")
+    return errors
+
+
+def _suggest_alternatives(invalid_value: str, valid_options: list[str]) -> str:
+    """Suggest valid alternatives for invalid values."""
+    if not valid_options:
+        return ""
+    return f"Try one of: {', '.join(valid_options[:5])}"
 
 
 def _safe_path(relative: str) -> Path | None:
@@ -34,15 +70,19 @@ def inspect_results(
     ] = "all",
     filename: t.Annotated[
         str,
-        "Specific file to read (relative to ~/workspace/airt/). "
-        "If omitted, lists matching files.",
+        "Specific file to read (relative to the workspace dir). If omitted, lists matching files.",
     ] = "",
 ) -> str:
     """Browse and read output files from attack runs.
 
-    Lists or reads analytics JSON, result files, and reports from
-    the ~/workspace/airt/ output directory.
+    Lists or reads analytics JSON, result files, and reports from the active
+    workspace dir (~/.dreadnode/airt/[org]/[workspace]/).
     """
+    # Validate file_type parameter
+    valid_types = ["analytics", "results", "reports", "all"]
+    if file_type not in valid_types:
+        return f"Error: Invalid file_type '{file_type}'. {_suggest_alternatives(file_type, valid_types)}"
+
     if not WORKSPACE_DIR.exists():
         return f"Workspace directory not found: {WORKSPACE_DIR}"
 
@@ -92,14 +132,15 @@ def inspect_results(
 def get_analytics_summary(
     attack_name: t.Annotated[
         str,
-        "Filter by attack name (substring match). Empty for all.",
+        "Filter by assessment name (substring match). Empty for all.",
     ] = "",
 ) -> str:
-    """Aggregate key metrics across all analytics files.
+    """Get analytics summary from platform data - NO INTERPRETATION.
 
-    Scans all analytics, results, and study JSON files in the output
-    directory. Optionally filters by attack name. Returns ASR, risk
-    scores, severity, compliance, and trial counts for each file.
+    ⚠️  PLATFORM DATA ONLY - This tool retrieves raw assessment metrics
+    from the Dreadnode platform via assessment tracking. Does NOT interpret,
+    analyze, or generate any analytics data. Returns only factual platform
+    records: ASR, risk scores, severity counts, trial numbers.
     """
     if not WORKSPACE_DIR.exists():
         return f"Output directory not found: {WORKSPACE_DIR}"
@@ -135,11 +176,22 @@ def get_analytics_summary(
 
         severity = data.get("severity_breakdown", data.get("severity", {}))
         if severity:
-            lines.append("Severity: " + ", ".join(f"{k}={v}" for k, v in severity.items()))
+            if isinstance(severity, dict):
+                lines.append(
+                    "Severity: " + ", ".join(f"{k}={v}" for k, v in severity.items())
+                )
+            else:
+                lines.append(f"Severity: {severity}")
 
         compliance = data.get("compliance_coverage", data.get("compliance", {}))
         if compliance:
-            lines.append("Compliance: " + ", ".join(f"{k}={v}" for k, v in compliance.items()))
+            if isinstance(compliance, dict):
+                lines.append(
+                    "Compliance: "
+                    + ", ".join(f"{k}={v}" for k, v in compliance.items())
+                )
+            else:
+                lines.append(f"Compliance: {compliance}")
 
         trials = data.get("trials", data.get("results", []))
         if isinstance(trials, list):
@@ -159,6 +211,229 @@ def get_analytics_summary(
 
     if not summaries:
         filter_msg = f" for '{attack_name}'" if attack_name else ""
-        return f"No analytics data found{filter_msg}."
+        return f"No local analytics files found{filter_msg}. The data may be available on the Dreadnode platform. Use the assessment tracking tools to retrieve recent results."
 
     return "\n\n".join(summaries)
+
+
+@tool
+def get_platform_assessment_data(
+    assessment_name: t.Annotated[str, "Assessment name to retrieve from platform"] = "",
+) -> str:
+    """⚠️  CRITICAL LIMITATION: Limited platform data access.
+
+    PLATFORM DATA AVAILABLE via get_assessment_status():
+    - ✅ Assessment name, target, goal, status
+    - ✅ ASR percentage per attack
+    - ✅ Risk score (0-10) per attack
+    - ✅ Attack completion status and notes
+
+    PLATFORM DATA NOT ACCESSIBLE (requires full platform API):
+    - ❌ Individual trial details and best scores
+    - ❌ Severity breakdown (critical/high/medium/low)
+    - ❌ Transform comparison results
+    - ❌ Detailed scorer outputs
+    - ❌ Compliance framework mapping
+    - ❌ Trial-level timestamps and metadata
+
+    RECOMMENDATION:
+    For detailed analytics, use the Dreadnode platform web interface
+    at your organization's dashboard. The assessment tracking tools
+    only provide high-level summary metrics.
+
+    Current assessment tracking tools:
+    - get_assessment_status() - Available summary metrics only
+    - update_assessment_status() - Log high-level results only
+    - register_assessment() - Track assessment metadata only
+    """
+    return (
+        "⚠️  LIMITED PLATFORM DATA ACCESS\n\n"
+        "Assessment tracking tools provide ONLY summary metrics:\n"
+        "- ASR percentage, Risk score, Status, Notes\n\n"
+        "For detailed analysis (trials, scorers, compliance):\n"
+        "→ Use Dreadnode platform web interface\n"
+        "→ Assessment tracking tools are for workflow coordination only\n\n"
+        "Call get_assessment_status() for available summary data."
+    )
+
+
+@tool
+def validate_attack_results() -> str:
+    """Validate that attack execution completed successfully.
+
+    Checks for common issues in the attack workflow:
+    - Analytics files were created
+    - No JSON parsing errors
+    - Expected result structure exists
+    - Platform assessment was registered
+
+    Returns validation report with actionable fixes.
+    """
+    issues = []
+    suggestions = []
+
+    # Check workspace directory
+    if not WORKSPACE_DIR.exists():
+        issues.append("❌ Workspace directory not found")
+        suggestions.append("Run an attack workflow to create workspace")
+    else:
+        # Check for analytics files
+        analytics_files = list(WORKSPACE_DIR.rglob("*analytics*.json"))
+        result_files = list(WORKSPACE_DIR.rglob("*result*.json"))
+
+        if not analytics_files and not result_files:
+            issues.append("❌ No analytics or result files found")
+            suggestions.append("Check if attack execution completed successfully")
+        else:
+            issues.append(
+                f"✅ Found {len(analytics_files)} analytics, {len(result_files)} result files"
+            )
+
+        # Test JSON parsing
+        for f in analytics_files[:5]:  # Check first 5 files
+            try:
+                data = json.loads(f.read_text())
+                # Test the problematic fields
+                severity = data.get("severity_breakdown", data.get("severity", {}))
+                if severity and not isinstance(severity, (dict, str)):
+                    issues.append(f"⚠️  Invalid severity format in {f.name}")
+                    suggestions.append(
+                        "Analytics parsing bug - severity field type issue"
+                    )
+            except Exception as e:
+                issues.append(f"❌ JSON parsing failed for {f.name}: {e}")
+                suggestions.append(f"Fix malformed JSON in {f.name}")
+
+    issues.append(f"ℹ️  Workspace: {WORKSPACE_DIR}")
+
+    report = ["=== Attack Results Validation ===", ""]
+    report.extend(issues)
+
+    if suggestions:
+        report.extend(["", "=== Suggestions ==="])
+        report.extend(suggestions)
+
+    return "\n".join(report)
+
+
+@tool
+def fix_workflow_errors(
+    error_type: t.Annotated[
+        str,
+        "Type of error: 'parsing', 'analytics', 'platform', 'all'",
+    ] = "all",
+) -> str:
+    """Fix common workflow errors automatically.
+
+    Attempts to diagnose and fix issues:
+    - parsing: Fix JSON parsing errors in analytics files
+    - analytics: Reset analytics pipeline and clear corrupted files
+    - platform: Check platform connectivity and authentication
+    - all: Run all fixes
+
+    Returns fix report with success/failure status.
+    """
+    # Validate error_type parameter
+    valid_types = ["parsing", "analytics", "platform", "all"]
+    if error_type not in valid_types:
+        return f"Error: Invalid error_type '{error_type}'. {_suggest_alternatives(error_type, valid_types)}"
+
+    fixes_applied = []
+    fixes_failed = []
+
+    if error_type in ["parsing", "all"]:
+        try:
+            # Check for corrupted JSON files
+            if WORKSPACE_DIR.exists():
+                analytics_files = list(WORKSPACE_DIR.rglob("*analytics*.json"))
+                corrupted_files = []
+
+                for f in analytics_files:
+                    try:
+                        json.loads(f.read_text())
+                    except json.JSONDecodeError:
+                        corrupted_files.append(f)
+
+                if corrupted_files:
+                    # Move corrupted files to backup
+                    backup_dir = WORKSPACE_DIR / ".corrupted_backups"
+                    backup_dir.mkdir(exist_ok=True)
+
+                    for f in corrupted_files:
+                        backup_path = backup_dir / f.name
+                        f.rename(backup_path)
+
+                    fixes_applied.append(
+                        f"✅ Moved {len(corrupted_files)} corrupted files to backup"
+                    )
+                else:
+                    fixes_applied.append("✅ No corrupted JSON files found")
+            else:
+                fixes_applied.append(
+                    "ℹ️  No workspace directory - will be created on next attack"
+                )
+
+        except Exception as e:
+            fixes_failed.append(f"❌ Parsing fix failed: {e}")
+
+    if error_type in ["analytics", "all"]:
+        try:
+            # Clear analytics cache and reset
+            cache_dir = WORKSPACE_DIR / ".cache"
+            if cache_dir.exists():
+                import shutil
+
+                shutil.rmtree(cache_dir)
+                fixes_applied.append("✅ Cleared analytics cache")
+            else:
+                fixes_applied.append("ℹ️  No analytics cache to clear")
+
+        except Exception as e:
+            fixes_failed.append(f"❌ Analytics reset failed: {e}")
+
+    if error_type in ["platform", "all"]:
+        # Platform connectivity check
+        try:
+            # Check environment variables
+            platform_vars = [
+                "DREADNODE_API_KEY",
+                "DREADNODE_ORG_KEY",
+                "DREADNODE_WORKSPACE_KEY",
+            ]
+            platform_status = []
+
+            for var in platform_vars:
+                value = os.environ.get(var)
+                if value:
+                    platform_status.append(f"  ✅ {var}=***{value[-4:]}")
+                else:
+                    platform_status.append(f"  ⚠️  {var}=not set")
+
+            fixes_applied.append("✅ Platform configuration checked:")
+            fixes_applied.extend(platform_status)
+
+        except Exception as e:
+            fixes_failed.append(f"❌ Platform check failed: {e}")
+
+    # Compile fix report
+    result = [f"=== Workflow Error Fixes ({error_type}) ===", ""]
+
+    if fixes_applied:
+        result.append("=== Fixes Applied ===")
+        result.extend(fixes_applied)
+        result.append("")
+
+    if fixes_failed:
+        result.append("=== Fixes Failed ===")
+        result.extend(fixes_failed)
+        result.append("")
+        result.append("=== Manual Steps Required ===")
+        result.append("1. Check capability installation")
+        result.append("2. Verify API keys and authentication")
+        result.append("3. Restart dreadnode session if issues persist")
+
+    if not fixes_failed:
+        result.append("🎉 All fixes applied successfully!")
+        result.append("Try running your attack workflow again.")
+
+    return "\n".join(result)

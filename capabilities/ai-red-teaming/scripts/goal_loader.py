@@ -99,11 +99,13 @@ def list_categories(params: dict) -> dict:
             subs.append(sub_entry)
             all_sub_categories.append(slug)
 
-        categories.append({
-            "category": cat,
-            "sub_categories": subs,
-            "total_goals": sum(s["count"] for s in subs),
-        })
+        categories.append(
+            {
+                "category": cat,
+                "sub_categories": subs,
+                "total_goals": sum(s["count"] for s in subs),
+            }
+        )
 
     return {
         "result": {
@@ -136,9 +138,7 @@ def get_category_goals(params: dict) -> dict:
     valid_slugs = set(row["sub_category"] for row in goals)
     invalid = [c for c in sub_categories if c not in valid_slugs]
     if invalid:
-        return {
-            "error": f"Unknown sub-categories: {invalid}. Available: {sorted(valid_slugs)}"
-        }
+        return {"error": f"Unknown sub-categories: {invalid}. Available: {sorted(valid_slugs)}"}
 
     # Filter goals by sub-category
     filtered = [row for row in goals if row["sub_category"] in sub_categories]
@@ -146,17 +146,20 @@ def get_category_goals(params: dict) -> dict:
     # Sample if requested
     if sample_size and sample_size < len(filtered):
         import random
+
         random.seed(42)
         filtered = random.sample(filtered, sample_size)
 
     # Return IDs and metadata only — never goal text
     result_goals = []
     for row in filtered:
-        result_goals.append({
-            "id": row["id"],
-            "category": row["category"],
-            "sub_category": row["sub_category"],
-        })
+        result_goals.append(
+            {
+                "id": row["id"],
+                "category": row["category"],
+                "sub_category": row["sub_category"],
+            }
+        )
 
     # Group counts by sub-category
     sub_category_counts: dict[str, int] = {}

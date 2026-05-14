@@ -1,0 +1,3 @@
+# Security scan configuration for AI Red Teaming capability
+# This capability contains legitimate security research content
+# Timeout issues: increase scanner timeout for large agent file

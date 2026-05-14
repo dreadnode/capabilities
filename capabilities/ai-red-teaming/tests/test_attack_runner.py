@@ -40,7 +40,7 @@ runner = _load_runner()
 def _generate(params: dict) -> dict:
     """Call attack_runner via subprocess and return JSON result."""
     payload = json.dumps({"name": "generate_attack", "parameters": params})
-    env = {**os.environ, "DREADNODE_WORKSPACE_DIR": "/tmp/airt_test"}
+    env = {**os.environ, "AIRT_WORKFLOWS_DIR": "/tmp/airt_test_workflows"}
     python_executable = resolve_python_executable()
     print(f"[INFO] Running test with Python: {python_executable}", file=sys.stderr)
     result = subprocess.run(
@@ -383,19 +383,12 @@ class TestGeneratedScriptQuality:
 
     def _get_script(self, params: dict) -> str:
         result = _generate(params)
-        assert "error" not in result
-        # Read the generated file
-        workflow_file = result.get("workflow_file", "")
-        if workflow_file and Path(workflow_file).exists():
-            return Path(workflow_file).read_text()
-        # Fallback: find most recent file
-        wf_dir = Path("/tmp/airt_test/airt/workflows")
-        if not wf_dir.exists():
-            wf_dir = Path(os.path.expanduser("~/workspace/airt/workflows"))
-        files = sorted(
-            wf_dir.glob("*.py"), key=lambda f: f.stat().st_mtime, reverse=True
-        )
-        return files[0].read_text() if files else ""
+        assert "error" not in result, result
+        filepath = result.get("filepath") or result.get("workflow_file") or ""
+        assert (
+            filepath and Path(filepath).exists()
+        ), f"Generated script missing: {result}"
+        return Path(filepath).read_text()
 
     def test_script_compiles(self) -> None:
         script = self._get_script(

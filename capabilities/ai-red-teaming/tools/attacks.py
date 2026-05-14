@@ -95,9 +95,7 @@ def generate_attack(
         "injection (skeleton_key_framing, many_shot_examples), "
         "advanced_jailbreak, mcp_attacks, multi_agent_attacks, exfiltration, and more.",
     ] = None,
-    compare_transforms: t.Annotated[
-        bool, "If True with transforms, creates N+1 comparison study"
-    ] = False,
+    compare_transforms: t.Annotated[bool, "If True with transforms, creates N+1 comparison study"] = False,
     scorers: t.Annotated[list[str] | None, "Custom scorer names"] = None,
     n_iterations: t.Annotated[int | None, "Iterations per attack"] = None,
     goal_category: t.Annotated[str, "Goal category for scoring"] = "",
@@ -146,15 +144,10 @@ def generate_category_attack(
     target_model: t.Annotated[str, "Target LLM model"],
     categories: t.Annotated[
         list[str] | None,
-        "Sub-category slugs (e.g., ['cybersecurity', 'credential_extraction']) "
-        "or ['all'] for all categories",
+        "Sub-category slugs (e.g., ['cybersecurity', 'credential_extraction']) " "or ['all'] for all categories",
     ] = None,
-    goal_ids: t.Annotated[
-        list[str] | None, "Specific goal IDs (overrides categories)"
-    ] = None,
-    goals_per_category: t.Annotated[
-        int | None, "Max goals to sample per category"
-    ] = None,
+    goal_ids: t.Annotated[list[str] | None, "Specific goal IDs (overrides categories)"] = None,
+    goals_per_category: t.Annotated[int | None, "Max goals to sample per category"] = None,
     attacker_model: t.Annotated[str, "Attacker LLM"] = "",
     evaluator_model: t.Annotated[str, "Judge LLM"] = "",
     transform_model: t.Annotated[str, "Transform LLM"] = "",
@@ -210,30 +203,14 @@ def generate_agentic_attack(
     agent_url: t.Annotated[str, "HTTP endpoint of the target agent"],
     attacker_model: t.Annotated[str, "LLM generating attack prompts"],
     attack_type: t.Annotated[str, "Attack type (default: tap)"] = "tap",
-    agent_auth_type: t.Annotated[
-        str, "Auth scheme: 'none', 'bearer', or 'api_key'"
-    ] = "none",
-    agent_auth_env_var: t.Annotated[
-        str, "Env var name for auth credential"
-    ] = "AGENT_API_KEY",
-    agent_request_template: t.Annotated[
-        str, "JSON request template with {prompt} placeholder"
-    ] = "",
-    agent_response_text_path: t.Annotated[
-        str, "JSONPath to extract response text"
-    ] = "",
-    agent_response_tool_calls_path: t.Annotated[
-        str, "JSONPath for tool calls in response"
-    ] = "",
-    agent_dangerous_tools: t.Annotated[
-        list[str] | None, "Dangerous tool names to target for agentic scoring"
-    ] = None,
-    agent_safe_tools: t.Annotated[
-        list[str] | None, "Safe tool whitelist for agentic scoring"
-    ] = None,
-    agent_preset: t.Annotated[
-        str, "Preset: 'openai_assistants', 'anthropic', or 'custom'"
-    ] = "custom",
+    agent_auth_type: t.Annotated[str, "Auth scheme: 'none', 'bearer', or 'api_key'"] = "none",
+    agent_auth_env_var: t.Annotated[str, "Env var name for auth credential"] = "AGENT_API_KEY",
+    agent_request_template: t.Annotated[str, "JSON request template with {prompt} placeholder"] = "",
+    agent_response_text_path: t.Annotated[str, "JSONPath to extract response text"] = "",
+    agent_response_tool_calls_path: t.Annotated[str, "JSONPath for tool calls in response"] = "",
+    agent_dangerous_tools: t.Annotated[list[str] | None, "Dangerous tool names to target for agentic scoring"] = None,
+    agent_safe_tools: t.Annotated[list[str] | None, "Safe tool whitelist for agentic scoring"] = None,
+    agent_preset: t.Annotated[str, "Preset: 'openai_assistants', 'anthropic', or 'custom'"] = "custom",
     evaluator_model: t.Annotated[str, "Judge LLM"] = "",
     transform_model: t.Annotated[str, "Transform LLM"] = "",
     transforms: t.Annotated[list[str] | None, "Transforms to apply"] = None,
@@ -299,14 +276,12 @@ def generate_image_attack(
     ] = "hopskipjump",
     input_type: t.Annotated[
         str,
-        "Input data type: 'image' (load from URL, perturb pixels) or "
-        "'tabular' (feature array + API endpoint)",
+        "Input data type: 'image' (load from URL, perturb pixels) or " "'tabular' (feature array + API endpoint)",
     ] = "image",
     # --- Image-specific params ---
     image_url: t.Annotated[
         str,
-        "URL of the source image (for input_type='image'). "
-        "Can also be a local file path.",
+        "URL of the source image (for input_type='image'). " "Can also be a local file path.",
     ] = "",
     # --- Tabular-specific params ---
     features: t.Annotated[
@@ -320,9 +295,7 @@ def generate_image_attack(
         "and returns {predictions: [{class: int, confidence: float}]}",
     ] = "",
     api_key: t.Annotated[str, "API key for x-api-key header (optional)"] = "",
-    target_class: t.Annotated[
-        int, "Class to flip TO (adversarial target), e.g. 1 for fraud"
-    ] = 1,
+    target_class: t.Annotated[int, "Class to flip TO (adversarial target), e.g. 1 for fraud"] = 1,
     original_class: t.Annotated[
         int | str,
         "Original class of the source input, e.g. 0 for legitimate",

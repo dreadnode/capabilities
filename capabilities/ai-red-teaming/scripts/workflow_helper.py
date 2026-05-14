@@ -15,11 +15,31 @@ from pathlib import Path
 
 from dreadnode.app.env import resolve_python_executable
 
-WORKFLOWS_DIR = Path(
-    os.environ.get(
-        "AIRT_WORKFLOWS_DIR",
-        os.path.expanduser("~/workspace/airt/workflows"),
-    )
+
+# Get org/workspace from active profile, with fallbacks
+def _get_workspace_path() -> Path:
+    try:
+        from dreadnode.app.config import UserConfig
+
+        config = UserConfig.read()
+        profile_data = config.active_profile
+        if profile_data:
+            _, profile = profile_data
+            org_key = profile.organization or "default"
+            workspace_key = profile.workspace or "main"
+        else:
+            org_key = "default"
+            workspace_key = "main"
+    except Exception:
+        # Fallback if config system unavailable
+        org_key = "default"
+        workspace_key = "main"
+
+    return Path.home() / ".dreadnode" / "airt" / org_key / workspace_key / "workflows"
+
+
+WORKFLOWS_DIR = (
+    Path(os.environ.get("AIRT_WORKFLOWS_DIR")) if os.environ.get("AIRT_WORKFLOWS_DIR") else _get_workspace_path()
 )
 METADATA_FILE = WORKFLOWS_DIR / ".workflow_metadata.json"
 

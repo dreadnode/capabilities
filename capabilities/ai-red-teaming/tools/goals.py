@@ -140,9 +140,6 @@ def get_category_goals(
 
     lines = [f"Found {len(filtered)} goals:"]
     for g in filtered:
-        lines.append(
-            f"  - {g['id']}: [{g['sub_category']}] "
-            f"refs={g.get('compliance_refs', 'N/A')}"
-        )
+        lines.append(f"  - {g['id']}: [{g['sub_category']}] " f"refs={g.get('compliance_refs', 'N/A')}")
 
     return "\n".join(lines)
