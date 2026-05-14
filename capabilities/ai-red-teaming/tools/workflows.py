@@ -41,7 +41,9 @@ def _get_workspace_path() -> Path:
 
 
 WORKFLOWS_DIR = (
-    Path(os.environ.get("AIRT_WORKFLOWS_DIR")) if os.environ.get("AIRT_WORKFLOWS_DIR") else _get_workspace_path()
+    Path(os.environ.get("AIRT_WORKFLOWS_DIR"))
+    if os.environ.get("AIRT_WORKFLOWS_DIR")
+    else _get_workspace_path()
 )
 METADATA_FILE = WORKFLOWS_DIR / ".workflow_metadata.json"
 
@@ -144,7 +146,10 @@ def execute_workflow(
 
     try:
         python_executable = resolve_python_executable()
-        print(f"[INFO] Executing workflow with Python: {python_executable}", file=sys.stderr)
+        print(
+            f"[INFO] Executing workflow with Python: {python_executable}",
+            file=sys.stderr,
+        )
         result = subprocess.run(
             [python_executable, str(filepath)],
             capture_output=True,

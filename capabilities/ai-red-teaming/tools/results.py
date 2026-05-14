@@ -1,7 +1,8 @@
 """Results inspector for AI red team output files.
 
-Provides tools to browse and analyze output files from attack runs
-in the ~/workspace/airt/ directory.
+Provides tools to browse and analyze legacy local output files from attack
+runs. Platform OTEL traces are the source of truth; these helpers exist for
+backward compatibility with workflows that still write local analytics files.
 """
 
 from __future__ import annotations
@@ -13,8 +14,28 @@ from pathlib import Path
 
 from dreadnode.agents.tools import tool
 
-# Legacy: Local analytics files (use platform data instead)
-WORKSPACE_DIR = Path(os.environ.get("AIRT_OUTPUT_DIR", str(Path.home() / ".dreadnode" / "airt" / "legacy")))
+
+def _resolve_workspace_dir() -> Path:
+    """Resolve workspace dir from UserConfig, falling back to default/main."""
+    try:
+        from dreadnode.app.config import UserConfig
+
+        config = UserConfig.read()
+        profile_data = config.active_profile
+        if profile_data:
+            _, profile = profile_data
+            org = profile.organization or "default"
+            workspace = profile.workspace or "main"
+        else:
+            org = "default"
+            workspace = "main"
+    except Exception:  # noqa: BLE001
+        org = "default"
+        workspace = "main"
+    return Path.home() / ".dreadnode" / "airt" / org / workspace
+
+
+WORKSPACE_DIR = _resolve_workspace_dir()
 
 
 def _validate_required_params(**kwargs) -> list[str]:
@@ -49,13 +70,13 @@ def inspect_results(
     ] = "all",
     filename: t.Annotated[
         str,
-        "Specific file to read (relative to ~/workspace/airt/). " "If omitted, lists matching files.",
+        "Specific file to read (relative to the workspace dir). If omitted, lists matching files.",
     ] = "",
 ) -> str:
     """Browse and read output files from attack runs.
 
-    Lists or reads analytics JSON, result files, and reports from
-    the ~/workspace/airt/ output directory.
+    Lists or reads analytics JSON, result files, and reports from the active
+    workspace dir (~/.dreadnode/airt/[org]/[workspace]/).
     """
     # Validate file_type parameter
     valid_types = ["analytics", "results", "reports", "all"]
@@ -156,14 +177,19 @@ def get_analytics_summary(
         severity = data.get("severity_breakdown", data.get("severity", {}))
         if severity:
             if isinstance(severity, dict):
-                lines.append("Severity: " + ", ".join(f"{k}={v}" for k, v in severity.items()))
+                lines.append(
+                    "Severity: " + ", ".join(f"{k}={v}" for k, v in severity.items())
+                )
             else:
                 lines.append(f"Severity: {severity}")
 
         compliance = data.get("compliance_coverage", data.get("compliance", {}))
         if compliance:
             if isinstance(compliance, dict):
-                lines.append("Compliance: " + ", ".join(f"{k}={v}" for k, v in compliance.items()))
+                lines.append(
+                    "Compliance: "
+                    + ", ".join(f"{k}={v}" for k, v in compliance.items())
+                )
             else:
                 lines.append(f"Compliance: {compliance}")
 
@@ -259,7 +285,9 @@ def validate_attack_results() -> str:
             issues.append("❌ No analytics or result files found")
             suggestions.append("Check if attack execution completed successfully")
         else:
-            issues.append(f"✅ Found {len(analytics_files)} analytics, {len(result_files)} result files")
+            issues.append(
+                f"✅ Found {len(analytics_files)} analytics, {len(result_files)} result files"
+            )
 
         # Test JSON parsing
         for f in analytics_files[:5]:  # Check first 5 files
@@ -269,19 +297,14 @@ def validate_attack_results() -> str:
                 severity = data.get("severity_breakdown", data.get("severity", {}))
                 if severity and not isinstance(severity, (dict, str)):
                     issues.append(f"⚠️  Invalid severity format in {f.name}")
-                    suggestions.append("Analytics parsing bug - severity field type issue")
+                    suggestions.append(
+                        "Analytics parsing bug - severity field type issue"
+                    )
             except Exception as e:
                 issues.append(f"❌ JSON parsing failed for {f.name}: {e}")
                 suggestions.append(f"Fix malformed JSON in {f.name}")
 
-    # Check environment
-    env_vars = ["AIRT_OUTPUT_DIR", "DREADNODE_WORKSPACE_ROOT", "DREADNODE_ORG_KEY"]
-    for var in env_vars:
-        value = os.environ.get(var)
-        if value:
-            issues.append(f"✅ {var}={value}")
-        else:
-            issues.append(f"ℹ️  {var} not set (using defaults)")
+    issues.append(f"ℹ️  Workspace: {WORKSPACE_DIR}")
 
     report = ["=== Attack Results Validation ===", ""]
     report.extend(issues)
@@ -297,7 +320,7 @@ def validate_attack_results() -> str:
 def fix_workflow_errors(
     error_type: t.Annotated[
         str,
-        "Type of error: 'parsing', 'analytics', 'platform', 'skills', 'all'",
+        "Type of error: 'parsing', 'analytics', 'platform', 'all'",
     ] = "all",
 ) -> str:
     """Fix common workflow errors automatically.
@@ -306,13 +329,12 @@ def fix_workflow_errors(
     - parsing: Fix JSON parsing errors in analytics files
     - analytics: Reset analytics pipeline and clear corrupted files
     - platform: Check platform connectivity and authentication
-    - skills: Reload optional skills
     - all: Run all fixes
 
     Returns fix report with success/failure status.
     """
     # Validate error_type parameter
-    valid_types = ["parsing", "analytics", "platform", "skills", "all"]
+    valid_types = ["parsing", "analytics", "platform", "all"]
     if error_type not in valid_types:
         return f"Error: Invalid error_type '{error_type}'. {_suggest_alternatives(error_type, valid_types)}"
 
@@ -341,11 +363,15 @@ def fix_workflow_errors(
                         backup_path = backup_dir / f.name
                         f.rename(backup_path)
 
-                    fixes_applied.append(f"✅ Moved {len(corrupted_files)} corrupted files to backup")
+                    fixes_applied.append(
+                        f"✅ Moved {len(corrupted_files)} corrupted files to backup"
+                    )
                 else:
                     fixes_applied.append("✅ No corrupted JSON files found")
             else:
-                fixes_applied.append("ℹ️  No workspace directory - will be created on next attack")
+                fixes_applied.append(
+                    "ℹ️  No workspace directory - will be created on next attack"
+                )
 
         except Exception as e:
             fixes_failed.append(f"❌ Parsing fix failed: {e}")
@@ -365,15 +391,15 @@ def fix_workflow_errors(
         except Exception as e:
             fixes_failed.append(f"❌ Analytics reset failed: {e}")
 
-    if error_type in ["skills", "all"]:
-        # This would trigger skill reloading
-        fixes_applied.append("✅ Optional skills reload available (use load_essential_skills if needed)")
-
     if error_type in ["platform", "all"]:
         # Platform connectivity check
         try:
             # Check environment variables
-            platform_vars = ["DREADNODE_API_KEY", "DREADNODE_ORG_KEY", "DREADNODE_WORKSPACE_KEY"]
+            platform_vars = [
+                "DREADNODE_API_KEY",
+                "DREADNODE_ORG_KEY",
+                "DREADNODE_WORKSPACE_KEY",
+            ]
             platform_status = []
 
             for var in platform_vars:

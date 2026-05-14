@@ -40,7 +40,7 @@ runner = _load_runner()
 def _generate(params: dict) -> dict:
     """Call attack_runner via subprocess and return JSON result."""
     payload = json.dumps({"name": "generate_attack", "parameters": params})
-    env = {**os.environ, "DREADNODE_WORKSPACE_DIR": "/tmp/airt_test"}
+    env = {**os.environ, "AIRT_WORKFLOWS_DIR": "/tmp/airt_test_workflows"}
     python_executable = resolve_python_executable()
     print(f"[INFO] Running test with Python: {python_executable}", file=sys.stderr)
     result = subprocess.run(
@@ -244,7 +244,9 @@ class TestModelAliases:
     )
     def test_model_alias_prefix(self, alias: str, expected_prefix: str) -> None:
         resolved = runner.MODEL_ALIASES.get(alias, alias)
-        assert resolved.startswith(expected_prefix), f"'{alias}' → '{resolved}' doesn't start with '{expected_prefix}'"
+        assert resolved.startswith(
+            expected_prefix
+        ), f"'{alias}' → '{resolved}' doesn't start with '{expected_prefix}'"
 
     def test_model_alias_count(self) -> None:
         """Should have 100+ model aliases."""
@@ -291,11 +293,15 @@ class TestScriptGeneration:
     """Generated scripts must be valid Python that compiles."""
 
     def test_single_attack(self) -> None:
-        result = _generate({"attack_type": "tap", "goal": "test", "target_model": "groq"})
+        result = _generate(
+            {"attack_type": "tap", "goal": "test", "target_model": "groq"}
+        )
         assert "error" not in result
 
     def test_campaign(self) -> None:
-        result = _generate({"attack_type": "tap,goat", "goal": "test", "target_model": "groq"})
+        result = _generate(
+            {"attack_type": "tap,goat", "goal": "test", "target_model": "groq"}
+        )
         assert "error" not in result
 
     def test_transform_study(self) -> None:
@@ -359,8 +365,12 @@ class TestScriptGeneration:
             "drattack",
             "deep_inception",
         ]:
-            result = _generate({"attack_type": atk, "goal": "test", "target_model": "groq"})
-            assert "error" not in result, f"Attack '{atk}' failed: {result.get('error', '')}"
+            result = _generate(
+                {"attack_type": atk, "goal": "test", "target_model": "groq"}
+            )
+            assert (
+                "error" not in result
+            ), f"Attack '{atk}' failed: {result.get('error', '')}"
 
 
 # =============================================================================
@@ -373,35 +383,42 @@ class TestGeneratedScriptQuality:
 
     def _get_script(self, params: dict) -> str:
         result = _generate(params)
-        assert "error" not in result
-        # Read the generated file
-        workflow_file = result.get("workflow_file", "")
-        if workflow_file and Path(workflow_file).exists():
-            return Path(workflow_file).read_text()
-        # Fallback: find most recent file
-        wf_dir = Path("/tmp/airt_test/airt/workflows")
-        if not wf_dir.exists():
-            wf_dir = Path(os.path.expanduser("~/workspace/airt/workflows"))
-        files = sorted(wf_dir.glob("*.py"), key=lambda f: f.stat().st_mtime, reverse=True)
-        return files[0].read_text() if files else ""
+        assert "error" not in result, result
+        filepath = result.get("filepath") or result.get("workflow_file") or ""
+        assert (
+            filepath and Path(filepath).exists()
+        ), f"Generated script missing: {result}"
+        return Path(filepath).read_text()
 
     def test_script_compiles(self) -> None:
-        script = self._get_script({"attack_type": "tap", "goal": "test", "target_model": "groq"})
+        script = self._get_script(
+            {"attack_type": "tap", "goal": "test", "target_model": "groq"}
+        )
         compile(script, "test.py", "exec")  # Raises SyntaxError if invalid
 
     def test_script_has_retry_logic(self) -> None:
-        script = self._get_script({"attack_type": "tap", "goal": "test", "target_model": "groq"})
-        assert "for attempt in range(3)" in script, "Target function should have 3-attempt retry"
+        script = self._get_script(
+            {"attack_type": "tap", "goal": "test", "target_model": "groq"}
+        )
+        assert (
+            "for attempt in range(3)" in script
+        ), "Target function should have 3-attempt retry"
 
     def test_script_has_assessment(self) -> None:
-        script = self._get_script({"attack_type": "tap", "goal": "test", "target_model": "groq"})
+        script = self._get_script(
+            {"attack_type": "tap", "goal": "test", "target_model": "groq"}
+        )
         assert "Assessment(" in script
 
     def test_script_has_sdk_configure(self) -> None:
-        script = self._get_script({"attack_type": "tap", "goal": "test", "target_model": "groq"})
+        script = self._get_script(
+            {"attack_type": "tap", "goal": "test", "target_model": "groq"}
+        )
         assert "dn.configure(" in script
 
     def test_campaign_script_has_multiple_attacks(self) -> None:
-        script = self._get_script({"attack_type": "tap,goat", "goal": "test", "target_model": "groq"})
+        script = self._get_script(
+            {"attack_type": "tap,goat", "goal": "test", "target_model": "groq"}
+        )
         assert "tap_attack(" in script
         assert "goat_attack(" in script
