@@ -79,9 +79,35 @@ def save_workflow(params: dict) -> dict:
     # Save the file
     WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
     filepath = WORKFLOWS_DIR / filename
-    filepath.write_text(content)
 
-    # Update metadata
+    # Read existing content (if any) for comparison
+    existing_content = ""
+    if filepath.exists():
+        try:
+            existing_content = filepath.read_text()
+        except Exception:
+            pass  # File may be locked/unreadable
+
+    # Attempt write
+    try:
+        filepath.write_text(content)
+    except Exception as e:
+        return {"error": f"Failed to write file: {e}"}
+
+    # Verify write succeeded by reading back
+    try:
+        written_content = filepath.read_text()
+        if written_content != content:
+            return {"error": f"File write incomplete (expected {len(content)} chars, got {len(written_content)})"}
+
+        # Check if content actually changed when overwriting
+        if existing_content and existing_content == written_content and existing_content != content:
+            return {"error": f"File exists but content unchanged - write may have failed silently: {filepath}"}
+
+    except Exception as e:
+        return {"error": f"Failed to verify write: {e}"}
+
+    # Update metadata only after successful verification
     metadata = _load_metadata()
     metadata[filename] = {
         "description": description,
@@ -90,7 +116,9 @@ def save_workflow(params: dict) -> dict:
     }
     _save_metadata(metadata)
 
-    return {"result": (f"Workflow saved: {filepath}\nSize: {len(content.encode())} bytes\nSyntax: valid")}
+    # Success - file confirmed written with correct content
+    status = "updated" if existing_content else "created"
+    return {"result": f"Workflow {status}: {filepath}\nSize: {len(content.encode())} bytes\nSyntax: valid\nContent: verified"}
 
 
 def list_workflows(params: dict) -> dict:

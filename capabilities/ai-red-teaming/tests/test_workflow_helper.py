@@ -97,3 +97,78 @@ class TestListWorkflows:
         assert "result" in result
         # Result may be a string summary or a dict — just verify it's present
         assert result["result"]
+
+    def test_save_workflow_overwrite_verification(self, temp_workflows_dir) -> None:
+        """Test that save_workflow properly verifies file overwrite."""
+        import unittest.mock
+        from pathlib import Path
+
+        helper, wf_dir = temp_workflows_dir
+        helper.WORKFLOWS_DIR = wf_dir
+        helper.METADATA_FILE = wf_dir / ".workflow_metadata.json"
+
+        # Create initial file
+        initial_content = "print('original')"
+        wf_dir.mkdir(parents=True, exist_ok=True)
+        test_file = wf_dir / "test.py"
+        test_file.write_text(initial_content)
+
+        # Test normal overwrite (should work)
+        result = helper.save_workflow({
+            "filename": "test.py",
+            "content": "print('updated')",
+            "description": "test overwrite"
+        })
+        assert "error" not in result
+        assert "updated" in result["result"]
+        assert test_file.read_text() == "print('updated')"
+
+        # Test scenario where write appears to succeed but content doesn't change
+        # This simulates the bug reported by the user
+        original_content = test_file.read_text()
+
+        with unittest.mock.patch.object(Path, 'write_text') as mock_write, \
+             unittest.mock.patch.object(Path, 'read_text') as mock_read:
+
+            # Mock write_text to do nothing (simulate silent failure)
+            mock_write.return_value = None
+
+            # Mock read_text to return the original content (simulating no change)
+            mock_read.return_value = original_content
+
+            result = helper.save_workflow({
+                "filename": "test.py",
+                "content": "print('new content')",
+                "description": "test silent failure"
+            })
+
+            # Should detect that content didn't actually change
+            assert "error" in result
+            assert "incomplete" in result["error"] or "unchanged" in result["error"]
+
+    def test_save_workflow_content_verification(self, temp_workflows_dir) -> None:
+        """Test that save_workflow verifies written content matches expected."""
+        import unittest.mock
+        from pathlib import Path
+
+        helper, wf_dir = temp_workflows_dir
+        helper.WORKFLOWS_DIR = wf_dir
+        helper.METADATA_FILE = wf_dir / ".workflow_metadata.json"
+
+        # Test scenario where write operation writes partial/incorrect content
+        with unittest.mock.patch.object(Path, 'write_text') as mock_write:
+            mock_write.return_value = None
+
+            # Mock read_text to return different content than expected
+            with unittest.mock.patch.object(Path, 'read_text') as mock_read:
+                mock_read.return_value = "print('partial"  # Truncated content
+
+                result = helper.save_workflow({
+                    "filename": "test.py",
+                    "content": "print('complete content')",
+                    "description": "test verification"
+                })
+
+                # Should detect that written content doesn't match expected
+                assert "error" in result
+                assert "incomplete" in result["error"]

@@ -86,8 +86,35 @@ def save_workflow(
 
     WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
     filepath = WORKFLOWS_DIR / filename
-    filepath.write_text(code)
 
+    # Read existing content (if any) for comparison
+    existing_content = ""
+    if filepath.exists():
+        try:
+            existing_content = filepath.read_text()
+        except Exception:
+            pass  # File may be locked/unreadable
+
+    # Attempt write
+    try:
+        filepath.write_text(code)
+    except Exception as e:
+        return f"Error writing file: {e}"
+
+    # Verify write succeeded by reading back
+    try:
+        written_content = filepath.read_text()
+        if written_content != code:
+            return f"Error: File write incomplete (expected {len(code)} chars, got {len(written_content)})"
+
+        # Check if content actually changed when overwriting
+        if existing_content and existing_content == written_content and existing_content != code:
+            return f"Warning: File exists but content unchanged - write may have failed silently: {filepath}"
+
+    except Exception as e:
+        return f"Error verifying write: {e}"
+
+    # Update metadata only after successful verification
     meta = _load_metadata()
     meta[filename] = {
         "description": description,
@@ -96,7 +123,9 @@ def save_workflow(
     }
     _save_metadata(meta)
 
-    return f"Workflow saved: {filepath} ({len(code)} bytes)"
+    # Success - file confirmed written with correct content
+    status = "updated" if existing_content else "created"
+    return f"Workflow {status}: {filepath} ({len(code)} bytes) - content verified"
 
 
 @tool
