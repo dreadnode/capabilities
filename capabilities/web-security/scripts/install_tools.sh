@@ -104,6 +104,9 @@ fi
 npm install -g agent-browser
 agent-browser install || true
 
+# -- waymore (Wayback Machine recon) -----------------------------------------
+pip install --break-system-packages waymore
+
 # -- Clean up Go build cache -----------------------------------------------
 go clean -cache -modcache 2>/dev/null || true
 
