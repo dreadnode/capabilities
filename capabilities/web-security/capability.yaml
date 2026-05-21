@@ -75,6 +75,8 @@ checks:
     command: command -v caido-cli
   - name: burp
     command: test -f /opt/burp/burpsuite.jar
+  - name: waymore
+    command: command -v waymore
   - name: jxscout
     command: command -v jxscout-pro-v2
 
