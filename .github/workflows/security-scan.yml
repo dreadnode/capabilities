@@ -109,21 +109,20 @@ jobs:
 
           CAPS_JSON='${{ needs.detect-changes.outputs.capabilities }}'
           for cap in $(echo "${CAPS_JSON}" | jq -r '.[]'); do
-            cap_dir="capabilities/${cap}"
-            if [[ ! -d "${cap_dir}" ]]; then
+            skills_dir="capabilities/${cap}/skills"
+            if [[ ! -d "${skills_dir}" ]]; then
               continue
             fi
 
-            skill_count=$(find "${cap_dir}" -name "SKILL.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+            skill_count=$(find "${skills_dir}" -name "SKILL.md" -type f 2>/dev/null | wc -l | tr -d ' ')
             if [[ "${skill_count}" -eq 0 ]]; then
-              echo "==> ${cap_dir}/ — no skills, skipping"
+              echo "==> ${skills_dir}/ — no skills, skipping"
               continue
             fi
 
-            echo "==> Scanning ${cap_dir}/ (${skill_count} skills)"
-            uvx --from cisco-ai-skill-scanner skill-scanner scan-all "${cap_dir}" \
+            echo "==> Scanning ${skills_dir}/ (${skill_count} skills)"
+            uvx --from cisco-ai-skill-scanner skill-scanner scan-all "${skills_dir}" \
               --recursive \
-              --lenient \
               --use-behavioral \
               --policy scan-policy.yaml \
               --format summary \

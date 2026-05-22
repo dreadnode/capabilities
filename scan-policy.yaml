@@ -100,11 +100,21 @@ severity_overrides:
   - rule_id: BEHAVIOR_EVAL_SUBPROCESS
     severity: MEDIUM
     reason: "Security tools legitimately invoke subprocesses for analysis"
+  # BEHAVIOR_BASH_TAINT_FLOW false-positives on instructional shell snippets
+  # in SKILL.md where strings such as "unsafe-eval" are parsed with grep.
+  - rule_id: BEHAVIOR_BASH_TAINT_FLOW
+    severity: MEDIUM
+    reason: "Instructional bash snippets in skills can resemble taint flow without executing untrusted input"
   # SECRET_GOOGLE_API fires on skills that scan for exposed API keys
   # as part of their security analysis (e.g. firebase-apk-scanner).
   - rule_id: SECRET_GOOGLE_API
     severity: INFO
     reason: "Scanner skills contain example API key patterns for detection"
+  # YARA_command_injection_generic fires on literal exploit payload examples
+  # embedded in offensive-security SKILL.md files.
+  - rule_id: YARA_command_injection_generic
+    severity: MEDIUM
+    reason: "Offensive security skills intentionally document exploit payload strings in markdown"
   # PATH_TRAVERSAL_OPEN fires on tools that read/write files as part of
   # their normal audit workflow (e.g. zeroize-audit writing reports).
   - rule_id: PATH_TRAVERSAL_OPEN
