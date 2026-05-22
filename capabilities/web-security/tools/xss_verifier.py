@@ -45,8 +45,7 @@ async def _eval_js(
     command = _resolve_command()
     if not command:
         raise RuntimeError(
-            "agent-browser is not available. "
-            "Install with: npm i -g agent-browser"
+            "agent-browser is not available. Install with: npm i -g agent-browser"
         )
     argv = command + (global_args or []) + ["eval", js]
     proc = await asyncio.create_subprocess_exec(
@@ -64,7 +63,9 @@ async def _eval_js(
     out = stdout.decode(errors="replace")
     err = stderr.decode(errors="replace")
     if proc.returncode != 0:
-        raise RuntimeError(f"agent-browser eval failed (exit {proc.returncode}): {err or out}")
+        raise RuntimeError(
+            f"agent-browser eval failed (exit {proc.returncode}): {err or out}"
+        )
     return out.strip()
 
 
@@ -244,7 +245,9 @@ class XssVerifier(Toolset):
         if alerts:
             evidence_lines.append(f"  alert() called {len(alerts)}x: {alerts[:5]}")
         if confirms:
-            evidence_lines.append(f"  confirm() called {len(confirms)}x: {confirms[:5]}")
+            evidence_lines.append(
+                f"  confirm() called {len(confirms)}x: {confirms[:5]}"
+            )
         if prompts:
             evidence_lines.append(f"  prompt() called {len(prompts)}x: {prompts[:5]}")
         if scripts:
