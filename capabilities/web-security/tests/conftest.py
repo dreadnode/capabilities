@@ -34,7 +34,9 @@ def _install_dreadnode_tools_stub() -> None:
         tool_call_id: str | None = None
 
     class _Tool:
-        def __init__(self, instance: object, method: Any, metadata: dict[str, Any]) -> None:
+        def __init__(
+            self, instance: object, method: Any, metadata: dict[str, Any]
+        ) -> None:
             self._instance = instance
             self._method = method
             self.name = metadata["name"]
@@ -42,7 +44,9 @@ def _install_dreadnode_tools_stub() -> None:
             self.catch = metadata["catch"]
             self.parameters_schema = _schema_for(method)
 
-        async def handle_tool_call(self, tool_call: ToolCall) -> tuple[ToolMessage, bool]:
+        async def handle_tool_call(
+            self, tool_call: ToolCall
+        ) -> tuple[ToolMessage, bool]:
             arguments = json.loads(tool_call.function.arguments or "{}")
             result = await self._method(**arguments)
             return ToolMessage(content=str(result), tool_call_id=tool_call.id), False
@@ -50,9 +54,7 @@ def _install_dreadnode_tools_stub() -> None:
     def _schema_for(method: Any) -> dict[str, Any]:
         signature = inspect.signature(method)
         properties = {
-            name: {"type": "string"}
-            for name in signature.parameters
-            if name != "self"
+            name: {"type": "string"} for name in signature.parameters if name != "self"
         }
         return {"type": "object", "properties": properties}
 
@@ -84,6 +86,32 @@ def _install_dreadnode_tools_stub() -> None:
     tools.tool_method = tool_method
     agents.tools = tools
     dreadnode.agents = agents
+
+    class _Media:
+        def __init__(self, data: object, caption: str | None = None, **_: Any) -> None:
+            self.data = data
+            self.caption = caption
+
+    class Image(_Media):
+        pass
+
+    class Audio(_Media):
+        pass
+
+    class Video(_Media):
+        pass
+
+    def log_output(name: str, value: object, **_: Any) -> None:
+        return None
+
+    def log_artifact(local_uri: object, **_: Any) -> None:
+        return None
+
+    dreadnode.Image = Image
+    dreadnode.Audio = Audio
+    dreadnode.Video = Video
+    dreadnode.log_output = log_output
+    dreadnode.log_artifact = log_artifact
 
     sys.modules["dreadnode"] = dreadnode
     sys.modules["dreadnode.agents"] = agents
