@@ -46,7 +46,7 @@ class TestToolDiscovery:
 
     def test_verify_has_description(self, verifier: XssVerifier) -> None:
         tools = {t.name: t for t in verifier.get_tools()}
-        assert "AFTER" in tools["xss_verify"].description
+        assert "CONFIRMED" in tools["xss_verify"].description
 
 
 class TestInjectCanary:

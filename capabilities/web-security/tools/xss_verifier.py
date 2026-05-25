@@ -1,9 +1,17 @@
 """Programmatic XSS verification via agent-browser.
 
-Injects a JavaScript canary into the page that overrides dialog functions
-(alert, confirm, prompt) and monitors DOM mutations for injected script
-execution. The agent triggers its payload, then calls verify to check
-whether the canary caught real JavaScript execution — not just reflection.
+Observes whether arbitrary JavaScript executes in the browser — payload
+agnostic, no hardcoded strings or patterns. Works by injecting a canary
+script that replaces window.alert/confirm/prompt with logging wrappers
+and attaches a MutationObserver to detect <script> tags added to the DOM.
+Any dialog call or script injection after arming is recorded and reported.
+
+Covers reflected, DOM, and stored XSS. For stored XSS the canary must be
+injected on the page where the payload renders, not where it is submitted
+(page navigation destroys the JS context — re-inject after navigating).
+
+Does NOT cover blind XSS (payload fires in a session the agent cannot
+access). Use CallbackClient with an OOB URL payload for blind XSS.
 
 Requires agent-browser to be available (see agent_browser MCP server).
 """
@@ -127,7 +135,11 @@ XssContext = Literal["reflected", "stored", "dom"]
 
 
 class XssVerifier(Toolset):
-    """Programmatic XSS verification via agent-browser JavaScript canary."""
+    """Payload-agnostic XSS verification via browser-side JavaScript canary.
+
+    Replaces dialog functions and observes DOM mutations to detect whether
+    any JavaScript executed — does not inspect or match payload content.
+    """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -145,12 +157,14 @@ class XssVerifier(Toolset):
     ) -> str:
         """Inject the XSS detection canary into the current browser page.
 
-        Call this BEFORE triggering your XSS payload. The canary overrides
-        alert/confirm/prompt and watches for injected <script> tags.
+        Replaces window.alert, window.confirm, and window.prompt with
+        wrappers that log every call. Attaches a MutationObserver on the
+        document to record any <script> element added to the DOM.
 
-        After injecting, trigger your payload (submit form, navigate to
-        reflected URL, etc.), then call xss_verify to check if JavaScript
-        actually executed.
+        Call BEFORE triggering your XSS payload. The canary lives in the
+        current page's JS context — page navigation destroys it. For
+        stored XSS, inject on the page where the payload renders, not
+        where you submit it.
         """
         self._nonce = secrets.token_hex(8)
         self._global_args = global_args
@@ -185,9 +199,16 @@ class XssVerifier(Toolset):
     ) -> str:
         """Check whether your XSS payload triggered JavaScript execution.
 
-        Call AFTER injecting the canary (xss_inject_canary) and triggering
-        your payload. Returns a structured verdict: CONFIRMED, PARTIAL,
-        or NOT_DETECTED.
+        Reads the canary state from the browser and checks for two
+        signals: (1) dialog function calls logged by the overridden
+        alert/confirm/prompt, (2) <script> elements caught by the
+        MutationObserver. Does not inspect the payload itself.
+
+        Verdicts:
+          CONFIRMED    — dialog function was called (strongest proof)
+          PARTIAL      — script tag injected into DOM, no dialog fired
+          NOT_DETECTED — no JS execution signals observed
+          CANARY_LOST  — page navigated, canary no longer present
         """
         if not self._nonce:
             raise RuntimeError(
