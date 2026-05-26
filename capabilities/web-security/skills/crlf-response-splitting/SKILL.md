@@ -59,10 +59,16 @@ If you can inject only one CRLF and not split the body, useful follow-on headers
 - `Refresh: 0;url=https://attacker.example`
 - cache-control mutations for poisoning
 
-## Indicators
-- Header reflection preserves CRLF characters
-- `%0d%0a` behaves differently from `%0a`
-- CSP blocks inline payloads but allows same-origin scripts
+## Detection
+```bash
+# Test for CRLF injection in headers
+curl -sD- "https://target.com/endpoint?param=test%0d%0aX-Injected:true" | rg "X-Injected"
+
+# Compare %0d%0a vs %0a behavior
+curl -sD- "https://target.com/endpoint?param=test%0a%0aX-Injected:true" | rg "X-Injected"
+```
+
+**Checkpoint:** If `X-Injected` appears in response headers with `%0d%0a` but not with `%0a` alone, CRLF injection is confirmed. Check CSP with `curl -sD- URL | rg -i "content-security-policy"` to determine if nested splitting is needed.
 
 ## Chain With
 - `web-cache-deception-path`

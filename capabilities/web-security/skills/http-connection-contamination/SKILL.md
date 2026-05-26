@@ -29,6 +29,8 @@ dig +short sub1.example.com sub2.example.com
 echo | openssl s_client -connect sub1.example.com:443 2>/dev/null | openssl x509 -noout -text | grep -A1 "Subject Alternative Name"
 ```
 
+**Checkpoint:** Both conditions must hold: same IP AND shared cert (wildcard or multi-SAN). If either fails, connection coalescing will not occur.
+
 ### Step 2: Test for first-request routing
 In browser DevTools (Network tab), observe if requests to `sub2.example.com` reuse the connection ID established for `sub1.example.com`. If the response content comes from sub1's backend, the proxy uses first-request routing.
 
