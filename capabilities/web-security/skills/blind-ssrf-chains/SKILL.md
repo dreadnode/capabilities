@@ -28,7 +28,9 @@ Don't try to read responses from the SSRF — find internal services that make *
 
 **OOB callback setup**: Use the `CallbackClient` tool to register a callback URL before testing. Request HTTPS protocol — many internal services only make HTTPS outbound requests. After triggering the SSRF chain, check for received callbacks to confirm the internal service made an outbound request.
 
-Canary-capable services: Confluence, Jira, Jenkins, Solr, Weblogic, Hystrix Dashboard. These all have endpoints that fetch attacker-controlled URLs as part of normal functionality.
+**Checkpoint:** Before attempting payloads, confirm blind SSRF with a canary: `?url=http://YOUR-OOB-SERVER/ssrf-test`. If no callback received, the SSRF may not be server-side.
+
+## Fingerprinting (Blind)
 
 ## Fingerprinting Without Response Bodies
 

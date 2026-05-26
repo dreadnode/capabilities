@@ -58,15 +58,16 @@ Lists all iframes embedded by an HTML page. Relevant for:
 
 ## Workflow
 
-1. **Start with a page**: use `get-loaded-js-files` to see what JS runs on a specific page
-2. **Check iframes**: use `get-loaded-iframes` to understand cross-origin framing
-3. **Follow the chain**: reversed sources often have more readable code -- check those for sensitive logic
-4. **Trace back to pages**: use `get-js-file-loader-page` to find which pages load a specific JS file or reversed source -- useful when you find something interesting and need to know the affected pages
+1. **Start with a page**: `get-loaded-js-files` to see what JS runs on it
+2. **Check iframes**: `get-loaded-iframes` to understand cross-origin framing
+3. **Follow the chain**: reversed sources often have more readable code -- check for sensitive logic
+4. **Trace back to pages**: `get-js-file-loader-page` to find which pages load a specific JS file
+
+**Checkpoint:** After mapping a page's assets, verify the relationships match what you see in the browser's Network tab. Missing scripts may indicate lazy-loaded chunks.
 
 ## Use cases
 
-- **Scoping analysis to a page**: instead of searching the entire project, find exactly which JS files power a specific page and focus your review there
-- **Finding hidden code**: lazy-loaded chunks often contain admin panels, internal tools, or feature-flagged code that isn't loaded by default
-- **postMessage research**: mapping which iframes a page loads helps identify cross-origin messaging patterns
-- **Understanding dependencies**: tracing which pages load a vulnerable script helps assess impact
-- **Impact assessment**: given a JS file or reversed source with a finding, use `get-js-file-loader-page` to determine which pages are affected and prioritize accordingly
+- **Scoping**: find exactly which JS files power a page, focus review there
+- **Hidden code**: lazy-loaded chunks often contain admin panels, feature flags, debug endpoints
+- **postMessage**: mapping iframes identifies cross-origin messaging patterns
+- **Impact**: given a vulnerable JS file, `get-js-file-loader-page` reveals which pages are affected

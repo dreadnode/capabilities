@@ -1,14 +1,7 @@
 ---
 name: data-exfil
-description: |
-  AI/LLM data exfiltration techniques via rendered markdown, HTML-in-markdown, tool artifacts, domain encoding, and url_safe bypasses. Use when crafting exfil payloads for AI red teaming, analyzing AI app rendering pipelines for exfil surfaces, bypassing URL filters/sanitizers, or reviewing AI-generated output for exfil risk.
-allowed-tools:
-  - read
-  - write
-  - edit_file
-  - bash
-  - grep
-  - glob
+description: AI/LLM data exfiltration techniques via rendered markdown, HTML-in-markdown, tool artifacts, domain encoding, and url_safe bypasses. Use when crafting exfil payloads for AI red teaming, analyzing AI app rendering pipelines for exfil surfaces, bypassing URL filters/sanitizers, or reviewing AI-generated output for exfil risk.
+allowed-tools: read, write, edit_file, bash, grep, glob
 ---
 
 # AI Data Exfiltration Techniques

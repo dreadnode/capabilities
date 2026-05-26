@@ -104,40 +104,17 @@ jxscout-pro-v2 -c bookmark delete --id <bookmark_id>
 2. Create a group if none fits: `jxscout-pro-v2 -c bookmark create-group --name "XSS sinks"`
 3. Create bookmarks with notes as you find interesting code
 
-## When to bookmark
+**Checkpoint:** After creating a group, run `bookmark list-groups` to verify. After creating bookmarks, run `bookmark list --group "Name"` to confirm.
 
-Bookmark things the user would want to review or come back to:
+## What to bookmark
 
-- **Sinks**: `innerHTML` assignments, `document.write`, `eval`, `location.href` assignments with user-controlled input
-- **Message handlers**: `window.addEventListener("message", ...)` -- especially without origin checks
-- **Auth logic**: token validation, session handling, role checks in client-side code
-- **Request construction**: places where API calls are built, especially with user-controlled parameters
-- **Interesting gadgets**: JSONP callbacks, script injection points, DOM clobbering targets
-- **Data flows**: where sensitive data moves from one component to another
-- **Multi-step flows**: authentication sequences, payment flows, cross-origin communication chains, OAuth handshakes. Bookmark each step in the same group with notes describing the progression (e.g. "Step 1: redirect_uri parsed from query", "Step 2: passed to OAuth authorize endpoint without validation"). This makes complex flows reviewable as a sequence rather than scattered across files.
-- **Interesting functionality**: admin panels, feature flags, internal tools, debug endpoints -- anything that reveals capabilities or attack surface worth revisiting
+Sinks, message handlers without origin checks, auth logic, request construction with user-controlled params, JSONP callbacks, DOM clobbering targets, multi-step flows (bookmark each step in same group with progression notes).
 
-## Note quality
+Bookmarks can also point to raw `.req`/`.res` files in `http_requests/` for marking interesting API calls or auth flows.
 
-Notes should explain **why** the code is interesting, not just describe what it does.
+## Note guidelines
 
-Good notes:
-- "postMessage handler -- no origin check, passes `event.data.redirect` to `window.location`"
-- "Constructs API URL with user-controlled `req.query.callback` -- potential JSONP abuse"
-- "JWT decoded client-side without signature verification, role extracted from payload"
+Notes should explain **why** the code is interesting. Notes support markdown.
 
-Bad notes:
-- "This is a function"
-- "Event listener"
-- "API call"
-
-## Bookmarking HTTP request/response files
-
-If `http_requests/` exists in the project working directory, bookmarks can also point to raw `.req`/`.res` files captured by jxscout -- not just JS/HTML code. This is useful for marking interesting API calls, auth flows, or responses that contain relevant security data (tokens, error messages, internal paths).
-
-## Tips
-
-- Notes support markdown -- use code blocks, links, and formatting freely.
-- Reuse existing groups when the category fits; create new ones for distinct themes.
-- When bookmarking a function or block, include the full range (first to last line).
-- Use highlight colors to visually distinguish different risk levels or categories in VS Code.
+- Good: "postMessage handler -- no origin check, passes `event.data.redirect` to `window.location`"
+- Bad: "Event listener"

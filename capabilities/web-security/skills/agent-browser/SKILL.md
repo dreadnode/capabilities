@@ -195,59 +195,21 @@ agent-browser click @e5
 agent-browser wait --load networkidle
 ```
 
-### Authentication with Auth Vault (Recommended)
+### Authentication (see [references/authentication.md](references/authentication.md) for full details)
 
 ```bash
-# Save credentials once (encrypted with AGENT_BROWSER_ENCRYPTION_KEY)
-# Recommended: pipe password via stdin to avoid shell history exposure
+# Auth vault (recommended): credentials stored encrypted, LLM never sees password
 echo "pass" | agent-browser auth save github --url https://github.com/login --username user --password-stdin
-
-# Login using saved profile (LLM never sees password)
 agent-browser auth login github
 
-# List/show/delete profiles
-agent-browser auth list
-agent-browser auth show github
-agent-browser auth delete github
-```
-
-### Authentication with State Persistence
-
-```bash
-# Login once and save state
-agent-browser open https://app.example.com/login
-agent-browser snapshot -i
-agent-browser fill @e1 "$USERNAME"
-agent-browser fill @e2 "$PASSWORD"
-agent-browser click @e3
-agent-browser wait --url "**/dashboard"
-agent-browser state save auth.json
-
-# Reuse in future sessions
-agent-browser state load auth.json
-agent-browser open https://app.example.com/dashboard
-```
-
-### Session Persistence
-
-```bash
-# Auto-save/restore cookies and localStorage across browser restarts
+# Session persistence: auto-save/restore across restarts
 agent-browser --session-name myapp open https://app.example.com/login
 # ... login flow ...
-agent-browser close  # State auto-saved to ~/.agent-browser/sessions/
+agent-browser close  # State auto-saved
 
-# Next time, state is auto-loaded
-agent-browser --session-name myapp open https://app.example.com/dashboard
-
-# Encrypt state at rest
-export AGENT_BROWSER_ENCRYPTION_KEY=$(openssl rand -hex 32)
-agent-browser --session-name secure open https://app.example.com
-
-# Manage saved states
-agent-browser state list
-agent-browser state show myapp-default.json
-agent-browser state clear myapp
-agent-browser state clean --older-than 7
+# State files: manual save/load
+agent-browser state save auth.json
+agent-browser state load auth.json
 ```
 
 ### Data Extraction
@@ -621,4 +583,3 @@ Supported engines:
 - `lightpanda` -- Lightpanda headless browser via CDP (10x faster, 10x less memory than Chrome)
 
 Lightpanda does not support `--extension`, `--profile`, `--state`, or `--allow-file-access`. Install Lightpanda from https://lightpanda.io/docs/open-source/installation.
-

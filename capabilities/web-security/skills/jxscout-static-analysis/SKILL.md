@@ -10,9 +10,7 @@ metadata:
 
 # jxscout Static Analysis (Matches)
 
-jxscout runs static analyzers on every JS and HTML file it ingests. The results are called **matches** -- structured data pointing to specific patterns in the code (paths, URLs, secrets, sinks, etc.).
-
-Use matches as a tool during your investigation -- query them when they're relevant, not only when explicitly asked. They're efficient for pinpointing specific patterns across a large codebase. But always supplement with grepping and manual code review for patterns the analyzers don't cover.
+jxscout runs static analyzers on every ingested JS and HTML file. Results are **matches** -- structured data pointing to patterns (paths, URLs, secrets, sinks). Query them during investigation alongside direct code search for patterns analyzers don't cover.
 
 ## Prerequisites
 
@@ -102,15 +100,17 @@ Returns JSON: `{"updated_count": N}`
 ## Workflow
 
 1. **Discover match kinds**: `jxscout-pro-v2 -c list-match-kinds --json`
-2. **Query relevant kinds**: start with high-value kinds like `path`, `api_path`, `secret`, `onmessage`, `html_manipulation`
-3. **Use filters** to focus on what matters:
-   - `--value-include "admin"` to find admin-related paths
-   - `--value-include "internal"` to find internal endpoints
-   - `--file-path-include "auth"` to scope to auth-related files
-   - `--show-only-unseen` to focus on unreviewed matches
-4. **Read the code** at the match positions to understand context
+2. **Query high-value kinds first**: `secret`, `onmessage`, `html_manipulation`, then `path`, `api_path`
+3. **Use filters** to focus:
+   - `--value-include "admin"` for admin-related paths
+   - `--value-include "internal"` for internal endpoints
+   - `--file-path-include "auth"` to scope to auth files
+   - `--show-only-unseen` for unreviewed matches only
+4. **Read the code** at match positions to understand context
 5. **Mark as seen** after reviewing: `mark-matches-seen --match-ids <ids>`
-6. **Grep for more**: matches only cover what analyzers are configured to find -- search the codebase directly for patterns you care about that aren't covered
+6. **Grep for more**: matches only cover configured analyzers -- search directly for uncovered patterns
+
+**Checkpoint:** After each triage session, verify all reviewed matches are marked seen. Use `get-matches --match-kind <kind> --show-only-unseen` to confirm only new/unreviewed items remain.
 
 ## HTTP request context
 
