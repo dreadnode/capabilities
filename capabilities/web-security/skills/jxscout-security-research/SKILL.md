@@ -1,6 +1,6 @@
 ---
 name: jxscout-security-research
-description: Holistic guide for using jxscout capabilities together for vulnerability assessment -- routes to specific jxscout-* skills for static analysis, findings, bookmarks, repeater, custom analyzers, relationships, and setup. Use when starting a new target assessment, planning attack surface mapping, or understanding how jxscout tools fit together.
+description: Coordinates end-to-end jxscout vulnerability assessment workflows including target enumeration, static analysis triage, and finding documentation -- routes to specific jxscout-* skills for each phase. Use when starting a new target assessment, planning attack surface mapping, performing security testing, finding vulnerabilities, or understanding how jxscout tools fit together.
 license: proprietary
 metadata:
   source: jxscout-pro-v2

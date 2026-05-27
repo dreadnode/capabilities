@@ -1,6 +1,6 @@
 ---
 name: jxscout-static-analysis
-description: Query and manage jxscout static analysis matches -- list match kinds, get matches with filters, mark matches as seen/unseen. Use when investigating code patterns, exploring the attack surface, or tracking review progress across match results.
+description: Query and manage jxscout static analysis matches -- list match kinds, get matches with filters, mark matches as seen/unseen. Use when triaging security findings, investigating code patterns, exploring the attack surface, reviewing scan results, or tracking vulnerability triage progress across match results.
 license: proprietary
 metadata:
   source: jxscout-pro-v2
@@ -114,21 +114,8 @@ Returns JSON: `{"updated_count": N}`
 
 ## HTTP request context
 
-If `http_requests/` exists in the project working directory, jxscout has captured raw HTTP traffic from the target. The files are organized as `http_requests/{host}/{path}/{METHOD}/{timestamp}_{status}.req|.res` and contain raw HTTP request/response pairs.
-
-Use these alongside static analysis to:
-- **Cross-reference API calls**: match `path` or `api_path` results against actual captured requests to see real parameters, headers, and auth tokens in use
-- **Discover endpoints not in JS**: some endpoints are only visible in server responses or redirects, not in client-side code
-- **Understand real request patterns**: see actual `Content-Type`, auth headers, cookies, and request bodies that the application sends
-- **Validate findings**: check if a pattern found via static analysis is actually exercised in real traffic
-
-Browse `http_requests/` with `ls` / `find` and read individual `.req`/`.res` files to enrich your analysis.
+If `http_requests/` exists in the project directory, jxscout captured raw HTTP traffic organized as `http_requests/{host}/{path}/{METHOD}/{timestamp}_{status}.req|.res`. Cross-reference `path`/`api_path` matches against captured requests to see real parameters and auth tokens, and to validate that static patterns are exercised in real traffic.
 
 ## Limitations
 
-Matches are only as good as the configured analyzers. Things that matches will NOT catch include:
-- Dynamically constructed URLs or paths (e.g. `base + "/api/" + endpoint`)
-- Patterns not covered by any enabled analyzer
-- Logic bugs, race conditions, or business logic flaws
-
-When investigating a specific area, always combine match queries with direct code search (grep/ripgrep) to get the full picture. If you find a pattern worth tracking systematically, consider creating a custom analyzer for it.
+Matches only cover configured analyzers — dynamically constructed URLs, logic bugs, and uncovered patterns require direct code search. Always complement match queries with `rg` for the full picture.

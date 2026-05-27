@@ -1,6 +1,6 @@
 ---
 name: burp-suite
-description: Burp Suite Professional MCP integration reference. Use when working with Burp proxy history, sending requests through Burp, using Repeater/Intruder, checking scanner issues, or performing OOB testing with Collaborator.
+description: Queries Burp proxy history, sends requests via Repeater, configures Intruder attacks, retrieves scanner findings, and performs OOB testing with Collaborator. Use when working with Burp proxy history, sending requests through Burp, using Repeater/Intruder, checking scanner issues, or performing OOB testing with Collaborator.
 ---
 
 # Burp Suite MCP Tools
@@ -25,7 +25,7 @@ send_http1_request(
 )
 ```
 
-All requests appear in Burp's proxy history automatically.
+All requests appear in Burp's proxy history automatically. **Verify:** After sending, confirm the request appears with `get_proxy_http_history(count=1, offset=0)`.
 
 ## Proxy History
 
@@ -101,3 +101,9 @@ output_user_options()      set_user_options(json)
 ```
 
 Export config first to understand the schema before setting options.
+
+## Common Workflows
+
+1. **SSRF confirmation via Collaborator**: `generate_collaborator_payload` → inject URL into SSRF parameter via `send_http1_request` → `get_collaborator_interactions` to confirm callback
+2. **IDOR testing via Repeater**: `create_repeater_tab` with request for resource A → modify ID to resource B → compare responses
+3. **Scanner triage**: `get_scanner_issues(count=20, offset=0)` → review severity/confidence → replay high-confidence findings with `send_http1_request` to confirm
