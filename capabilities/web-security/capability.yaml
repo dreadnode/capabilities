@@ -40,6 +40,10 @@ mcp:
       args:
         - "run"
         - "${CAPABILITY_ROOT}/mcp/linear.py"
+      env:
+        LINEAR_API_KEY: "${LINEAR_API_KEY:-}"
+        LINEAR_ACCESS_TOKEN: "${LINEAR_ACCESS_TOKEN:-}"
+        LINEAR_API_URL: "${LINEAR_API_URL:-https://api.linear.app/graphql}"
       init_timeout: 60
     agent-browser:
       command: "uv"
