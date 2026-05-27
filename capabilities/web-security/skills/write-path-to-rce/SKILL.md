@@ -1,6 +1,6 @@
 ---
 name: write-path-to-rce
-description: Escalate arbitrary file write into code execution by abusing framework view or template resolution. Use when you can write files but cannot execute script extensions directly, and the framework auto-loads templates or code from predictable search paths.
+description: Escalate arbitrary file write into code execution -- plant malicious Jinja2/EJS/Razor/Blade templates, overwrite framework view files, inject auto-loaded helpers. Covers Django, Flask, Express, Rails, Laravel, ASP.NET MVC. Use when you have arbitrary write (path traversal, upload) but cannot execute script extensions directly, and the framework auto-loads templates or code from predictable search paths.
 ---
 
 # Arbitrary File Write -> RCE via View Engine Resolution

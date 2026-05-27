@@ -58,16 +58,9 @@ Lists all iframes embedded by an HTML page. Relevant for:
 
 ## Workflow
 
-1. **Start with a page**: `get-loaded-js-files` to see what JS runs on it
-2. **Check iframes**: `get-loaded-iframes` to understand cross-origin framing
-3. **Follow the chain**: reversed sources often have more readable code -- check for sensitive logic
-4. **Trace back to pages**: `get-js-file-loader-page` to find which pages load a specific JS file
+1. **Scope to a page**: `get-loaded-js-files` to see what JS runs on it — focus review on these files rather than the entire project
+2. **Check iframes**: `get-loaded-iframes` to identify cross-origin messaging patterns (postMessage targets, clickjacking candidates)
+3. **Follow the chain**: reversed sources often have more readable code — check for admin panels, feature flags, debug endpoints in lazy-loaded chunks
+4. **Assess impact**: given a vulnerable JS file, `get-js-file-loader-page` reveals which pages are affected
 
-**Checkpoint:** After mapping a page's assets, verify the relationships match what you see in the browser's Network tab. Missing scripts may indicate lazy-loaded chunks.
-
-## Use cases
-
-- **Scoping**: find exactly which JS files power a page, focus review there
-- **Hidden code**: lazy-loaded chunks often contain admin panels, feature flags, debug endpoints
-- **postMessage**: mapping iframes identifies cross-origin messaging patterns
-- **Impact**: given a vulnerable JS file, `get-js-file-loader-page` reveals which pages are affected
+**Checkpoint:** After mapping a page's assets, verify the relationships match what you see in the browser's Network tab. If scripts are missing, check for lazy-loaded chunks by searching for dynamic `import()` calls in the loaded JS: `rg "import\(" <js_file_path>`. If chunks are found, trace their loader page to complete the map.
