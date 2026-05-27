@@ -35,6 +35,12 @@ mcp:
         - "run"
         - "${CAPABILITY_ROOT}/mcp/hackerone.py"
       init_timeout: 60
+    jira:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/jira.py"
+      init_timeout: 60
     agent-browser:
       command: "uv"
       args:
