@@ -28,7 +28,7 @@ This skill rides the same pipeline as `android-semantic-vuln-hunting`, just comp
 If you are unsure which APK research flow applies, read the utility index first:
 
 ```bash
-sed -n '1,220p' ../android-semantic-vuln-hunting/references/agent-utility-index.md
+cat ../android-semantic-vuln-hunting/references/agent-utility-index.md
 ```
 
 For a single APK, the key optional branches are:
@@ -166,7 +166,7 @@ npx --yes prettier@3.3.3 --parser babel --print-width 120 "$BUNDLE" \
   > findings/<pkg>/js-analysis/index.pretty.js
 JSDIR=findings/<pkg>/js-analysis
 
-# Hermes bytecode (file reports `data`, magic c6 1e b6 0e)
+# Hermes bytecode (file reports `data`, magic c6 1f bc 03 per facebook/hermes BCVersion.h)
 pipx install hbctool 2>/dev/null
 hbctool disasm $SRC/resources/assets/index.android.bundle findings/<pkg>/js-analysis/hbc
 JSDIR=findings/<pkg>/js-analysis/hbc

@@ -9,8 +9,6 @@ MASVS/CWE/MASWE tags when the record omits them.
 ```json
 {
   "title": "Deep link redirects authenticated WebView to attacker-controlled host",
-  "risk": "high",
-  "confidence": "medium",
   "apk": "corpus/app.apk",
   "package": "com.example",
   "class": "deep_link_to_authenticated_webview",
@@ -25,9 +23,20 @@ MASVS/CWE/MASWE tags when the record omits them.
   "evidence": ["DeepLinkActivity.java:42", "WebRouter.java:88"],
   "validation_plan": ["Use test device to launch myapp://open?next=https://trusted.com.attacker.tld/", "Observe WebView request host and cookies with authorized proxy"],
   "scanner_gap": "generic warning only",
-  "needs_backend_validation": false
+  "confidence_tier": "needs_route_map_validation",
+  "validation_tier": "tier1_local_device_no_live_backend",
+  "missing_evidence": ["Confirm host-allowlist contents in the JS bundle (Step 7.5)"]
 }
 ```
+
+The `confidence_tier` enum is one of `confirmed_dynamic`, `strong_static_chain`,
+`needs_backend_validation`, `needs_route_map_validation`, `hardening_only`, or
+`generic_library_noise`. `validation_tier` is one of `tier0_static_only`,
+`tier1_local_device_no_live_backend`, `tier2_test_account_or_qa_backend`, or
+`tier3_explicit_production_authorization`. See the "Finding hypothesis contract"
+section of `../SKILL.md` for the canonical contract; the normalizer also accepts
+the legacy `risk` + `confidence` (`high`/`medium`/`low`) fields for back-compat,
+but new hypotheses should use the tier enums.
 
 ### Tag fields
 

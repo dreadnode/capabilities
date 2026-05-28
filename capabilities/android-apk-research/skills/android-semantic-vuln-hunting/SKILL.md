@@ -35,7 +35,7 @@ Ground findings in OWASP MASVS ([MASVS](https://mas.owasp.org/MASVS/)) and MASTG
 Before choosing commands from memory, read the local utility index when you need orientation:
 
 ```bash
-sed -n '1,220p' references/agent-utility-index.md
+cat references/agent-utility-index.md
 ```
 
 Use it to route the session:

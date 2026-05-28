@@ -7,7 +7,7 @@ This reference defines the corpus-scale and targeted workflows, validation tiers
 Agents should not rely on memory for available APK-research utilities. Start with `agent-utility-index.md` when orienting, then choose the smallest applicable flow:
 
 ```bash
-sed -n '1,220p' agent-utility-index.md
+cat agent-utility-index.md
 ```
 
 This index lists corpus inventory/ranking, runtime detection, focused rg profiles, backend API map extraction, backend richness ranking, feature-flag mining, request-signing review, workflow reconstruction, hybrid bridge tracing, scanner baselines, and report normalization.
