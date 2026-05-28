@@ -1,0 +1,54 @@
+schema: 1
+name: android-apk-research
+version: "0.2.0"
+description: >
+  Static semantic-bug research on Android APKs — deep-link routers, intent
+  redirection, WebView trust boundaries, auth/session/client-state bypass,
+  Dirty Stream share targets, and APK-derived backend API chains. Ships a
+  10-tool orchestration MCP (parallel Androguard/APKiD inventory,
+  component ranking, runtime classification, DexProtector detection +
+  static unpack, API map extraction, finding-schema normalization) and
+  skills teaching the JADX / ripgrep / Semgrep / Joern / CodeQL pipeline
+  against MASVS/MASTG, CWE, and MASWE.
+
+mcp:
+  servers:
+    android-research:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/android_research.py"
+      env:
+        ANDROID_RESEARCH_MAX_OUTPUT_CHARS: "${ANDROID_RESEARCH_MAX_OUTPUT_CHARS:-20000}"
+        ANDROID_RESEARCH_TIMEOUT: "${ANDROID_RESEARCH_TIMEOUT:-300}"
+      init_timeout: 120
+
+checks:
+  - name: uv
+    command: 'command -v uv >/dev/null 2>&1'
+  - name: jadx
+    command: 'command -v jadx >/dev/null 2>&1'
+  - name: apktool
+    command: 'command -v apktool >/dev/null 2>&1'
+  - name: aapt-or-aapt2
+    command: 'command -v aapt >/dev/null 2>&1 || command -v aapt2 >/dev/null 2>&1'
+  - name: semgrep
+    command: 'command -v semgrep >/dev/null 2>&1'
+  - name: apkid
+    command: 'command -v apkid >/dev/null 2>&1'
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - android
+  - apk
+  - mobile-security
+  - vulnerability-research
+  - logic-bugs
+  - masvs
+  - mastg
+  - maswe
+  - cwe
