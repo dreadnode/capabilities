@@ -4,10 +4,10 @@ version: "1.0.3"
 description: >
   Web application penetration testing with 30+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
-  vulnerabilities, authentication bypasses, parser differentials, and
-  client-side attacks. Includes HTTP client tooling, Caido proxy
-  integration via MCP, credential management, DNS rebinding, phone
-  verification, and vulnerability verification.
+  vulnerabilities, authentication bypasses, parser differentials,
+  AEM/Sling exploitation, and client-side attacks. Includes HTTP client
+  tooling, Caido proxy integration via MCP, credential management, DNS
+  rebinding, phone verification, and vulnerability verification.
 
 mcp:
   servers:
@@ -122,3 +122,7 @@ keywords:
   - dns-rebinding
   - dom-security
   - phone-verification
+  - aem
+  - adobe-experience-manager
+  - sling
+  - dispatcher-bypass
