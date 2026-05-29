@@ -1,6 +1,6 @@
 ---
 name: jxscout-static-analysis
-description: Query and manage jxscout static analysis matches -- list match kinds, get matches with filters, mark matches as seen/unseen. Use when investigating code patterns, exploring the attack surface, or tracking review progress across match results.
+description: Query and manage jxscout static analysis matches -- list match kinds, get matches with filters, mark matches as seen/unseen. Use when triaging security findings, investigating code patterns, exploring the attack surface, reviewing scan results, or tracking vulnerability triage progress across match results.
 license: proprietary
 metadata:
   source: jxscout-pro-v2
@@ -10,9 +10,7 @@ metadata:
 
 # jxscout Static Analysis (Matches)
 
-jxscout runs static analyzers on every JS and HTML file it ingests. The results are called **matches** -- structured data pointing to specific patterns in the code (paths, URLs, secrets, sinks, etc.).
-
-Use matches as a tool during your investigation -- query them when they're relevant, not only when explicitly asked. They're efficient for pinpointing specific patterns across a large codebase. But always supplement with grepping and manual code review for patterns the analyzers don't cover.
+jxscout runs static analyzers on every ingested JS and HTML file. Results are **matches** -- structured data pointing to patterns (paths, URLs, secrets, sinks). Query them during investigation alongside direct code search for patterns analyzers don't cover.
 
 ## Prerequisites
 
@@ -102,33 +100,22 @@ Returns JSON: `{"updated_count": N}`
 ## Workflow
 
 1. **Discover match kinds**: `jxscout-pro-v2 -c list-match-kinds --json`
-2. **Query relevant kinds**: start with high-value kinds like `path`, `api_path`, `secret`, `onmessage`, `html_manipulation`
-3. **Use filters** to focus on what matters:
-   - `--value-include "admin"` to find admin-related paths
-   - `--value-include "internal"` to find internal endpoints
-   - `--file-path-include "auth"` to scope to auth-related files
-   - `--show-only-unseen` to focus on unreviewed matches
-4. **Read the code** at the match positions to understand context
+2. **Query high-value kinds first**: `secret`, `onmessage`, `html_manipulation`, then `path`, `api_path`
+3. **Use filters** to focus:
+   - `--value-include "admin"` for admin-related paths
+   - `--value-include "internal"` for internal endpoints
+   - `--file-path-include "auth"` to scope to auth files
+   - `--show-only-unseen` for unreviewed matches only
+4. **Read the code** at match positions to understand context
 5. **Mark as seen** after reviewing: `mark-matches-seen --match-ids <ids>`
-6. **Grep for more**: matches only cover what analyzers are configured to find -- search the codebase directly for patterns you care about that aren't covered
+6. **Grep for more**: matches only cover configured analyzers -- search directly for uncovered patterns
+
+**Checkpoint:** After each triage session, verify all reviewed matches are marked seen. Use `get-matches --match-kind <kind> --show-only-unseen` to confirm only new/unreviewed items remain.
 
 ## HTTP request context
 
-If `http_requests/` exists in the project working directory, jxscout has captured raw HTTP traffic from the target. The files are organized as `http_requests/{host}/{path}/{METHOD}/{timestamp}_{status}.req|.res` and contain raw HTTP request/response pairs.
-
-Use these alongside static analysis to:
-- **Cross-reference API calls**: match `path` or `api_path` results against actual captured requests to see real parameters, headers, and auth tokens in use
-- **Discover endpoints not in JS**: some endpoints are only visible in server responses or redirects, not in client-side code
-- **Understand real request patterns**: see actual `Content-Type`, auth headers, cookies, and request bodies that the application sends
-- **Validate findings**: check if a pattern found via static analysis is actually exercised in real traffic
-
-Browse `http_requests/` with `ls` / `find` and read individual `.req`/`.res` files to enrich your analysis.
+If `http_requests/` exists in the project directory, jxscout captured raw HTTP traffic organized as `http_requests/{host}/{path}/{METHOD}/{timestamp}_{status}.req|.res`. Cross-reference `path`/`api_path` matches against captured requests to see real parameters and auth tokens, and to validate that static patterns are exercised in real traffic.
 
 ## Limitations
 
-Matches are only as good as the configured analyzers. Things that matches will NOT catch include:
-- Dynamically constructed URLs or paths (e.g. `base + "/api/" + endpoint`)
-- Patterns not covered by any enabled analyzer
-- Logic bugs, race conditions, or business logic flaws
-
-When investigating a specific area, always combine match queries with direct code search (grep/ripgrep) to get the full picture. If you find a pattern worth tracking systematically, consider creating a custom analyzer for it.
+Matches only cover configured analyzers — dynamically constructed URLs, logic bugs, and uncovered patterns require direct code search. Always complement match queries with `rg` for the full picture.

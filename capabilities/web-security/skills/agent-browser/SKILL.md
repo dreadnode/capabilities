@@ -53,61 +53,21 @@ agent-browser open https://example.com && agent-browser wait --load networkidle 
 
 ## Handling Authentication
 
-When automating a site that requires login, choose the approach that fits:
+Choose the approach that fits. See [references/authentication.md](references/authentication.md) for full details including OAuth, 2FA, and token refresh.
 
-**Option 1: Import auth from the user's browser (fastest for one-off tasks)**
+| Approach | When | Command |
+|---|---|---|
+| Auth vault | Recurring tasks, password never exposed to LLM | `echo "$PW" \| agent-browser auth save myapp --url <url> --username user --password-stdin` then `agent-browser auth login myapp` |
+| Session name | Auto-save/restore cookies across restarts | `agent-browser --session-name myapp open <url>` |
+| Persistent profile | Full browser profile reuse | `agent-browser --profile ~/.myapp open <url>` |
+| Import from user browser | One-off tasks, user already logged in | `agent-browser --auto-connect state save ./auth.json` then `agent-browser --state ./auth.json open <url>` |
+| State file | Manual save/load | `agent-browser state save auth.json` / `agent-browser state load auth.json` |
 
-```bash
-# Connect to the user's running Chrome (they're already logged in)
-agent-browser --auto-connect state save ./auth.json
-# Use that auth state
-agent-browser --state ./auth.json open https://app.example.com/dashboard
-```
-
-State files contain session tokens in plaintext -- add to `.gitignore` and delete when no longer needed. Set `AGENT_BROWSER_ENCRYPTION_KEY` for encryption at rest.
-
-**Option 2: Persistent profile (simplest for recurring tasks)**
-
-```bash
-# First run: login manually or via automation
-agent-browser --profile ~/.myapp open https://app.example.com/login
-# ... fill credentials, submit ...
-
-# All future runs: already authenticated
-agent-browser --profile ~/.myapp open https://app.example.com/dashboard
-```
-
-**Option 3: Session name (auto-save/restore cookies + localStorage)**
-
-```bash
-agent-browser --session-name myapp open https://app.example.com/login
-# ... login flow ...
-agent-browser close  # State auto-saved
-
-# Next time: state auto-restored
-agent-browser --session-name myapp open https://app.example.com/dashboard
-```
-
-**Option 4: Auth vault (credentials stored encrypted, login by name)**
-
-```bash
-echo "$PASSWORD" | agent-browser auth save myapp --url https://app.example.com/login --username user --password-stdin
-agent-browser auth login myapp
-```
-
-**Option 5: State file (manual save/load)**
-
-```bash
-# After logging in:
-agent-browser state save ./auth.json
-# In a future session:
-agent-browser state load ./auth.json
-agent-browser open https://app.example.com/dashboard
-```
-
-See [references/authentication.md](references/authentication.md) for OAuth, 2FA, cookie-based auth, and token refresh patterns.
+State files contain session tokens in plaintext -- add to `.gitignore` and set `AGENT_BROWSER_ENCRYPTION_KEY` for encryption at rest.
 
 ## Essential Commands
+
+For the full command reference with all options, see [references/commands.md](references/commands.md).
 
 ```bash
 # Navigation
@@ -116,139 +76,41 @@ agent-browser close                   # Close browser
 
 # Snapshot
 agent-browser snapshot -i             # Interactive elements with refs (recommended)
-agent-browser snapshot -i -C          # Include cursor-interactive elements (divs with onclick, cursor:pointer)
+agent-browser snapshot -i -C          # Include cursor-interactive elements
 agent-browser snapshot -s "#selector" # Scope to CSS selector
 
 # Interaction (use @refs from snapshot)
 agent-browser click @e1               # Click element
-agent-browser click @e1 --new-tab     # Click and open in new tab
 agent-browser fill @e2 "text"         # Clear and type text
 agent-browser type @e2 "text"         # Type without clearing
 agent-browser select @e1 "option"     # Select dropdown option
 agent-browser check @e1               # Check checkbox
 agent-browser press Enter             # Press key
-agent-browser keyboard type "text"    # Type at current focus (no selector)
-agent-browser keyboard inserttext "text"  # Insert without key events
 agent-browser scroll down 500         # Scroll page
-agent-browser scroll down 500 --selector "div.content"  # Scroll within a specific container
 
 # Get information
 agent-browser get text @e1            # Get element text
 agent-browser get url                 # Get current URL
-agent-browser get title               # Get page title
-agent-browser get cdp-url             # Get CDP WebSocket URL
 
 # Wait
 agent-browser wait @e1                # Wait for element
 agent-browser wait --load networkidle # Wait for network idle
 agent-browser wait --url "**/page"    # Wait for URL pattern
-agent-browser wait 2000               # Wait milliseconds
-agent-browser wait --text "Welcome"    # Wait for text to appear (substring match)
-agent-browser wait --fn "!document.body.innerText.includes('Loading...')"  # Wait for text to disappear
+agent-browser wait --text "Welcome"   # Wait for text to appear
 agent-browser wait "#spinner" --state hidden  # Wait for element to disappear
-
-# Downloads
-agent-browser download @e1 ./file.pdf          # Click element to trigger download
-agent-browser wait --download ./output.zip     # Wait for any download to complete
-agent-browser --download-path ./downloads open <url>  # Set default download directory
-
-# Viewport & Device Emulation
-agent-browser set viewport 1920 1080          # Set viewport size (default: 1280x720)
-agent-browser set viewport 1920 1080 2        # 2x retina (same CSS size, higher res screenshots)
-agent-browser set device "iPhone 14"          # Emulate device (viewport + user agent)
 
 # Capture
 agent-browser screenshot              # Screenshot to temp dir
 agent-browser screenshot --full       # Full page screenshot
-agent-browser screenshot --annotate   # Annotated screenshot with numbered element labels
-agent-browser screenshot --screenshot-dir ./shots  # Save to custom directory
-agent-browser screenshot --screenshot-format jpeg --screenshot-quality 80
+agent-browser screenshot --annotate   # Annotated with numbered element labels
 agent-browser pdf output.pdf          # Save as PDF
 
-# Clipboard
-agent-browser clipboard read                      # Read text from clipboard
-agent-browser clipboard write "Hello, World!"     # Write text to clipboard
-agent-browser clipboard copy                      # Copy current selection
-agent-browser clipboard paste                     # Paste from clipboard
-
 # Diff (compare page states)
-agent-browser diff snapshot                          # Compare current vs last snapshot
-agent-browser diff snapshot --baseline before.txt    # Compare current vs saved file
+agent-browser diff snapshot           # Compare current vs last snapshot
 agent-browser diff screenshot --baseline before.png  # Visual pixel diff
-agent-browser diff url <url1> <url2>                 # Compare two pages
-agent-browser diff url <url1> <url2> --wait-until networkidle  # Custom wait strategy
-agent-browser diff url <url1> <url2> --selector "#main"  # Scope to element
 ```
 
 ## Common Patterns
-
-### Form Submission
-
-```bash
-agent-browser open https://example.com/signup
-agent-browser snapshot -i
-agent-browser fill @e1 "Jane Doe"
-agent-browser fill @e2 "jane@example.com"
-agent-browser select @e3 "California"
-agent-browser check @e4
-agent-browser click @e5
-agent-browser wait --load networkidle
-```
-
-### Authentication with Auth Vault (Recommended)
-
-```bash
-# Save credentials once (encrypted with AGENT_BROWSER_ENCRYPTION_KEY)
-# Recommended: pipe password via stdin to avoid shell history exposure
-echo "pass" | agent-browser auth save github --url https://github.com/login --username user --password-stdin
-
-# Login using saved profile (LLM never sees password)
-agent-browser auth login github
-
-# List/show/delete profiles
-agent-browser auth list
-agent-browser auth show github
-agent-browser auth delete github
-```
-
-### Authentication with State Persistence
-
-```bash
-# Login once and save state
-agent-browser open https://app.example.com/login
-agent-browser snapshot -i
-agent-browser fill @e1 "$USERNAME"
-agent-browser fill @e2 "$PASSWORD"
-agent-browser click @e3
-agent-browser wait --url "**/dashboard"
-agent-browser state save auth.json
-
-# Reuse in future sessions
-agent-browser state load auth.json
-agent-browser open https://app.example.com/dashboard
-```
-
-### Session Persistence
-
-```bash
-# Auto-save/restore cookies and localStorage across browser restarts
-agent-browser --session-name myapp open https://app.example.com/login
-# ... login flow ...
-agent-browser close  # State auto-saved to ~/.agent-browser/sessions/
-
-# Next time, state is auto-loaded
-agent-browser --session-name myapp open https://app.example.com/dashboard
-
-# Encrypt state at rest
-export AGENT_BROWSER_ENCRYPTION_KEY=$(openssl rand -hex 32)
-agent-browser --session-name secure open https://app.example.com
-
-# Manage saved states
-agent-browser state list
-agent-browser state show myapp-default.json
-agent-browser state clear myapp
-agent-browser state clean --older-than 7
-```
 
 ### Data Extraction
 
@@ -289,38 +151,19 @@ agent-browser --cdp 9222 snapshot
 ### Color Scheme (Dark Mode)
 
 ```bash
-# Persistent dark mode via flag (applies to all pages and new tabs)
-agent-browser --color-scheme dark open https://example.com
-
-# Or via environment variable
-AGENT_BROWSER_COLOR_SCHEME=dark agent-browser open https://example.com
-
-# Or set during session (persists for subsequent commands)
-agent-browser set media dark
+agent-browser --color-scheme dark open https://example.com    # Flag
+AGENT_BROWSER_COLOR_SCHEME=dark agent-browser open https://example.com  # Env var
+agent-browser set media dark                                  # During session
 ```
 
 ### Viewport & Responsive Testing
 
 ```bash
-# Set a custom viewport size (default is 1280x720)
-agent-browser set viewport 1920 1080
-agent-browser screenshot desktop.png
-
-# Test mobile-width layout
-agent-browser set viewport 375 812
-agent-browser screenshot mobile.png
-
-# Retina/HiDPI: same CSS layout at 2x pixel density
-# Screenshots stay at logical viewport size, but content renders at higher DPI
-agent-browser set viewport 1920 1080 2
-agent-browser screenshot retina.png
-
-# Device emulation (sets viewport + user agent in one step)
-agent-browser set device "iPhone 14"
-agent-browser screenshot device.png
+agent-browser set viewport 1920 1080          # Desktop
+agent-browser set viewport 375 812            # Mobile
+agent-browser set viewport 1920 1080 2        # Retina (3rd arg = devicePixelRatio)
+agent-browser set device "iPhone 14"          # Device emulation (viewport + UA)
 ```
-
-The `scale` parameter (3rd argument) sets `window.devicePixelRatio` without changing CSS layout. Use it when testing retina rendering or capturing higher-resolution screenshots.
 
 ### Visual Browser (Debugging)
 
@@ -347,28 +190,12 @@ agent-browser screenshot output.png
 ### iOS Simulator (Mobile Safari)
 
 ```bash
-# List available iOS simulators
-agent-browser device list
-
-# Launch Safari on a specific device
 agent-browser -p ios --device "iPhone 16 Pro" open https://example.com
-
-# Same workflow as desktop - snapshot, interact, re-snapshot
-agent-browser -p ios snapshot -i
-agent-browser -p ios tap @e1          # Tap (alias for click)
-agent-browser -p ios fill @e2 "text"
-agent-browser -p ios swipe up         # Mobile-specific gesture
-
-# Take screenshot
-agent-browser -p ios screenshot mobile.png
-
-# Close session (shuts down simulator)
+agent-browser -p ios snapshot -i && agent-browser -p ios tap @e1
 agent-browser -p ios close
 ```
 
-**Requirements:** macOS with Xcode, Appium (`npm install -g appium && appium driver install xcuitest`)
-
-**Real devices:** Works with physical iOS devices if pre-configured. Use `--device "<UDID>"` where UDID is from `xcrun xctrace list devices`.
+Requires macOS with Xcode and Appium (`npm install -g appium && appium driver install xcuitest`). Same workflow as desktop (snapshot, interact, re-snapshot). Use `--device "<UDID>"` for physical devices.
 
 ## Security
 
@@ -448,55 +275,30 @@ agent-browser diff url https://staging.example.com https://prod.example.com --sc
 
 ## Timeouts and Slow Pages
 
-The default timeout is 25 seconds. This can be overridden with the `AGENT_BROWSER_DEFAULT_TIMEOUT` environment variable (value in milliseconds). For slow websites or large pages, use explicit waits instead of relying on the default timeout:
+Default timeout is 25s (override with `AGENT_BROWSER_DEFAULT_TIMEOUT` in ms). For slow pages, use explicit waits after `open`:
 
 ```bash
-# Wait for network activity to settle (best for slow pages)
-agent-browser wait --load networkidle
-
-# Wait for a specific element to appear
-agent-browser wait "#content"
-agent-browser wait @e1
-
-# Wait for a specific URL pattern (useful after redirects)
-agent-browser wait --url "**/dashboard"
-
-# Wait for a JavaScript condition
-agent-browser wait --fn "document.readyState === 'complete'"
-
-# Wait a fixed duration (milliseconds) as a last resort
-agent-browser wait 5000
+agent-browser wait --load networkidle          # Best for slow pages
+agent-browser wait "#content"                  # Wait for specific element
+agent-browser wait --url "**/dashboard"        # Wait for URL pattern (after redirects)
+agent-browser wait --fn "document.readyState === 'complete'"  # JS condition
+agent-browser wait 5000                        # Fixed delay (last resort)
 ```
-
-When dealing with consistently slow websites, use `wait --load networkidle` after `open` to ensure the page is fully loaded before taking a snapshot. If a specific element is slow to render, wait for it directly with `wait <selector>` or `wait @ref`.
 
 ## Session Management and Cleanup
 
-When running multiple agents or automations concurrently, always use named sessions to avoid conflicts:
+Use named sessions for concurrent automations. Always close sessions when done to avoid leaked processes:
 
 ```bash
-# Each agent gets its own isolated session
 agent-browser --session agent1 open site-a.com
 agent-browser --session agent2 open site-b.com
-
-# Check active sessions
-agent-browser session list
+agent-browser session list                         # Check active sessions
+agent-browser --session agent1 close               # Close specific session
+agent-browser close                                # Close default session
+AGENT_BROWSER_IDLE_TIMEOUT_MS=60000 agent-browser open example.com  # Auto-shutdown after inactivity
 ```
 
-Always close your browser session when done to avoid leaked processes:
-
-```bash
-agent-browser close                    # Close default session
-agent-browser --session agent1 close   # Close specific session
-```
-
-If a previous session was not closed properly, the daemon may still be running. Use `agent-browser close` to clean it up before starting new work.
-
-To auto-shutdown the daemon after a period of inactivity (useful for ephemeral/CI environments):
-
-```bash
-AGENT_BROWSER_IDLE_TIMEOUT_MS=60000 agent-browser open example.com
-```
+If a previous session was not closed properly, run `agent-browser close` to clean up the daemon.
 
 ## Ref Lifecycle (Important)
 
@@ -546,14 +348,13 @@ agent-browser find testid "submit-btn" click
 
 ## JavaScript Evaluation (eval)
 
-Use `eval` to run JavaScript in the browser context. **Shell quoting can corrupt complex expressions** -- use `--stdin` or `-b` to avoid issues.
+Use `--stdin` with heredoc for anything beyond simple expressions (avoids shell quoting issues):
 
 ```bash
-# Simple expressions work with regular quoting
+# Simple expressions
 agent-browser eval 'document.title'
-agent-browser eval 'document.querySelectorAll("img").length'
 
-# Complex JS: use --stdin with heredoc (RECOMMENDED)
+# Complex JS (recommended approach for nested quotes, arrow functions, multiline)
 agent-browser eval --stdin <<'EVALEOF'
 JSON.stringify(
   Array.from(document.querySelectorAll("img"))
@@ -562,31 +363,13 @@ JSON.stringify(
 )
 EVALEOF
 
-# Alternative: base64 encoding (avoids all shell escaping issues)
+# Programmatic/generated scripts: base64 encoding
 agent-browser eval -b "$(echo -n 'Array.from(document.querySelectorAll("a")).map(a => a.href)' | base64)"
 ```
 
-**Why this matters:** When the shell processes your command, inner double quotes, `!` characters (history expansion), backticks, and `$()` can all corrupt the JavaScript before it reaches agent-browser. The `--stdin` and `-b` flags bypass shell interpretation entirely.
-
-**Rules of thumb:**
-
-- Single-line, no nested quotes -> regular `eval 'expression'` with single quotes is fine
-- Nested quotes, arrow functions, template literals, or multiline -> use `eval --stdin <<'EVALEOF'`
-- Programmatic/generated scripts -> use `eval -b` with base64
-
 ## Configuration File
 
-Create `agent-browser.json` in the project root for persistent settings:
-
-```json
-{
-  "headed": true,
-  "proxy": "http://localhost:8080",
-  "profile": "./browser-data"
-}
-```
-
-Priority (lowest to highest): `~/.agent-browser/config.json` < `./agent-browser.json` < env vars < CLI flags. Use `--config <path>` or `AGENT_BROWSER_CONFIG` env var for a custom config file (exits with error if missing/invalid). All CLI options map to camelCase keys (e.g., `--executable-path` -> `"executablePath"`). Boolean flags accept `true`/`false` values (e.g., `--headed false` overrides config). Extensions from user and project configs are merged, not replaced.
+Create `agent-browser.json` in the project root for persistent settings. All CLI options map to camelCase keys (e.g., `--executable-path` -> `"executablePath"`). Priority: `~/.agent-browser/config.json` < `./agent-browser.json` < env vars < CLI flags.
 
 ## Deep-Dive Documentation
 
@@ -602,23 +385,8 @@ Priority (lowest to highest): `~/.agent-browser/config.json` < `./agent-browser.
 
 ## Browser Engine Selection
 
-Use `--engine` to choose a local browser engine. The default is `chrome`.
+Default engine is `chrome`. Use `--engine lightpanda` for 10x faster headless browsing (does not support `--extension`, `--profile`, `--state`, or `--allow-file-access`):
 
 ```bash
-# Use Lightpanda (fast headless browser, requires separate install)
 agent-browser --engine lightpanda open example.com
-
-# Via environment variable
-export AGENT_BROWSER_ENGINE=lightpanda
-agent-browser open example.com
-
-# With custom binary path
-agent-browser --engine lightpanda --executable-path /path/to/lightpanda open example.com
 ```
-
-Supported engines:
-- `chrome` (default) -- Chrome/Chromium via CDP
-- `lightpanda` -- Lightpanda headless browser via CDP (10x faster, 10x less memory than Chrome)
-
-Lightpanda does not support `--extension`, `--profile`, `--state`, or `--allow-file-access`. Install Lightpanda from https://lightpanda.io/docs/open-source/installation.
-
