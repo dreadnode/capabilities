@@ -1,0 +1,23 @@
+# pyghidra-mcp's default --project-path is `pyghidra_mcp_projects/` resolved
+# against the launching process's cwd; if the manifest's project-path env-var
+# fallback doesn't expand (e.g. running the MCP outside the dn capability
+# runtime), the directory lands here.
+pyghidra_mcp_projects/
+
+# Literal $HOME directory created when the ${BINANAL_CACHE_ROOT:-$HOME/...}
+# manifest fallback leaks unexpanded $HOME into a mkdir path.
+$HOME/
+
+# Python bytecode and pytest cache. Repo-level .gitignore covers these in
+# this monorepo, but recording them here so the capability stays clean when
+# installed symlinked outside the repo or shipped standalone to the public
+# catalog (whose top-level .gitignore covers __pycache__ but may not cover
+# every cache the MCP creates).
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Working/process docs — design notes, hand-off/roadmap, reachability spikes.
+# Development artifacts, not capability content; kept on disk locally but never
+# tracked or shipped to the catalog.
+docs/
