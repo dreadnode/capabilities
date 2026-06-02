@@ -1,0 +1,78 @@
+schema: 1
+name: binary-analysis
+version: "0.5.0"
+description: >
+  Binary reverse engineering for PE, ELF, Mach-O, and raw shellcode on
+  macOS and Linux. Static triage (pefile / pyelftools / lief, entropy,
+  imports/exports, MITRE capa tags, obfuscated strings via FLOSS),
+  Ghidra headless decompilation with cached projects — extended in-process
+  with function similarity (FID), HighFunction dataflow, emulator-backed
+  concrete execution, and two-binary patch/variant diffing — plus a
+  consolidated workflow skill that teaches Qiling emulation (anti-debug
+  bypass, dump-at-API, cross-arch rootfs) directly via Python — for malware
+  analysis, incident response, vulnerability research, and reverse
+  engineering. No target-OS host required.
+
+mcp:
+  servers:
+    static-triage:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/static_triage.py"
+      init_timeout: 120
+    ghidra:
+      # ghidra_mcp.py is a composition server: it imports pyghidra-mcp,
+      # registers extra analysis tools (FID similarity, HighFunction dataflow,
+      # EmulatorHelper, two-binary patch/variant diffing), and delegates to
+      # pyghidra-mcp's CLI — so this one stdio server exposes the full
+      # pyghidra-mcp surface PLUS those tools, in one embedded-Ghidra process.
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/ghidra_mcp.py"
+        - "--transport"
+        - "stdio"
+        - "--project-path"
+        - "${BINANAL_CACHE_ROOT:-$HOME/.dreadnode/cache/binary-analysis}/ghidra-projects"
+      env:
+        GHIDRA_INSTALL_DIR: "${GHIDRA_INSTALL_DIR:-/opt/homebrew/opt/ghidra/libexec}"
+      init_timeout: 120
+
+checks:
+  - name: uv
+    command: 'command -v uv >/dev/null 2>&1'
+  - name: java-17-for-ghidra
+    command: 'command -v java >/dev/null 2>&1 && java -version 2>&1 | grep -Eq "version \"(1[7-9]|[2-9][0-9])"'
+  - name: git-for-capa-rules
+    command: 'command -v git >/dev/null 2>&1'
+  - name: ghidra-version-compat
+    command: |
+      GHIDRA_DIR="${GHIDRA_INSTALL_DIR:-/opt/homebrew/opt/ghidra/libexec}"
+      test -f "$GHIDRA_DIR/ghidraRun" || { echo "Ghidra not found at $GHIDRA_DIR"; exit 1; }
+      VER=$(grep 'application.version=' "$GHIDRA_DIR/Ghidra/application.properties" 2>/dev/null | cut -d= -f2)
+      MAJOR=$(echo "$VER" | cut -d. -f1)
+      test "$MAJOR" -ge 12 || { echo "Ghidra $VER found but >= 12.0 required for pyghidra-mcp"; exit 1; }
+
+skills:
+  - skills/
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - binary-analysis
+  - reversing
+  - pe
+  - elf
+  - macho
+  - shellcode
+  - malware-analysis
+  - ghidra
+  - qiling
+  - anti-debug
+  - forensics
+  - incident-response
+  - vulnerability-research
