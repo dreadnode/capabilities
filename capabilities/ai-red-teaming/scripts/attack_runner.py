@@ -3059,6 +3059,16 @@ async def main():
                 print(f"--- end {{label}} ---")
                 sys.stdout.flush()
 
+                # Flush OTEL spans between studies so each study's traces
+                # are exported to the platform before starting the next one.
+                try:
+                    from dreadnode.app.main import DEFAULT_INSTANCE
+                    _provider = DEFAULT_INSTANCE._logfire._tracer_provider
+                    if hasattr(_provider, 'force_flush'):
+                        _provider.force_flush(timeout_millis=10_000)
+                except Exception:
+                    pass
+
             except Exception as e:
                 print(f"\\nERROR in study '{{label}}': {{e}}")
                 traceback.print_exc()
@@ -3144,6 +3154,16 @@ _CAMPAIGN_ATTACK_BLOCK = """\
             await assessment.run(_{var}_study)
             print(f"{canon} completed successfully")
             sys.stdout.flush()
+
+            # Flush OTEL spans between attacks so each attack's traces
+            # are exported to the platform before starting the next one.
+            try:
+                from dreadnode.app.main import DEFAULT_INSTANCE
+                _provider = DEFAULT_INSTANCE._logfire._tracer_provider
+                if hasattr(_provider, 'force_flush'):
+                    _provider.force_flush(timeout_millis=10_000)
+            except Exception:
+                pass
         except Exception as e:
             print(f"\\nERROR in {canon}: {{e}}")
             traceback.print_exc()
@@ -3419,6 +3439,16 @@ async def main():
                         completed += 1
                         print(f"completed")
                         sys.stdout.flush()
+
+                        # Flush OTEL spans between goals so each goal's traces
+                        # are exported to the platform before starting the next one.
+                        try:
+                            from dreadnode.app.main import DEFAULT_INSTANCE
+                            _provider = DEFAULT_INSTANCE._logfire._tracer_provider
+                            if hasattr(_provider, 'force_flush'):
+                                _provider.force_flush(timeout_millis=10_000)
+                        except Exception:
+                            pass
 
                     except Exception as e:
                         print(f"ERROR: {{e}}")
