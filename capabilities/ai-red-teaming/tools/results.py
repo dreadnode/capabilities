@@ -200,16 +200,20 @@ def get_analytics_summary(
             if outer.get("target_model"):
                 lines.append(f"Target: {outer['target_model']}")
 
+        # ASR (attack success rate) IS the success probability — present it as
+        # the headline metric. The severity-weighted /10 risk score is no longer
+        # surfaced to users (kept in the raw data for platform parity only).
         exec_stats = data.get("execution_stats", {}) if isinstance(data.get("execution_stats"), dict) else {}
         if "asr" in data:
-            lines.append(f"ASR: {data['asr']}%")
+            _asr_pct = data["asr"]
+            lines.append(f"Success rate (ASR): {_asr_pct}%  (probability {round(_asr_pct / 100, 3)})")
         elif "overall_asr" in exec_stats:
             # SDK stores ASR as a 0-1 fraction under execution_stats.
-            lines.append(f"ASR: {round(exec_stats['overall_asr'] * 100, 1)}%")
-        if "risk_score" in data:
-            lines.append(f"Risk Score: {data['risk_score']}/10")
-        if "overall_risk" in data:
-            lines.append(f"Overall Risk: {data['overall_risk']}")
+            _asr_frac = exec_stats["overall_asr"]
+            lines.append(
+                f"Success rate (ASR): {round(_asr_frac * 100, 1)}%  "
+                f"(probability {round(_asr_frac, 3)})"
+            )
 
         severity = data.get("severity_breakdown", data.get("severity", {}))
         if severity:
@@ -263,8 +267,7 @@ def get_platform_assessment_data(
 
     PLATFORM DATA AVAILABLE via get_assessment_status():
     - ✅ Assessment name, target, goal, status
-    - ✅ ASR percentage per attack
-    - ✅ Risk score (0-10) per attack
+    - ✅ ASR percentage per attack (the success probability)
     - ✅ Attack completion status and notes
 
     PLATFORM DATA NOT ACCESSIBLE (requires full platform API):
@@ -288,7 +291,7 @@ def get_platform_assessment_data(
     return (
         "⚠️  LIMITED PLATFORM DATA ACCESS\n\n"
         "Assessment tracking tools provide ONLY summary metrics:\n"
-        "- ASR percentage, Risk score, Status, Notes\n\n"
+        "- ASR percentage (success probability), Status, Notes\n\n"
         "For detailed analysis (trials, scorers, compliance):\n"
         "→ Use Dreadnode platform web interface\n"
         "→ Assessment tracking tools are for workflow coordination only\n\n"

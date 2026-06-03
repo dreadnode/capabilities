@@ -70,7 +70,8 @@ def register_assessment(
 def get_assessment_status() -> str:
     """Get current assessment progress with completed attack metrics.
 
-    Shows planned vs completed attacks and ASR/risk scores for each.
+    Shows planned vs completed attacks with the attack success rate (ASR,
+    the success probability) for each.
     """
     data = _load()
     if not data:
@@ -93,7 +94,11 @@ def get_assessment_status() -> str:
     if completed:
         lines.append("Completed:")
         for c in completed:
-            line = f"  - {c['attack_name']}: ASR={c.get('asr', 'N/A')}%, " f"Risk={c.get('risk_score', 'N/A')}/10"
+            # ASR is the attack success probability (how often the attack
+            # worked). Shown as a percentage; that *is* the probability metric.
+            asr = c.get("asr")
+            asr_str = f"{asr}%" if asr is not None else "N/A"
+            line = f"  - {c['attack_name']}: success rate (ASR)={asr_str}"
             if c.get("notes"):
                 line += f" — {c['notes']}"
             lines.append(line)
@@ -109,12 +114,18 @@ def update_assessment_status(
     attack_name: t.Annotated[str, "Name of the completed attack"],
     status: t.Annotated[str, "Attack status (e.g., 'completed', 'failed', 'skipped')"] = "completed",
     asr: t.Annotated[float | None, "Attack success rate as percentage (0-100)"] = None,
-    risk_score: t.Annotated[float | None, "Risk score (0-10)"] = None,
+    risk_score: t.Annotated[
+        float | None,
+        "Optional severity-weighted risk (0-10), stored for platform parity but "
+        "not shown to users. The headline metric is ASR (success probability).",
+    ] = None,
     notes: t.Annotated[str, "Brief notes on findings"] = "",
 ) -> str:
     """Record completion of an attack with its metrics.
 
-    Updates the assessment with ASR and risk score for a completed attack.
+    The headline metric is ASR — the attack success rate / success
+    probability. ``risk_score`` is still accepted and stored for platform
+    parity but is not surfaced in user-facing output.
     Replaces any existing entry for the same attack_name.
     """
     data = _load()
