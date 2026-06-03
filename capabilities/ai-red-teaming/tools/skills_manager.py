@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from dreadnode.agents.tools import tool
+# Load the shared safe_tool wrapper by file path. Capability tool files are
+# loaded as flat modules (no parent package), so relative imports do not work.
+import importlib.util as _ilu
+from pathlib import Path as _Path
+_errors_path = _Path(__file__).resolve().parent / "errors.py"
+_spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
+_errors_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_errors_mod)
+safe_tool = _errors_mod.safe_tool
 
 
 def _resolve_workspace() -> tuple[Path, str, str, str | None]:
@@ -36,7 +44,7 @@ def _resolve_workspace() -> tuple[Path, str, str, str | None]:
         )
 
 
-@tool
+@safe_tool
 def validate_workflow_readiness() -> str:
     """Check if the agent is ready to run AI red teaming workflows.
 

@@ -14,7 +14,15 @@ import typing as t
 from datetime import datetime, timezone
 from pathlib import Path
 
-from dreadnode.agents.tools import tool
+# Load the shared safe_tool wrapper by file path. Capability tool files are
+# loaded as flat modules (no parent package), so relative imports do not work.
+import importlib.util as _ilu
+from pathlib import Path as _Path
+_errors_path = _Path(__file__).resolve().parent / "errors.py"
+_spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
+_errors_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_errors_mod)
+safe_tool = _errors_mod.safe_tool
 
 SESSION_PATH = Path(
     os.environ.get(
@@ -38,7 +46,7 @@ def _save(data: dict) -> None:
     SESSION_PATH.write_text(json.dumps(data, indent=2))
 
 
-@tool
+@safe_tool
 def save_session_context(
     target_model: t.Annotated[str, "Target model or endpoint being tested"],
     goal: t.Annotated[str, "Attack goal/objective"],
@@ -92,7 +100,7 @@ def save_session_context(
     return "Session context saved. Target: {}, Goal: {}, Last attack: {}".format(target_model, goal[:60], attack_type)
 
 
-@tool
+@safe_tool
 def get_session_context() -> str:
     """Retrieve the current session context for iterative refinement.
 
@@ -143,7 +151,7 @@ def get_session_context() -> str:
     return "\n".join(lines)
 
 
-@tool
+@safe_tool
 def clear_session_context() -> str:
     """Clear the session context to start fresh.
 

@@ -17,7 +17,15 @@ import sys
 import typing as t
 from pathlib import Path
 
-from dreadnode.agents.tools import tool
+# Load the shared safe_tool wrapper by file path. Capability tool files are
+# loaded as flat modules (no parent package), so relative imports do not work.
+import importlib.util as _ilu
+from pathlib import Path as _Path
+_errors_path = _Path(__file__).resolve().parent / "errors.py"
+_spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
+_errors_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_errors_mod)
+safe_tool = _errors_mod.safe_tool
 from dreadnode.app.env import resolve_python_executable
 
 _RUNNER_SCRIPT = Path(__file__).parent.parent / "scripts" / "attack_runner.py"
@@ -64,7 +72,7 @@ def _call_runner(name: str, params: dict) -> str:
         return f"Error: {e}"
 
 
-@tool
+@safe_tool
 def generate_attack(
     attack_type: t.Annotated[
         str,
@@ -138,7 +146,7 @@ def generate_attack(
     return _call_runner("generate_attack", params)
 
 
-@tool
+@safe_tool
 def generate_category_attack(
     attacks: t.Annotated[str, "Attack type(s), comma-separated"],
     target_model: t.Annotated[str, "Target LLM model"],
@@ -197,7 +205,7 @@ def generate_category_attack(
     return _call_runner("generate_category_attack", params)
 
 
-@tool
+@safe_tool
 def generate_agentic_attack(
     goal: t.Annotated[str, "Attack goal"],
     agent_url: t.Annotated[str, "HTTP endpoint of the target agent"],
@@ -267,7 +275,7 @@ def generate_agentic_attack(
     return _call_runner("generate_agentic_attack", params)
 
 
-@tool
+@safe_tool
 def generate_image_attack(
     attack_type: t.Annotated[
         str,

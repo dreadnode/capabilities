@@ -12,7 +12,15 @@ import os
 import typing as t
 from pathlib import Path
 
-from dreadnode.agents.tools import tool
+# Load the shared safe_tool wrapper by file path. Capability tool files are
+# loaded as flat modules (no parent package), so relative imports do not work.
+import importlib.util as _ilu
+from pathlib import Path as _Path
+_errors_path = _Path(__file__).resolve().parent / "errors.py"
+_spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
+_errors_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_errors_mod)
+safe_tool = _errors_mod.safe_tool
 
 
 def _resolve_workspace_dir() -> Path:
@@ -62,7 +70,7 @@ def _safe_path(relative: str) -> Path | None:
     return resolved
 
 
-@tool
+@safe_tool
 def inspect_results(
     file_type: t.Annotated[
         str,
@@ -128,7 +136,7 @@ def inspect_results(
     return "\n".join(lines)
 
 
-@tool
+@safe_tool
 def get_analytics_summary(
     attack_name: t.Annotated[
         str,
@@ -247,7 +255,7 @@ def get_analytics_summary(
     return "\n\n".join(summaries)
 
 
-@tool
+@safe_tool
 def get_platform_assessment_data(
     assessment_name: t.Annotated[str, "Assessment name to retrieve from platform"] = "",
 ) -> str:
@@ -288,7 +296,7 @@ def get_platform_assessment_data(
     )
 
 
-@tool
+@safe_tool
 def validate_attack_results() -> str:
     """Validate that attack execution completed successfully.
 
@@ -368,7 +376,7 @@ def validate_attack_results() -> str:
     return "\n".join(report)
 
 
-@tool
+@safe_tool
 def fix_workflow_errors(
     error_type: t.Annotated[
         str,

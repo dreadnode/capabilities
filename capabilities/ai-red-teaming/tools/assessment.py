@@ -12,14 +12,27 @@ import typing as t
 from datetime import datetime, timezone
 from pathlib import Path
 
-from dreadnode.agents.tools import tool
+# Load the shared safe_tool wrapper by file path. Capability tool files are
+# loaded as flat modules (no parent package), so relative imports do not work.
+import importlib.util as _ilu
+from pathlib import Path as _Path
+_errors_path = _Path(__file__).resolve().parent / "errors.py"
+_spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
+_errors_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_errors_mod)
+safe_tool = _errors_mod.safe_tool
 
 ASSESSMENT_PATH = Path(os.environ.get("AIRT_ASSESSMENT_PATH", "/tmp/airt_assessment.json"))
 
 
 def _load() -> dict:
-    if ASSESSMENT_PATH.exists():
-        return json.loads(ASSESSMENT_PATH.read_text())
+    # Tolerate a missing or corrupt assessment file: treat as "no assessment"
+    # rather than raising, so the calling tool can respond cleanly.
+    try:
+        if ASSESSMENT_PATH.exists():
+            return json.loads(ASSESSMENT_PATH.read_text())
+    except (OSError, ValueError):
+        pass
     return {}
 
 
@@ -28,7 +41,7 @@ def _save(data: dict) -> None:
     ASSESSMENT_PATH.write_text(json.dumps(data, indent=2))
 
 
-@tool
+@safe_tool
 def register_assessment(
     name: t.Annotated[str, "Assessment name"],
     target: t.Annotated[str, "Target model or system being tested"],
@@ -53,7 +66,7 @@ def register_assessment(
     return f"Assessment '{name}' registered with {len(planned_attacks)} " f"planned attacks targeting {target}."
 
 
-@tool
+@safe_tool
 def get_assessment_status() -> str:
     """Get current assessment progress with completed attack metrics.
 
@@ -91,7 +104,7 @@ def get_assessment_status() -> str:
     return "\n".join(lines)
 
 
-@tool
+@safe_tool
 def update_assessment_status(
     attack_name: t.Annotated[str, "Name of the completed attack"],
     status: t.Annotated[str, "Attack status (e.g., 'completed', 'failed', 'skipped')"] = "completed",

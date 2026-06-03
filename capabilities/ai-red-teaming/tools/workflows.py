@@ -14,7 +14,15 @@ import typing as t
 from datetime import datetime, timezone
 from pathlib import Path
 
-from dreadnode.agents.tools import tool
+# Load the shared safe_tool wrapper by file path. Capability tool files are
+# loaded as flat modules (no parent package), so relative imports do not work.
+import importlib.util as _ilu
+from pathlib import Path as _Path
+_errors_path = _Path(__file__).resolve().parent / "errors.py"
+_spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
+_errors_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_errors_mod)
+safe_tool = _errors_mod.safe_tool
 from dreadnode.app.env import resolve_python_executable
 
 
@@ -62,7 +70,7 @@ def _save_metadata(meta: dict) -> None:
     METADATA_FILE.write_text(json.dumps(meta, indent=2))
 
 
-@tool
+@safe_tool
 def save_workflow(
     filename: t.Annotated[str, "Filename for the workflow (e.g., 'my_attack.py')"],
     code: t.Annotated[str, "Python source code for the workflow"],
@@ -128,7 +136,7 @@ def save_workflow(
     return f"Workflow {status}: {filepath} ({len(code)} bytes) - content verified"
 
 
-@tool
+@safe_tool
 def list_workflows() -> str:
     """List saved attack workflows with metadata.
 
@@ -154,7 +162,7 @@ def list_workflows() -> str:
     return "\n".join(lines)
 
 
-@tool
+@safe_tool
 def execute_workflow(
     filename: t.Annotated[str, "Workflow filename to execute"],
     timeout: t.Annotated[int, "Max execution time in seconds (max 600)"] = 540,
