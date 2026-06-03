@@ -150,25 +150,54 @@ def get_analytics_summary(
         analytics_files.extend(WORKSPACE_DIR.rglob(pattern))
 
     if not analytics_files:
+        workflows_dir = WORKSPACE_DIR / "workflows"
+        ran_workflows = (
+            list(workflows_dir.glob("*.py")) if workflows_dir.exists() else []
+        )
+        if ran_workflows:
+            return (
+                "No local analytics files found, but workflow scripts are present. "
+                "Platform OTEL traces are the source of truth for this run — view "
+                "ASR/risk in the Dreadnode platform web UI (AI Red Teaming), or use "
+                "get_assessment_status() for high-level metrics. Local analytics JSON "
+                "is a legacy artifact and may be absent for image/tabular attacks or "
+                "studies with no finished trials."
+            )
         return "No analytics files found. Run an attack workflow first."
 
     summaries: list[str] = []
     for f in sorted(analytics_files):
         try:
-            data = json.loads(f.read_text())
+            outer = json.loads(f.read_text())
         except Exception:
             continue
 
+        # New-format files wrap SDK analytics under an "analytics" envelope
+        # (with assessment_id / model metadata at the top level). Legacy files
+        # are flat. Read metrics from the envelope when present, falling back
+        # to the top level for backward compatibility.
+        data = outer.get("analytics") if isinstance(outer.get("analytics"), dict) else outer
+
         # Filter by attack name if specified
         if attack_name:
-            file_attack = data.get("attack_name", data.get("name", ""))
+            file_attack = outer.get("attack_name", data.get("attack_name", data.get("name", "")))
             if attack_name.lower() not in file_attack.lower():
                 continue
 
         lines = [f"--- {f.relative_to(WORKSPACE_DIR)} ---"]
+        if outer is not data:
+            # Surface assessment-level identifiers from the envelope.
+            if outer.get("assessment_id"):
+                lines.append(f"Assessment: {outer['assessment_id']}")
+            if outer.get("target_model"):
+                lines.append(f"Target: {outer['target_model']}")
 
+        exec_stats = data.get("execution_stats", {}) if isinstance(data.get("execution_stats"), dict) else {}
         if "asr" in data:
             lines.append(f"ASR: {data['asr']}%")
+        elif "overall_asr" in exec_stats:
+            # SDK stores ASR as a 0-1 fraction under execution_stats.
+            lines.append(f"ASR: {round(exec_stats['overall_asr'] * 100, 1)}%")
         if "risk_score" in data:
             lines.append(f"Risk Score: {data['risk_score']}/10")
         if "overall_risk" in data:
@@ -194,8 +223,10 @@ def get_analytics_summary(
                 lines.append(f"Compliance: {compliance}")
 
         trials = data.get("trials", data.get("results", []))
-        if isinstance(trials, list):
+        if isinstance(trials, list) and trials:
             lines.append(f"Trials: {len(trials)}")
+        elif "total_trials" in exec_stats:
+            lines.append(f"Trials: {exec_stats['total_trials']}")
 
         for key in ["attack_name", "attack_type", "attacks"]:
             if key in data:
@@ -282,8 +313,29 @@ def validate_attack_results() -> str:
         result_files = list(WORKSPACE_DIR.rglob("*result*.json"))
 
         if not analytics_files and not result_files:
-            issues.append("❌ No analytics or result files found")
-            suggestions.append("Check if attack execution completed successfully")
+            # No local files. This is NOT necessarily a failure: platform OTEL
+            # traces are the source of truth, and some runs (e.g. image/tabular
+            # adversarial attacks, or studies with 0 finished trials) legitimately
+            # write no local analytics. Only flag a hard error if there's also no
+            # sign that any workflow ran; otherwise report a soft, platform-aware note.
+            workflows_dir = WORKSPACE_DIR / "workflows"
+            ran_workflows = (
+                list(workflows_dir.glob("*.py")) if workflows_dir.exists() else []
+            )
+            if ran_workflows:
+                issues.append(
+                    "ℹ️  No local analytics/result files, but workflow scripts are "
+                    f"present ({len(ran_workflows)} found). Metrics are reported on "
+                    "the Dreadnode platform (OTEL traces are the source of truth)."
+                )
+                suggestions.append(
+                    "View ASR/risk for this assessment in the platform web UI "
+                    "(AI Red Teaming), or use the assessment tracking tools "
+                    "(get_assessment_status). Local analytics files are a legacy artifact."
+                )
+            else:
+                issues.append("❌ No analytics or result files found")
+                suggestions.append("Check if attack execution completed successfully")
         else:
             issues.append(
                 f"✅ Found {len(analytics_files)} analytics, {len(result_files)} result files"
