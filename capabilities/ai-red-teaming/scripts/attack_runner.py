@@ -2612,6 +2612,39 @@ def _resolve_model(alias: str) -> str:
     return MODEL_ALIASES.get(key, alias.strip())
 
 
+def _normalize_attack_names(attacks_raw: object) -> list[str]:
+    """Normalize the ``attacks`` argument into a clean list of attack names.
+
+    Tolerates the common calling shapes so callers don't trigger the
+    character-by-character iteration bug:
+      - list/tuple of names: ["tap", "goat"] -> ["tap", "goat"]
+      - comma-separated string: "tap,goat" -> ["tap", "goat"]
+      - single name: "tap" -> ["tap"]
+      - stray bracket/quote noise from stringified lists: "['tap','goat']"
+        -> ["tap", "goat"]
+
+    Empty / whitespace-only tokens are dropped.
+    """
+    if attacks_raw is None:
+        return []
+
+    if isinstance(attacks_raw, (list, tuple)):
+        items = list(attacks_raw)
+    elif isinstance(attacks_raw, str):
+        # Strip stray list/quote characters from stringified lists, then split.
+        cleaned = attacks_raw.strip().strip("[]")
+        items = cleaned.split(",")
+    else:
+        items = [attacks_raw]
+
+    names = []
+    for item in items:
+        token = str(item).strip().strip("'\"").strip()
+        if token:
+            names.append(token)
+    return names
+
+
 def _resolve_attack(alias: str) -> dict:
     """Resolve an attack alias to its definition."""
     key = alias.strip().lower().replace("-", "_").replace(" ", "_")
@@ -3741,6 +3774,19 @@ def generate_category_attack(params: dict) -> dict:
     if not categories and not goal_ids:
         return {"error": "categories or goal_ids is required"}
 
+    # Normalize attacks into a clean list of names.
+    # Accepts: list[str] (["tap", "goat"]), comma-separated string ("tap,goat"),
+    # or a single name ("tap"). This mirrors how generate_attack handles
+    # attack_type and prevents iterating a bare string character-by-character.
+    attack_names = _normalize_attack_names(attacks_raw)
+    if not attack_names:
+        return {
+            "error": (
+                "attacks must be one or more attack names, e.g. ['tap', 'goat'] "
+                "or 'tap,goat'. Got: {!r}".format(attacks_raw)
+            )
+        }
+
     # Resolve models
     resolved_target = _resolve_model(target_model)
     resolved_attacker = _resolve_model(attacker_model) if attacker_model else resolved_target
@@ -3749,7 +3795,7 @@ def generate_category_attack(params: dict) -> dict:
 
     # Resolve attacks
     try:
-        attacks_resolved = [_resolve_attack(a) for a in attacks_raw]
+        attacks_resolved = [_resolve_attack(a) for a in attack_names]
     except ValueError as e:
         return {"error": str(e)}
 

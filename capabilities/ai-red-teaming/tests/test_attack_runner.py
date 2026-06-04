@@ -101,6 +101,35 @@ class TestAttackResolution:
         with pytest.raises((ValueError, KeyError)):
             runner._resolve_attack("nonexistent_attack")
 
+class TestNormalizeAttackNames:
+    """Regression: generate_category_attack must not iterate a bare string
+    character-by-character (which produced 'Unknown attack: t' errors)."""
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("tap", ["tap"]),
+            ("tap,goat", ["tap", "goat"]),
+            ("tap, goat , pair", ["tap", "goat", "pair"]),
+            (["tap"], ["tap"]),
+            (["tap", "goat"], ["tap", "goat"]),
+            ("tap_attack", ["tap_attack"]),
+            ("['tap']", ["tap"]),
+            ("['tap','goat']", ["tap", "goat"]),
+            ("", []),
+            (None, []),
+        ],
+    )
+    def test_normalize(self, raw, expected) -> None:
+        assert runner._normalize_attack_names(raw) == expected
+
+    def test_bare_string_does_not_split_to_chars(self) -> None:
+        # The exact bug: "tap" must NOT become ['t', 'a', 'p'].
+        result = runner._normalize_attack_names("tap")
+        assert result == ["tap"]
+        assert "t" not in result
+
+
 
 # =============================================================================
 # Transform resolution
