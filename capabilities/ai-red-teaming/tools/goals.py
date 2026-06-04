@@ -12,7 +12,15 @@ import typing as t
 from collections import defaultdict
 from pathlib import Path
 
-from dreadnode.agents.tools import tool
+# Load the shared safe_tool wrapper by file path. Capability tool files are
+# loaded as flat modules (no parent package), so relative imports do not work.
+import importlib.util as _ilu
+from pathlib import Path as _Path
+_errors_path = _Path(__file__).resolve().parent / "errors.py"
+_spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
+_errors_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_errors_mod)
+safe_tool = _errors_mod.safe_tool
 
 GOALS_CSV = Path(__file__).parent.parent / "data" / "goals.csv"
 
@@ -49,14 +57,21 @@ SUB_CATEGORY_DISPLAY_NAMES: dict[str, str] = {
 
 
 def _load_goals() -> list[dict]:
-    """Load goals from CSV, returning list of row dicts."""
-    if not GOALS_CSV.exists():
+    """Load goals from CSV, returning list of row dicts.
+
+    Returns an empty list on any read/parse error so callers can surface a
+    clean "dataset not found" message instead of raising.
+    """
+    try:
+        if not GOALS_CSV.exists():
+            return []
+        with open(GOALS_CSV, newline="") as f:
+            return list(csv.DictReader(f))
+    except (OSError, csv.Error, ValueError):
         return []
-    with open(GOALS_CSV, newline="") as f:
-        return list(csv.DictReader(f))
 
 
-@tool
+@safe_tool
 def list_goal_categories() -> str:
     """List available harm categories with goal counts.
 
@@ -86,7 +101,7 @@ def list_goal_categories() -> str:
     return "\n".join(lines)
 
 
-@tool
+@safe_tool
 def get_category_goals(
     sub_categories: t.Annotated[
         list[str],

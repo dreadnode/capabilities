@@ -12,7 +12,15 @@ import os
 import typing as t
 from pathlib import Path
 
-from dreadnode.agents.tools import tool
+# Load the shared safe_tool wrapper by file path. Capability tool files are
+# loaded as flat modules (no parent package), so relative imports do not work.
+import importlib.util as _ilu
+from pathlib import Path as _Path
+_errors_path = _Path(__file__).resolve().parent / "errors.py"
+_spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
+_errors_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_errors_mod)
+safe_tool = _errors_mod.safe_tool
 
 
 def _resolve_workspace_dir() -> Path:
@@ -62,7 +70,7 @@ def _safe_path(relative: str) -> Path | None:
     return resolved
 
 
-@tool
+@safe_tool
 def inspect_results(
     file_type: t.Annotated[
         str,
@@ -128,7 +136,7 @@ def inspect_results(
     return "\n".join(lines)
 
 
-@tool
+@safe_tool
 def get_analytics_summary(
     attack_name: t.Annotated[
         str,
@@ -150,29 +158,62 @@ def get_analytics_summary(
         analytics_files.extend(WORKSPACE_DIR.rglob(pattern))
 
     if not analytics_files:
+        workflows_dir = WORKSPACE_DIR / "workflows"
+        ran_workflows = (
+            list(workflows_dir.glob("*.py")) if workflows_dir.exists() else []
+        )
+        if ran_workflows:
+            return (
+                "No local analytics files found, but workflow scripts are present. "
+                "Platform OTEL traces are the source of truth for this run — view "
+                "ASR/risk in the Dreadnode platform web UI (AI Red Teaming), or use "
+                "get_assessment_status() for high-level metrics. Local analytics JSON "
+                "is a legacy artifact and may be absent for image/tabular attacks or "
+                "studies with no finished trials."
+            )
         return "No analytics files found. Run an attack workflow first."
 
     summaries: list[str] = []
     for f in sorted(analytics_files):
         try:
-            data = json.loads(f.read_text())
+            outer = json.loads(f.read_text())
         except Exception:
             continue
 
+        # New-format files wrap SDK analytics under an "analytics" envelope
+        # (with assessment_id / model metadata at the top level). Legacy files
+        # are flat. Read metrics from the envelope when present, falling back
+        # to the top level for backward compatibility.
+        data = outer.get("analytics") if isinstance(outer.get("analytics"), dict) else outer
+
         # Filter by attack name if specified
         if attack_name:
-            file_attack = data.get("attack_name", data.get("name", ""))
+            file_attack = outer.get("attack_name", data.get("attack_name", data.get("name", "")))
             if attack_name.lower() not in file_attack.lower():
                 continue
 
         lines = [f"--- {f.relative_to(WORKSPACE_DIR)} ---"]
+        if outer is not data:
+            # Surface assessment-level identifiers from the envelope.
+            if outer.get("assessment_id"):
+                lines.append(f"Assessment: {outer['assessment_id']}")
+            if outer.get("target_model"):
+                lines.append(f"Target: {outer['target_model']}")
 
+        # ASR (attack success rate) IS the success probability — present it as
+        # the headline metric. The severity-weighted /10 risk score is no longer
+        # surfaced to users (kept in the raw data for platform parity only).
+        exec_stats = data.get("execution_stats", {}) if isinstance(data.get("execution_stats"), dict) else {}
         if "asr" in data:
-            lines.append(f"ASR: {data['asr']}%")
-        if "risk_score" in data:
-            lines.append(f"Risk Score: {data['risk_score']}/10")
-        if "overall_risk" in data:
-            lines.append(f"Overall Risk: {data['overall_risk']}")
+            _asr_pct = data["asr"]
+            lines.append(f"Success rate (ASR): {_asr_pct}%  (probability {round(_asr_pct / 100, 3)})")
+        elif "overall_asr" in exec_stats:
+            # SDK stores ASR as a 0-1 fraction under execution_stats.
+            _asr_frac = exec_stats["overall_asr"]
+            lines.append(
+                f"Success rate (ASR): {round(_asr_frac * 100, 1)}%  "
+                f"(probability {round(_asr_frac, 3)})"
+            )
 
         severity = data.get("severity_breakdown", data.get("severity", {}))
         if severity:
@@ -194,8 +235,10 @@ def get_analytics_summary(
                 lines.append(f"Compliance: {compliance}")
 
         trials = data.get("trials", data.get("results", []))
-        if isinstance(trials, list):
+        if isinstance(trials, list) and trials:
             lines.append(f"Trials: {len(trials)}")
+        elif "total_trials" in exec_stats:
+            lines.append(f"Trials: {exec_stats['total_trials']}")
 
         for key in ["attack_name", "attack_type", "attacks"]:
             if key in data:
@@ -216,7 +259,7 @@ def get_analytics_summary(
     return "\n\n".join(summaries)
 
 
-@tool
+@safe_tool
 def get_platform_assessment_data(
     assessment_name: t.Annotated[str, "Assessment name to retrieve from platform"] = "",
 ) -> str:
@@ -224,8 +267,7 @@ def get_platform_assessment_data(
 
     PLATFORM DATA AVAILABLE via get_assessment_status():
     - ✅ Assessment name, target, goal, status
-    - ✅ ASR percentage per attack
-    - ✅ Risk score (0-10) per attack
+    - ✅ ASR percentage per attack (the success probability)
     - ✅ Attack completion status and notes
 
     PLATFORM DATA NOT ACCESSIBLE (requires full platform API):
@@ -249,7 +291,7 @@ def get_platform_assessment_data(
     return (
         "⚠️  LIMITED PLATFORM DATA ACCESS\n\n"
         "Assessment tracking tools provide ONLY summary metrics:\n"
-        "- ASR percentage, Risk score, Status, Notes\n\n"
+        "- ASR percentage (success probability), Status, Notes\n\n"
         "For detailed analysis (trials, scorers, compliance):\n"
         "→ Use Dreadnode platform web interface\n"
         "→ Assessment tracking tools are for workflow coordination only\n\n"
@@ -257,7 +299,7 @@ def get_platform_assessment_data(
     )
 
 
-@tool
+@safe_tool
 def validate_attack_results() -> str:
     """Validate that attack execution completed successfully.
 
@@ -282,8 +324,29 @@ def validate_attack_results() -> str:
         result_files = list(WORKSPACE_DIR.rglob("*result*.json"))
 
         if not analytics_files and not result_files:
-            issues.append("❌ No analytics or result files found")
-            suggestions.append("Check if attack execution completed successfully")
+            # No local files. This is NOT necessarily a failure: platform OTEL
+            # traces are the source of truth, and some runs (e.g. image/tabular
+            # adversarial attacks, or studies with 0 finished trials) legitimately
+            # write no local analytics. Only flag a hard error if there's also no
+            # sign that any workflow ran; otherwise report a soft, platform-aware note.
+            workflows_dir = WORKSPACE_DIR / "workflows"
+            ran_workflows = (
+                list(workflows_dir.glob("*.py")) if workflows_dir.exists() else []
+            )
+            if ran_workflows:
+                issues.append(
+                    "ℹ️  No local analytics/result files, but workflow scripts are "
+                    f"present ({len(ran_workflows)} found). Metrics are reported on "
+                    "the Dreadnode platform (OTEL traces are the source of truth)."
+                )
+                suggestions.append(
+                    "View ASR/risk for this assessment in the platform web UI "
+                    "(AI Red Teaming), or use the assessment tracking tools "
+                    "(get_assessment_status). Local analytics files are a legacy artifact."
+                )
+            else:
+                issues.append("❌ No analytics or result files found")
+                suggestions.append("Check if attack execution completed successfully")
         else:
             issues.append(
                 f"✅ Found {len(analytics_files)} analytics, {len(result_files)} result files"
@@ -316,7 +379,7 @@ def validate_attack_results() -> str:
     return "\n".join(report)
 
 
-@tool
+@safe_tool
 def fix_workflow_errors(
     error_type: t.Annotated[
         str,

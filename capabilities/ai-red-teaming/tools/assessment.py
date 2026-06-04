@@ -12,14 +12,27 @@ import typing as t
 from datetime import datetime, timezone
 from pathlib import Path
 
-from dreadnode.agents.tools import tool
+# Load the shared safe_tool wrapper by file path. Capability tool files are
+# loaded as flat modules (no parent package), so relative imports do not work.
+import importlib.util as _ilu
+from pathlib import Path as _Path
+_errors_path = _Path(__file__).resolve().parent / "errors.py"
+_spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
+_errors_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_errors_mod)
+safe_tool = _errors_mod.safe_tool
 
 ASSESSMENT_PATH = Path(os.environ.get("AIRT_ASSESSMENT_PATH", "/tmp/airt_assessment.json"))
 
 
 def _load() -> dict:
-    if ASSESSMENT_PATH.exists():
-        return json.loads(ASSESSMENT_PATH.read_text())
+    # Tolerate a missing or corrupt assessment file: treat as "no assessment"
+    # rather than raising, so the calling tool can respond cleanly.
+    try:
+        if ASSESSMENT_PATH.exists():
+            return json.loads(ASSESSMENT_PATH.read_text())
+    except (OSError, ValueError):
+        pass
     return {}
 
 
@@ -28,7 +41,7 @@ def _save(data: dict) -> None:
     ASSESSMENT_PATH.write_text(json.dumps(data, indent=2))
 
 
-@tool
+@safe_tool
 def register_assessment(
     name: t.Annotated[str, "Assessment name"],
     target: t.Annotated[str, "Target model or system being tested"],
@@ -53,11 +66,12 @@ def register_assessment(
     return f"Assessment '{name}' registered with {len(planned_attacks)} " f"planned attacks targeting {target}."
 
 
-@tool
+@safe_tool
 def get_assessment_status() -> str:
     """Get current assessment progress with completed attack metrics.
 
-    Shows planned vs completed attacks and ASR/risk scores for each.
+    Shows planned vs completed attacks with the attack success rate (ASR,
+    the success probability) for each.
     """
     data = _load()
     if not data:
@@ -80,7 +94,11 @@ def get_assessment_status() -> str:
     if completed:
         lines.append("Completed:")
         for c in completed:
-            line = f"  - {c['attack_name']}: ASR={c.get('asr', 'N/A')}%, " f"Risk={c.get('risk_score', 'N/A')}/10"
+            # ASR is the attack success probability (how often the attack
+            # worked). Shown as a percentage; that *is* the probability metric.
+            asr = c.get("asr")
+            asr_str = f"{asr}%" if asr is not None else "N/A"
+            line = f"  - {c['attack_name']}: success rate (ASR)={asr_str}"
             if c.get("notes"):
                 line += f" — {c['notes']}"
             lines.append(line)
@@ -91,17 +109,23 @@ def get_assessment_status() -> str:
     return "\n".join(lines)
 
 
-@tool
+@safe_tool
 def update_assessment_status(
     attack_name: t.Annotated[str, "Name of the completed attack"],
     status: t.Annotated[str, "Attack status (e.g., 'completed', 'failed', 'skipped')"] = "completed",
     asr: t.Annotated[float | None, "Attack success rate as percentage (0-100)"] = None,
-    risk_score: t.Annotated[float | None, "Risk score (0-10)"] = None,
+    risk_score: t.Annotated[
+        float | None,
+        "Optional severity-weighted risk (0-10), stored for platform parity but "
+        "not shown to users. The headline metric is ASR (success probability).",
+    ] = None,
     notes: t.Annotated[str, "Brief notes on findings"] = "",
 ) -> str:
     """Record completion of an attack with its metrics.
 
-    Updates the assessment with ASR and risk score for a completed attack.
+    The headline metric is ASR — the attack success rate / success
+    probability. ``risk_score`` is still accepted and stored for platform
+    parity but is not surfaced in user-facing output.
     Replaces any existing entry for the same attack_name.
     """
     data = _load()

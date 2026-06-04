@@ -60,8 +60,15 @@ def _resolve_platform_env() -> dict[str, str]:
     """
     env = os.environ.copy()
 
-    # If platform env vars are already set (sandbox), use as-is
+    # If the runtime already provides platform credentials in any of the
+    # forms the SDK understands, pass the env through untouched -- the
+    # generated script self-configures via dn.configure(), whose precedence
+    # is: explicit args > env vars > saved profile.
+    #   - DREADNODE_SERVER + DREADNODE_API_KEY  (classic platform env)
+    #   - DREADNODE_LLM_BASE + DREADNODE_LLM_API_KEY  (runtime LLM proxy env)
     if env.get("DREADNODE_SERVER") and env.get("DREADNODE_API_KEY"):
+        return env
+    if env.get("DREADNODE_LLM_BASE") and env.get("DREADNODE_LLM_API_KEY"):
         return env
 
     # Fall back to saved profile (TUI/CLI mode)
@@ -2775,6 +2782,9 @@ def _build_imports(attacks: list[dict], transforms: list[dict], has_scorers: boo
 
     lines.append("from dreadnode.airt.assessment import Assessment")
     lines.append("from dreadnode.airt.analytics.types import GoalCategory")
+    # analyze() powers the local analytics JSON written at end of each run
+    # (consumed by inspect_results / validate_attack_results / get_analytics_summary).
+    lines.append("from dreadnode.airt.analytics import analyze")
 
     if transforms:
         module_names: dict[str, list[str]] = {}
@@ -2800,28 +2810,124 @@ def _build_configure() -> str:
     """
     return """
 # -- Connect SDK to platform --
-# In sandbox: env vars are set by the platform (DREADNODE_SERVER, DREADNODE_API_KEY, etc.)
-# In TUI/CLI: falls back to saved profile from ~/.cache/dreadnode/config.yaml
-_server = os.environ.get("DREADNODE_SERVER")
-_api_key = os.environ.get("DREADNODE_API_KEY")
-_org = os.environ.get("DREADNODE_ORGANIZATION")
-_ws = os.environ.get("DREADNODE_WORKSPACE")
-_project = os.environ.get("DREADNODE_PROJECT")
-
-if _server and _api_key:
-    # Explicit env vars (sandbox mode)
-    dn.configure(server=_server, api_key=_api_key, organization=_org, workspace=_ws, project=_project)
-    print(f"SDK configured (env): server={_server}")
-else:
-    # Fall back to saved profile (TUI/CLI mode)
-    try:
-        dn.configure(organization=_org, workspace=_ws, project=_project)
-        print(f"SDK configured (profile): server={dn.server}")
-    except Exception as e:
-        print(f"FATAL: Could not configure SDK: {e}")
-        print("  Set DREADNODE_SERVER + DREADNODE_API_KEY env vars, or login via `dreadnode login`.")
-        sys.exit(1)
+# Let the SDK resolve credentials itself. Per dn.configure()'s documented
+# precedence, it reads:  explicit args > environment variables > saved
+# profile (~/.dreadnode/config.yaml).  This works across sandbox AND TUI/CLI
+# without the script having to know which env vars the runtime injects
+# (DREADNODE_SERVER/_API_KEY, DREADNODE_LLM_*, or none at all).
+#
+# Only forward scope overrides (org/workspace/project) that are actually
+# present in the environment; everything else is resolved by the SDK.
+_scope = {
+    k: v
+    for k, v in (
+        ("organization", os.environ.get("DREADNODE_ORGANIZATION")),
+        ("workspace", os.environ.get("DREADNODE_WORKSPACE")),
+        ("project", os.environ.get("DREADNODE_PROJECT")),
+    )
+    if v
+}
+try:
+    # configure() returns the configured SDK *instance*; read .server off it.
+    # NOTE: do NOT use `dn.server` -- the `dreadnode` module has no `server`
+    # attribute (it lives on the instance), and referencing it raises
+    # AttributeError, which previously surfaced as a misleading FATAL.
+    _dn = dn.configure(**_scope)
+    _resolved_server = (
+        getattr(_dn, "server", None)
+        or os.environ.get("DREADNODE_SERVER")
+        or "<saved profile>"
+    )
+    print(f"SDK configured: server={_resolved_server}")
+except Exception as e:
+    print(f"FATAL: Could not configure SDK: {e}")
+    print("  Authenticate via `dreadnode login` (or set DREADNODE_SERVER + DREADNODE_API_KEY).")
+    sys.exit(1)
 sys.stdout.flush()
+"""
+
+
+def _build_analytics_writer() -> str:
+    """Build the local-analytics writer block.
+
+    Defines ``_write_local_analytics(assessment, ...)`` in the generated
+    script. It runs the SDK's own deterministic ``analyze()`` pipeline over
+    ``assessment.attack_results`` and writes a ``*_analytics.json`` file to the
+    workspace. This is the artifact consumed by ``inspect_results``,
+    ``validate_attack_results`` and ``get_analytics_summary``.
+
+    Metrics are computed by the SDK (real ASR / risk_score / severity) — the
+    script never invents numbers. If there are no attack results (e.g. the
+    study produced no finished trials) it writes nothing and says so.
+    """
+    return """
+import json as _json
+from datetime import datetime, timezone
+
+def _write_local_analytics(assessment, *, target_model=None, attacker_model=None, evaluator_model=None):
+    \"\"\"Run the SDK analytics pipeline and persist a local *_analytics.json.
+
+    Returns the output path, or None if there were no results to analyze.
+    \"\"\"
+    try:
+        attack_results = list(getattr(assessment, "attack_results", []) or [])
+    except Exception as _e:
+        print(f"  [analytics] could not read assessment.attack_results: {_e}")
+        return None
+    if not attack_results:
+        print("  [analytics] no attack results to analyze (0 finished trials); "
+              "skipping local analytics file. Platform metrics may still be available.")
+        return None
+    try:
+        _analytics = analyze(
+            attack_results,
+            target_model=target_model,
+            attacker_model=attacker_model,
+            evaluator_model=evaluator_model,
+        )
+        _data = _analytics.to_dict()
+    except Exception as _e:
+        print(f"  [analytics] analyze() failed: {_e}")
+        return None
+
+    # Resolve org/workspace the SAME way the results tools do, so the file
+    # lands in the dir they scan: ~/.dreadnode/airt/<org>/<workspace>/.
+    # Precedence: env vars > saved profile (UserConfig) > "default"/"main".
+    _org = os.environ.get("DREADNODE_ORGANIZATION")
+    _ws = os.environ.get("DREADNODE_WORKSPACE")
+    if not (_org and _ws):
+        try:
+            from dreadnode.app.config import UserConfig
+            _profile_data = UserConfig.read().active_profile
+            if _profile_data:
+                _, _profile = _profile_data
+                _org = _org or _profile.organization
+                _ws = _ws or _profile.workspace
+        except Exception:
+            pass
+    _org = _org or "default"
+    _ws = _ws or "main"
+    _out_dir = Path.home() / ".dreadnode" / "airt" / _org / _ws
+    _out_dir.mkdir(parents=True, exist_ok=True)
+
+    _ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    _aid = getattr(assessment, "assessment_id", None) or "local"
+    _envelope = {
+        "assessment_id": str(_aid),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "target_model": target_model,
+        "attacker_model": attacker_model,
+        "evaluator_model": evaluator_model,
+        "analytics": _data,
+    }
+    _path = _out_dir / f"{_aid}_{_ts}_analytics.json"
+    try:
+        _path.write_text(_json.dumps(_envelope, indent=2, default=str))
+        print(f"  [analytics] wrote local analytics: {_path}")
+        return str(_path)
+    except Exception as _e:
+        print(f"  [analytics] failed to write analytics file: {_e}")
+        return None
 """
 
 
@@ -3079,6 +3185,7 @@ async def main():
         print("\\nFATAL: No studies completed successfully!")
         sys.exit(1)
 
+    _write_local_analytics(assessment, target_model=TARGET_MODEL, attacker_model=ATTACKER_MODEL, evaluator_model=JUDGE_MODEL)
     print(f"\\nAssessment complete. {{completed}}/{{len(STUDIES)}} studies succeeded.")
     sys.stdout.flush()
 
@@ -3128,6 +3235,7 @@ async def main():
             await assessment.fail(str(e))
             sys.exit(1)
 
+    _write_local_analytics(assessment, target_model=TARGET_MODEL, attacker_model=ATTACKER_MODEL, evaluator_model=JUDGE_MODEL)
     print(f"\\nAssessment complete.")
     sys.stdout.flush()
 
@@ -3172,6 +3280,7 @@ _CAMPAIGN_ATTACK_BLOCK = """\
 
 _CAMPAIGN_FOOTER = """\
 
+    _write_local_analytics(assessment, target_model=TARGET_MODEL, attacker_model=ATTACKER_MODEL, evaluator_model=JUDGE_MODEL)
     print(f"\\nAssessment complete.")
     sys.stdout.flush()
 
@@ -3196,6 +3305,7 @@ def _generate_transform_study(config: dict) -> str:
 
     imports = _build_imports([atk], transforms, has_scorers)
     configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
     cfg = _build_config_section(config)
     proxy = _build_proxy_routing()
     tgt = _build_target()
@@ -3233,7 +3343,7 @@ def _generate_transform_study(config: dict) -> str:
         tag_alias=_tag_alias(canon),
     )
 
-    return "\n".join([imports, configure, cfg, proxy, "", tgt, body])
+    return "\n".join([imports, configure, analytics_writer, cfg, proxy, "", tgt, body])
 
 
 def _generate_single(config: dict) -> str:
@@ -3244,6 +3354,7 @@ def _generate_single(config: dict) -> str:
 
     imports = _build_imports([atk], transforms, has_scorers)
     configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
     cfg = _build_config_section(config)
     proxy = _build_proxy_routing()
     tgt = _build_target()
@@ -3269,7 +3380,7 @@ def _generate_single(config: dict) -> str:
         transforms_applied=repr(transform_names),
     )
 
-    return "\n".join([imports, configure, cfg, proxy, "", tgt, body])
+    return "\n".join([imports, configure, analytics_writer, cfg, proxy, "", tgt, body])
 
 
 def _generate_campaign(config: dict) -> str:
@@ -3280,6 +3391,7 @@ def _generate_campaign(config: dict) -> str:
 
     imports = _build_imports(attacks, transforms, has_scorers)
     configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
     cfg = _build_config_section(config)
     proxy = _build_proxy_routing()
     tgt = _build_target()
@@ -3326,7 +3438,7 @@ async def main():
     async with assessment.trace():
 """.format(kwargs=assessment_kwargs)
 
-    parts = [imports, configure, cfg, proxy, "", tgt, campaign_header]
+    parts = [imports, configure, analytics_writer, cfg, proxy, "", tgt, campaign_header]
     parts.extend(attack_blocks)
     parts.append(_CAMPAIGN_FOOTER)
 
@@ -3460,6 +3572,7 @@ async def main():
         print("\\nFATAL: No goals completed!")
         sys.exit(1)
 
+    _write_local_analytics(assessment, target_model=TARGET_MODEL, attacker_model=ATTACKER_MODEL, evaluator_model=JUDGE_MODEL)
     print(f"\\nAssessment complete. {{completed}} goals succeeded.")
     sys.stdout.flush()
 
@@ -3490,6 +3603,7 @@ def _generate_category_attack(config: dict) -> str:
 
     imports = _build_imports(attacks, transforms, has_scorers)
     configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
     proxy = _build_proxy_routing()
 
     # Config section — no GOAL constant since goals are embedded below
@@ -3599,7 +3713,7 @@ def _generate_category_attack(config: dict) -> str:
         transforms_applied=transforms_applied,
     )
 
-    return "\n".join([imports, configure, cfg, proxy, "", tgt, body])
+    return "\n".join([imports, configure, analytics_writer, cfg, proxy, "", tgt, body])
 
 
 def generate_category_attack(params: dict) -> dict:
@@ -4064,6 +4178,9 @@ def _build_agentic_imports(attacks: list[dict], transforms: list[dict], has_scor
 
     lines.append("from dreadnode.airt.assessment import Assessment")
     lines.append("from dreadnode.airt.analytics.types import GoalCategory")
+    # analyze() powers the local analytics JSON written at end of each run
+    # (consumed by inspect_results / validate_attack_results / get_analytics_summary).
+    lines.append("from dreadnode.airt.analytics import analyze")
 
     if transforms:
         module_names: dict[str, list[str]] = {}
@@ -4141,6 +4258,7 @@ async def main():
             await assessment.fail(str(e))
             sys.exit(1)
 
+    _write_local_analytics(assessment, target_model=TARGET_MODEL, attacker_model=ATTACKER_MODEL, evaluator_model=JUDGE_MODEL)
     print(f"\\nAssessment complete.")
     sys.stdout.flush()
 
@@ -4163,6 +4281,7 @@ def _generate_agentic_single(config: dict, agent_config: dict) -> str:
 
     imports = _build_agentic_imports([atk], transforms, has_scorers, agent_config)
     configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
     cfg = _build_config_section(config)
     proxy = _build_proxy_routing()
     tgt = _build_agent_target_code(agent_config)
@@ -4190,7 +4309,7 @@ def _generate_agentic_single(config: dict, agent_config: dict) -> str:
         agent_url=_safe_str(agent_config["agent_url"]),
     )
 
-    parts = [imports, configure, cfg, proxy]
+    parts = [imports, configure, analytics_writer, cfg, proxy]
     if scorers_code:
         parts.append(scorers_code)
     parts.extend(["", tgt, body])
@@ -4624,6 +4743,7 @@ async def main():
             await assessment.fail(str(e))
             sys.exit(1)
 
+    _write_local_analytics(assessment)
     print(f"\\nAssessment complete.")
     sys.stdout.flush()
 
@@ -4682,6 +4802,7 @@ def generate_image_attack(params: dict) -> dict:
     # Build script
     imports = _build_image_imports(attack_func)
     configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
 
     # Config section
     config_lines = [
@@ -4762,7 +4883,7 @@ def generate_image_attack(params: dict) -> dict:
         attack_params=attack_params_str,
     )
 
-    script = "\n".join([imports, configure, config_section, "", target_code, body])
+    script = "\n".join([imports, configure, analytics_writer, config_section, "", target_code, body])
 
     # Syntax check
     try:
@@ -4892,6 +5013,7 @@ def generate_tabular_attack(params: dict) -> dict:
 
     imports = _build_tabular_imports(attack_func)
     configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
 
     script = '''{imports}
 
@@ -5046,6 +5168,7 @@ async def main():
         await assessment.fail(str(e))
         raise
 
+    _write_local_analytics(assessment)
     print(f"\\nAssessment complete.")
     sys.stdout.flush()
 
