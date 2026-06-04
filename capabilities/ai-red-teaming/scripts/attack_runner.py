@@ -2612,7 +2612,7 @@ def _resolve_model(alias: str) -> str:
     return MODEL_ALIASES.get(key, alias.strip())
 
 
-def _normalize_attack_names(attacks_raw: t.Any) -> list[str]:
+def _normalize_attack_names(attacks_raw: object) -> list[str]:
     """Normalize the ``attacks`` argument into a clean list of attack names.
 
     Tolerates the common calling shapes so callers don't trigger the
