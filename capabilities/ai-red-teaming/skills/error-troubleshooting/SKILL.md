@@ -45,6 +45,22 @@ Common errors and fixes for AIRT attack workflows.
 - **Cause**: Wrong parameter syntax
 - **Fix**: Use parentheses: `caesar(5)`, `adapt_language(Zulu)`, `vigenere(SECRET)`, `affine(5,8)`
 
+## Category Attack Errors
+
+### "Unknown attack: 't'" / "Unknown attack: '['" (single characters)
+- **Cause**: The `attacks` argument to `generate_category_attack` was iterated
+  character-by-character. This happened when a bare string was passed and the
+  runner looped over it directly (e.g. `"tap"` -> `'t'`, `'a'`, `'p'`).
+- **Fix**: The runner now normalizes `attacks` via `_normalize_attack_names`,
+  accepting a list (`["tap", "goat"]`), a comma-separated string
+  (`"tap,goat"`), or a single name (`"tap"`). If you still see single-character
+  attack errors, you are on an old build — update the capability.
+- **Workaround (older builds)**: Run the category via per-goal `generate_attack`
+  calls with `goal_category=<slug>` instead of `generate_category_attack`.
+- **Signature to recognize**: the error lists all valid attacks but complains
+  about a one-character name. That always means an iterable-splitting bug, not a
+  genuinely unknown attack.
+
 ## Scorer Errors
 
 ### "Scorer not found: <name>"

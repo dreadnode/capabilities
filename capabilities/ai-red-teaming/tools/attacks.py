@@ -148,7 +148,10 @@ def generate_attack(
 
 @safe_tool
 def generate_category_attack(
-    attacks: t.Annotated[str, "Attack type(s), comma-separated"],
+    attacks: t.Annotated[
+        list[str] | str,
+        "Attack type(s): a list like ['tap', 'goat'] or a comma-separated string like 'tap,goat'",
+    ],
     target_model: t.Annotated[str, "Target LLM model"],
     categories: t.Annotated[
         list[str] | None,
