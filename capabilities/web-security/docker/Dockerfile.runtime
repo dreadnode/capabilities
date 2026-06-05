@@ -21,6 +21,7 @@
 #   - agent-browser       (headless Chromium for DOM interaction)
 #   - kiterunner          (API-aware content discovery)
 #   - surf                (SSRF target identification)
+#   - pacu                (AWS exploitation framework)
 #
 # Tools NOT included (require external instances reachable by network):
 #   - Caido   — set CAIDO_URL to a running instance
@@ -113,7 +114,8 @@ ENV CHROME_PATH="/usr/bin/chromium"
 RUN pip install --no-cache-dir \
         "fastmcp>=2.0" \
         "httpx>=0.28" \
-        "caido-sdk-client"
+        "caido-sdk-client" \
+        "pacu"
 
 # ── Clean up Go build cache ─────────────────────────────────────────
 RUN go clean -cache -modcache
