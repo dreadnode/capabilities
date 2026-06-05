@@ -1,13 +1,14 @@
 schema: 1
 name: web-security
-version: "1.1.0"
+version: "1.1.1"
 description: >
   Web application penetration testing with 60+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
   vulnerabilities, authentication bypasses, parser differentials,
   AEM/Sling exploitation, and client-side attacks. Includes HTTP client
   tooling, Caido proxy integration via MCP, credential management, DNS
-  rebinding, phone verification, and vulnerability verification.
+  rebinding, AWS exploitation with Pacu, phone verification, and
+  vulnerability verification.
 
 mcp:
   servers:
@@ -106,6 +107,8 @@ checks:
     command: test -f /opt/burp/burpsuite.jar
   - name: waymore
     command: command -v waymore
+  - name: pacu
+    command: command -v pacu
   - name: jxscout
     command: command -v jxscout-pro-v2
 
@@ -126,3 +129,5 @@ keywords:
   - adobe-experience-manager
   - sling
   - dispatcher-bypass
+  - aws-security
+  - cloud-security
