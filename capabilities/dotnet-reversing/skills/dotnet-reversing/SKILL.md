@@ -5,6 +5,9 @@ description: Use when reverse engineering .NET assemblies, decompiling DLLs/EXEs
 
 # .NET Reverse Engineering
 
+Load the `vuln-assessment-methodology` skill alongside this one for severity
+calibration, disprove-first discipline, and the quality checklist.
+
 ## Quick Start
 
 ```
@@ -61,17 +64,27 @@ Use `dotnet_search_by_name` for name-based searches and `dotnet_search_reference
 - **XML (XXE):** `XmlReader`, `XmlDocument`, `XDocument`, `XmlTextReader`
 - **LDAP:** `DirectorySearcher`, `DirectoryEntry`, `System.DirectoryServices`
 
-### Phase 3: Decompile Suspicious Code
+### Phase 3: Decompile and Verify
 ```
 dotnet_decompile_type(path="App.dll", type_name="App.Services.AuthenticationService")
 ```
-Read the actual C# source. Look for:
+Read the actual C# source. When you find a dangerous pattern, **read the full
+function and its callers** before drawing conclusions. Check for:
 - Hardcoded credentials
 - Weak crypto (MD5, SHA1, DES, static IVs/keys)
-- SQL string concatenation
+- SQL string concatenation — **but check if the concatenated value comes from
+  user input (HTTP param) vs config/env var. Only HTTP-sourced values are high severity.**
 - Unsanitized user input in file paths
 - Dangerous deserialization
-- Command injection
+- Command injection — **but check if the calling function has validation/filtering.
+  If validation exists, look for bypasses rather than reporting "no sanitization."**
+
+#### .NET-specific: JWT ReadToken is not always a finding
+
+`ReadToken`/`ReadJwtToken` without `ValidateToken` is NOT a vulnerability when
+the token is validated by a downstream service (Azure AD, ARM) or used only for
+metadata extraction (expiry, caching). Only report it when unvalidated claims
+drive authorization decisions.
 
 ### Phase 4: Trace Attack Paths
 ```
@@ -83,7 +96,26 @@ dotnet_get_call_flows(
 ```
 Find how vulnerable methods are reached from entry points (controllers, handlers, public APIs).
 
-### Phase 5: Report Findings
+### Phase 5: Assess Severity and Report
+
+Assign severity based on actual exploitability — not the vulnerability class
+name. The `vuln-assessment-methodology` skill has the full guidance; the
+essentials:
+
+| Source of dangerous input | Access required | Severity |
+|---|---|---|
+| HTTP request parameter | Unauthenticated, internet-facing | Critical/High |
+| HTTP request parameter | Authenticated user | High/Medium |
+| HTTP request parameter | Internal network only | Medium |
+| Config file / env var | Container or host access | Low |
+| Hardcoded value (as sink input) | N/A | Not a finding (but hardcoded credentials are — see methodology skill) |
+
+**Before reporting every finding:**
+- Trace the data flow from attacker-controlled source to sink
+- Actively try to disprove it — look for validation, encoding, authorization
+- If defensive code exists, demonstrate a specific bypass or retract
+- Verify severity reflects exploitability, not vulnerability class name
+
 ```
 report_finding(
     file="App.dll",
@@ -100,53 +132,123 @@ finish_task(success=True, markdown_summary="Found 2 high-severity issues...")
 ```
 Always report findings to persist them to the Dreadnode platform.
 
-## Common Vulnerability Patterns
+## .NET Vulnerability Patterns: Vulnerable vs Safe
+
+For each pattern, both vulnerable AND safe versions are shown. You must
+check which one the code matches before reporting.
 
 ### Hardcoded Credentials
 ```csharp
-// Look for string literals in auth code
+// VULNERABLE — real secret in source code
 private static string ApiKey = "sk-1234567890abcdef";
 connectionString = "Server=db;User=admin;Password=P@ssw0rd";
+
+// NOT A FINDING — loaded from config/env
+var apiKey = Configuration["ApiKey"];
+var connStr = Environment.GetEnvironmentVariable("DB_CONNECTION");
+
+// NOT A FINDING — misleading error message (not a real credential)
+throw new Exception("Api Key is invalid. Subscription validation failed.");
 ```
 
 ### Insecure Deserialization
 ```csharp
-// BinaryFormatter = RCE
+// VULNERABLE — BinaryFormatter with untrusted input
 BinaryFormatter formatter = new BinaryFormatter();
-object obj = formatter.Deserialize(stream);  // VULNERABLE
+object obj = formatter.Deserialize(untrustedStream);
 
-// Type-controlling JSON deserialization
+// VULNERABLE — TypeNameHandling enables type control
 JsonConvert.DeserializeObject(json, new JsonSerializerSettings {
-    TypeNameHandling = TypeNameHandling.All  // VULNERABLE
+    TypeNameHandling = TypeNameHandling.All
 });
+
+// SAFE — System.Text.Json (no type handling by default)
+var obj = JsonSerializer.Deserialize<MyType>(json);
+
+// SAFE — TypeNameHandling.None (default)
+JsonConvert.DeserializeObject<MyType>(json);
 ```
 
 ### Command Injection
 ```csharp
-// User input in process arguments
-Process.Start("cmd.exe", "/c " + userInput);  // VULNERABLE
-```
+// VULNERABLE — direct interpolation
+Process.Start("cmd.exe", "/c " + userInput);
+Arguments = $"-c \"{command} {string.Join(" ", args)}\"";
 
-### Path Traversal
-```csharp
-// Unsanitized path concatenation
-string path = Path.Combine(baseDir, userFileName);  // VULNERABLE if userFileName = "../../../etc/passwd"
-File.ReadAllText(path);
+// PARTIALLY SAFE — has validation, but check for bypasses
+var error = ValidateCommand(command); // blocks ; && || | etc.
+if (error != null) return error;
+// If ValidateCommand misses characters like " or ${ }, it's
+// an incomplete validation bypass (Medium), not "no sanitization" (High)
+
+// SAFE — no shell, direct exec with argument array
+Process.Start("myapp", new[] { "--flag", sanitizedValue });
 ```
 
 ### SQL Injection
 ```csharp
-// String concatenation in queries
-string query = "SELECT * FROM users WHERE id = " + userId;  // VULNERABLE
-cmd.CommandText = query;
+// VULNERABLE — user input concatenated into SQL
+string query = "SELECT * FROM users WHERE id = " + request.UserId;
+
+// LOW RISK — env var / config value concatenated (defense-in-depth issue)
+// Attacker needs container access to control env var
+string proc = "[" + schemaFromEnvVar + "].[MyProcedure]";
+
+// SAFE — parameterized query
+cmd.CommandText = "SELECT * FROM users WHERE id = @id";
+cmd.Parameters.AddWithValue("@id", userId);
+```
+
+### Blazor XSS (MarkupString)
+```csharp
+// VULNERABLE — user input directly cast to MarkupString
+builder.AddContent(0, (MarkupString)userInput);
+
+// SAFE — HtmlEncoded BEFORE MarkupString cast
+var encoded = WebUtility.HtmlEncode(userInput);
+var colored = AnsiParser.ConvertToHtml(encoded, state); // adds <span> tags
+builder.AddContent(0, (MarkupString)colored); // MarkupString needed for spans
+
+// SAFE — Markdown pipeline with HTML disabled
+pipeline.DisableHtml();
+var html = Markdown.ToHtml(input, pipeline);
+builder.AddContent(0, (MarkupString)html);
+```
+
+### JWT Validation
+```csharp
+// VULNERABLE — claims trusted for local authorization
+var token = new JwtSecurityTokenHandler().ReadJwtToken(jwt);
+if (token.Claims.First(c => c.Type == "role").Value == "admin")
+    GrantAdminAccess(); // No signature verification!
+
+// SAFE — token read for metadata, validated by downstream service
+var token = handler.ReadJwtToken(jwt);
+var expiry = token.ValidTo; // Just extracting expiry for caching
+return DelegatedTokenCredential.Create(jwt); // Azure AD validates the sig
+```
+
+### Path Traversal
+```csharp
+// VULNERABLE — user input in path without validation
+string path = Path.Combine(baseDir, userFileName);
+File.ReadAllText(path);
+
+// SAFE — canonicalization check
+string full = Path.GetFullPath(Path.Combine(baseDir, userFileName));
+if (!full.StartsWith(baseDir)) throw new SecurityException();
 ```
 
 ### Weak Cryptography
 ```csharp
-// Deprecated algorithms
+// VULNERABLE
 MD5.Create().ComputeHash(data);  // Weak hash
 DES.Create();  // Weak cipher
 new RijndaelManaged { Mode = CipherMode.ECB };  // Weak mode
+
+// SAFE
+SHA256.Create().ComputeHash(data);
+Aes.Create();  // AES with CBC/GCM
 ```
 
 ## Critical Rules
@@ -154,15 +256,14 @@ new RijndaelManaged { Mode = CipherMode.ECB };  // Weak mode
 **DO:**
 - Always start with `dotnet_scan_binaries` to find targets
 - Use `dotnet_decompile_type` for targeted analysis (not `dotnet_decompile_module`)
-- Report ALL findings with `report_finding` — even low-severity ones
-- Use `report_auth` immediately when you find credentials
+- Report all verified findings with `report_finding` — even low-severity ones
+- Use `report_auth` only for real credentials, not error messages or placeholders
 - Call `finish_task` when analysis is complete
 
 **DO NOT:**
+- Report `ReadToken`/`ReadJwtToken` as "JWT bypass" when the token is validated server-side
+- Report `MarkupString` as XSS when the content is `HtmlEncode`d upstream
 - Use `dotnet_decompile_module` on large assemblies — it will overflow context
-- Skip reporting — findings must be persisted to the platform
-- Analyze only one assembly — check ALL binaries in the target directory
-- Ignore Microsoft/System assemblies completely — they can have vulnerabilities too
 
 ## Tips
 
