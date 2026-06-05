@@ -6,7 +6,7 @@ description: Use when reverse engineering .NET assemblies, decompiling DLLs/EXEs
 # .NET Reverse Engineering
 
 Load the `vuln-assessment-methodology` skill alongside this one for severity
-calibration, disprove-first discipline, and the quality checklist.
+calibration, disprove-first discipline, and reporting standards.
 
 ## Quick Start
 
@@ -120,8 +120,8 @@ essentials:
 report_finding(
     file="App.dll",
     method="AuthService.ValidateToken",
-    criticality="high",
-    content="Hardcoded JWT secret found:\n```csharp\nprivate static string Secret = \"supersecret123\";\n```"
+    criticality="critical",
+    content="Hardcoded JWT signing secret in source code:\n```csharp\nprivate static string Secret = \"supersecret123\";\n```"
 )
 
 report_auth(auth_material="API key in config: `sk-1234567890abcdef`")
@@ -237,18 +237,6 @@ File.ReadAllText(path);
 // SAFE — canonicalization check
 string full = Path.GetFullPath(Path.Combine(baseDir, userFileName));
 if (!full.StartsWith(baseDir)) throw new SecurityException();
-```
-
-### Weak Cryptography
-```csharp
-// VULNERABLE
-MD5.Create().ComputeHash(data);  // Weak hash
-DES.Create();  // Weak cipher
-new RijndaelManaged { Mode = CipherMode.ECB };  // Weak mode
-
-// SAFE
-SHA256.Create().ComputeHash(data);
-Aes.Create();  // AES with CBC/GCM
 ```
 
 ## Critical Rules

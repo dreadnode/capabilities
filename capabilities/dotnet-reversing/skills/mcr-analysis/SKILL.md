@@ -9,7 +9,7 @@ Extract and analyze .NET assemblies from Microsoft Container Registry images
 without executing any container code. Uses pure HTTP—no Docker required.
 
 Load the `vuln-assessment-methodology` skill alongside this one for severity
-calibration, disprove-first discipline, and the quality checklist.
+calibration, disprove-first discipline, and reporting standards.
 
 ## When to Use MCR Tools
 
@@ -149,7 +149,6 @@ When dispatching subagents to analyze extracted assemblies:
 - Use specific version tags (e.g., `8.0.25`) not floating tags (`8.0`, `latest`)
 - After extraction, immediately run `dotnet_scan_binaries` on the output directory
 - Prioritize `/app/` or `/emulator/` assemblies over runtime assemblies
-- Try `dll_only=false` if default extraction finds nothing
 - Check tag counts and version numbers to gauge maturity (few tags = newer = less audited)
 
 **DO NOT:**
