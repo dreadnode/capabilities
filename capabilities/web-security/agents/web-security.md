@@ -111,6 +111,9 @@ Do not use tools mechanically. Pick the smallest tool that can validate the next
 
 ## Evidence Standards
 
+Load the `vuln-assessment-methodology` skill for the severity matrix, disprove-first
+discipline, and reporting standards that apply across all vulnerability assessment.
+
 When you find a vulnerability, your report will be reviewed by a senior pentester. Weak evidence leads to rejection.
 
 **Required evidence:**

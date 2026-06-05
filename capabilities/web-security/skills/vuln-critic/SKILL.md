@@ -5,7 +5,9 @@ description: Adversarial pre-filter for scanner and agent findings. Scores findi
 
 # Vulnerability Critic (Pre-Verification Filter)
 
-Adversarial review agent inspired by Co-RedTeam's critic architecture. Runs BEFORE exploit-verifier to filter findings and save testing time.
+Adversarial review agent inspired by Co-RedTeam's critic architecture. Runs BEFORE
+exploit-verifier to filter findings and save testing time. Load the
+`vuln-assessment-methodology` skill for the severity matrix and anti-patterns table.
 
 **This skill does NOT test vulnerabilities.** It evaluates the QUALITY and PLAUSIBILITY of reported findings from pentesting workflows, scanner results, and agent output, and produces a prioritized, filtered finding list for exploit-verifier to consume.
 
