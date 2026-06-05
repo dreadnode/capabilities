@@ -10,8 +10,7 @@ Usage:
   python3 h2_waf_bypass.py <host> <port> fingerprint   # fingerprint only
   python3 h2_waf_bypass.py <host> <port> exploit       # skip to exploit
 
-Based on research by Diyan Apostolov (@thefosi)
-https://lab.ctbb.show/research/h2-WAF-Bypasses
+Reference: https://lab.ctbb.show/research/h2-WAF-Bypasses
 
 Zero external dependencies — constructs raw H2 frames from stdlib.
 """

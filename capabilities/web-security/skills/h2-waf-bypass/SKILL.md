@@ -259,7 +259,6 @@ Proxy through Caido: modify `tls_connect()` or set `HTTPS_PROXY=http://localhost
 
 ## Reference
 
-- [CTBB Lab: WAF Bypasses via HTTP/2 Framing](https://lab.ctbb.show/research/h2-WAF-Bypasses) (Diyan Apostolov, June 2026)
-- [Unified PoC Gist](https://gist.github.com/apostolovd/42a91d54ee27c50b46b15166d610b19a)
+- [CTBB Lab: WAF Bypasses via HTTP/2 Framing](https://lab.ctbb.show/research/h2-WAF-Bypasses)
 - [RFC 8441: Extended CONNECT](https://datatracker.ietf.org/doc/html/rfc8441)
 - [RFC 9113: HTTP/2](https://datatracker.ietf.org/doc/html/rfc9113)
