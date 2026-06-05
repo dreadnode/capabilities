@@ -131,6 +131,26 @@ severity_overrides:
     severity: MEDIUM
     reason: "Skills use curl|bash for installing known security tools from trusted repos"
 
+  # INSECURE_TLS_VERIFY_DISABLED fires on pentest PoC scripts that
+  # intentionally disable certificate verification to test arbitrary targets.
+  - rule_id: INSECURE_TLS_VERIFY_DISABLED
+    severity: INFO
+    reason: "Pentest PoC scripts intentionally disable TLS verification to test arbitrary targets"
+  # SSRF_METADATA_URL fires on pentest payloads that include cloud metadata
+  # addresses (169.254.169.254) as test vectors.
+  - rule_id: SSRF_METADATA_URL
+    severity: INFO
+    reason: "Security skills contain SSRF test payloads targeting cloud metadata as exploitation examples"
+  # DATA_EXFIL_RAW_SOCKET fires on security tools that use raw sockets
+  # for protocol-level testing (HTTP/2 frame construction, etc.).
+  - rule_id: DATA_EXFIL_RAW_SOCKET
+    severity: INFO
+    reason: "Protocol-level security tools use raw sockets for H2 frame construction and testing"
+  # INSECURE_SSL_CONTEXT fires on the same TLS disable pattern.
+  - rule_id: INSECURE_SSL_CONTEXT
+    severity: INFO
+    reason: "Pentest tools require connecting to targets without certificate validation"
+
 # -- Disabled rules -------------------------------------------------------
 # Rules that consistently false-positive across the repo due to the
 # security-focused nature of these capabilities.
