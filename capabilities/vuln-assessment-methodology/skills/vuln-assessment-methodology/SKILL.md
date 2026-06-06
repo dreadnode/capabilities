@@ -69,7 +69,8 @@ exposure.
 
 ### 7. AI prompt injection is a design concern, not a code bug
 
-Not a code vulnerability unless AI output feeds `eval()`, SQL, or unencoded HTML.
+Not a code vulnerability unless AI output feeds a security-sensitive sink
+(e.g., `eval()`, SQL, shell commands, file paths, unencoded HTML).
 
 ### 8. Distinguish application code from framework code
 
@@ -79,8 +80,9 @@ Don't report framework defaults as vulnerabilities.
 
 When multiple findings converge on a single exploitable outcome, note the
 chain. An IDOR + information disclosure + missing rate limiting may each be
-Medium alone but chain to account takeover. Report the chain as a separate
-compound finding with its own severity reflecting the combined impact. Do not
+Medium alone but chain to account takeover. Report the chain as an additional
+compound finding with its own severity reflecting the combined impact — keep
+the individual findings too, since each needs its own remediation. Do not
 exhaustively search for chains — flag them when apparent from findings already
 identified.
 
@@ -142,6 +144,6 @@ If the user requests proof-of-concept validation:
 | Quantity over quality | 10 low-confidence findings | 1 verified > 10 guesses |
 | Context-free severity | "No auth → CRITICAL" on internal tool | Deployment model matters |
 | Confirmation bias | Rationalizing why mitigations don't count | Try to disprove first |
-| Forced chaining | "These 3 lows chain to Critical" without shared attack flow | Chain must share a target flow, not just co-exist |
+| Forced chaining | "These 3 lows chain to Critical" without shared attack flow | Chain must converge on a single exploitable outcome, not just co-exist |
 | Generic remediation | "Add input validation" | Must name specific fix and code location |
 | Duplicate inflation | 15 separate XSS findings from one missing encoder | One root cause = one finding + affected locations |
