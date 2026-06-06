@@ -38,7 +38,7 @@ Assign severity by source, access, and context — not vulnerability class name.
 | HTTP request param | Authenticated user | High/Medium |
 | HTTP request param | Internal network only | Medium |
 | Config/env var | Container-level access | Low |
-| Hardcoded value (as sink input) | N/A | Not a finding (but hardcoded credentials are — see below) |
+| Hardcoded value (as sink input) | N/A | Not a finding (but hardcoded credentials are — actual secrets, not placeholders or example values) |
 
 **What each level requires:**
 - **Critical**: Unauth RCE, hardcoded prod credentials, full auth bypass. Attacker needs nothing beyond a network connection.
@@ -75,15 +75,59 @@ Not a code vulnerability unless AI output feeds `eval()`, SQL, or unencoded HTML
 
 Don't report framework defaults as vulnerabilities.
 
+### 9. Flag obvious attack chains — do not force them
+
+When multiple findings converge on a single exploitable outcome, note the
+chain. An IDOR + information disclosure + missing rate limiting may each be
+Medium alone but chain to account takeover. Report the chain as a separate
+compound finding with its own severity reflecting the combined impact. Do not
+exhaustively search for chains — flag them when apparent from findings already
+identified.
+
+## Confidence Levels
+
+Every finding must include a confidence level. When the full source-to-sink
+trace is complete, mark it Confirmed. When it is not, classify the gap.
+
+| Level | Criteria | Documentation required |
+|---|---|---|
+| Confirmed | Full trace complete, concrete payload constructable | Complete data flow from source to sink with specific input |
+| Probable | Most of trace complete, specific gap identified | State the exact gap (e.g., "dynamic dispatch at line 42 — two implementors exist, both pass input unsanitized") |
+| Suspected | Pattern match or shallow trace only | State what additional analysis (dynamic testing, debug tracing, etc.) would confirm or refute |
+
+Common trace gaps: dynamic dispatch, reflection, external dependencies, plugin
+systems, runtime-generated code. Always name the specific mechanism that
+blocked the trace.
+
 ## Reporting Standards
 
 Reports must:
 - State access prerequisites explicitly
 - Note existing defensive code and why it's insufficient
+- Map each finding to the most specific applicable CWE ID (leaf-level variant,
+  not the pillar — e.g., CWE-89 not CWE-74)
+- Include specific, actionable remediation referencing the technology in use
+  and the code location where the fix applies (not "add input validation" but
+  "use parameterized queries via `db.Query()` with placeholder args at
+  `handler.go:47`")
+- When multiple findings share a root cause, report one root-cause finding
+  with a list of affected locations rather than separate findings per instance
+- State what was analyzed and what was not — files, components, and entry
+  points covered, plus what could not be assessed (runtime behavior,
+  infrastructure config, third-party dependency internals)
 - Be defensible under peer review by a senior security engineer
 
-Credential reports are for actual hardcoded secrets — not error messages,
-placeholders, or example values.
+## Proof-of-Concept Validation (Opt-in)
+
+Default behavior is to trace data flow and assess exploitability conceptually.
+Do not construct payloads or simulate execution unless the user requests it.
+
+If the user requests proof-of-concept validation:
+- Construct a concrete payload that demonstrates the vulnerability
+- Document exact attacker-controlled input values
+- Show the code path execution trace from source to sink
+- State environmental prerequisites (auth state, config, timing)
+- For web targets: provide the specific HTTP request that triggers the issue
 
 ## Anti-patterns
 
@@ -98,3 +142,6 @@ placeholders, or example values.
 | Quantity over quality | 10 low-confidence findings | 1 verified > 10 guesses |
 | Context-free severity | "No auth → CRITICAL" on internal tool | Deployment model matters |
 | Confirmation bias | Rationalizing why mitigations don't count | Try to disprove first |
+| Forced chaining | "These 3 lows chain to Critical" without shared attack flow | Chain must share a target flow, not just co-exist |
+| Generic remediation | "Add input validation" | Must name specific fix and code location |
+| Duplicate inflation | 15 separate XSS findings from one missing encoder | One root cause = one finding + affected locations |
