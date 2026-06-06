@@ -3,10 +3,13 @@ name: vuln-assessment-methodology
 version: "1.0.0"
 description: >
   Cross-cutting methodology for vulnerability assessment. Provides
-  source-to-sink tracing discipline, threat-model-aware severity
-  assignment, disprove-first analysis, and anti-pattern guidance.
-  Load alongside any domain-specific security capability to reduce
-  false positives and severity inflation.
+  source-to-sink tracing discipline, disprove-first analysis,
+  threat-model-aware severity assignment, three-tier confidence
+  classification, attack chain analysis, CWE mapping, remediation
+  quality standards, root-cause deduplication, scope documentation,
+  and opt-in proof-of-concept validation. Load alongside any
+  domain-specific security capability to reduce false positives
+  and severity inflation.
 
 author:
   name: Dreadnode
@@ -19,3 +22,6 @@ keywords:
   - security
   - false-positive-prevention
   - severity-calibration
+  - confidence-levels
+  - cwe
+  - remediation
