@@ -1,0 +1,27 @@
+schema: 1
+name: vuln-assessment-methodology
+version: "1.0.0"
+description: >
+  Cross-cutting methodology for vulnerability assessment. Provides
+  source-to-sink tracing discipline, disprove-first analysis,
+  threat-model-aware severity assignment, three-tier confidence
+  classification, attack chain analysis, CWE mapping, remediation
+  quality standards, root-cause deduplication, scope documentation,
+  and opt-in proof-of-concept validation. Load alongside any
+  domain-specific security capability to reduce false positives
+  and severity inflation.
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - vulnerability-assessment
+  - methodology
+  - security
+  - false-positive-prevention
+  - severity-calibration
+  - confidence-levels
+  - cwe
+  - remediation
