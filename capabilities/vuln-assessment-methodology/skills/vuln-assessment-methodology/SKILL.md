@@ -1,6 +1,6 @@
 ---
 name: vuln-assessment-methodology
-description: "Load when performing vulnerability assessment in any domain. Enforces source-to-sink tracing, disprove-first analysis, threat-model-aware severity, and finding quality standards. Prevents false positives and severity inflation."
+description: "Load when performing vulnerability assessment in any domain. Enforces source-to-sink tracing, disprove-first analysis, threat-model-aware severity, confidence classification, attack chain analysis, CWE mapping, remediation quality, root-cause deduplication, scope documentation, and opt-in PoC validation. Prevents false positives and severity inflation."
 ---
 
 # Vulnerability Assessment Methodology

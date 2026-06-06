@@ -234,9 +234,10 @@ return DelegatedTokenCredential.Create(jwt); // Azure AD validates the sig
 string path = Path.Combine(baseDir, userFileName);
 File.ReadAllText(path);
 
-// SAFE — canonicalization check
+// SAFE — canonicalization check with trailing separator
+string normalizedBase = Path.GetFullPath(baseDir) + Path.DirectorySeparatorChar;
 string full = Path.GetFullPath(Path.Combine(baseDir, userFileName));
-if (!full.StartsWith(baseDir)) throw new SecurityException();
+if (!full.StartsWith(normalizedBase)) throw new SecurityException();
 ```
 
 ## Critical Rules
