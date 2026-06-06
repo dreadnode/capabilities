@@ -1,6 +1,6 @@
 schema: 1
 name: dotnet-reversing
-version: "1.0.0"
+version: "1.0.1"
 description: >
   .NET reverse engineering for decompiling and analyzing assemblies
   (.dll, .exe). Provides binary scanning, namespace exploration, type
