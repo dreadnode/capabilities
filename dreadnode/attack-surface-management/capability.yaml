@@ -26,6 +26,7 @@ mcp:
         - "${CAPABILITY_ROOT}/mcp/shodan.py"
       env:
         SHODAN_API_KEY: "${SHODAN_API_KEY}"
+        SHODAN_API_URL: "${SHODAN_API_URL:-}"
       init_timeout: 30
 
 author:

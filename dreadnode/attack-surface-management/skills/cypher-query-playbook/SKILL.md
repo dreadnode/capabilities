@@ -7,6 +7,17 @@ description: Neo4j Cypher query patterns for analyzing BBOT reconnaissance data 
 
 ## Quick Reference
 
+## Schema Compatibility
+
+Run `get_db_schema()` before using relationship-heavy queries. BBOT-backed
+graphs may expose friendly properties (`name`, `address`, `url`) or the BBOT
+event envelope (`data`, `host`, `netloc`, `port`, `tags`, `scope_distance`,
+`module`, `scan`). Use `coalesce(n.name, n.data, n.host)` for asset names when
+you are not sure which shape is present. Relationship names also vary: some
+fixtures use semantic types such as `RESOLVES_TO` and `HAS_PORT`, while BBOT
+module output may use DNS-record or module names such as `A`, `CNAME`, `httpx`,
+or `nuclei`.
+
 ### Orientation Queries (Run First)
 
 **Asset summary:**
@@ -29,8 +40,9 @@ Use the `get_db_schema` tool for a complete schema overview.
 **Dev/test/staging subdomains:**
 ```cypher
 MATCH (n:DNS_NAME)
-WHERE n.name =~ '.*(dev|test|stage|uat|vpn|api|admin|internal|staging|qa|sandbox).*'
-RETURN n.name ORDER BY n.name
+WITH coalesce(n.name, n.data, n.host) AS name
+WHERE name =~ '.*(dev|test|stage|uat|vpn|api|admin|internal|staging|qa|sandbox).*'
+RETURN name ORDER BY name
 ```
 
 **Interesting web page titles:**
@@ -150,10 +162,11 @@ RETURN d.name, t.name, t.version
 **Technology outliers (old/unusual software):**
 ```cypher
 MATCH (t:TECHNOLOGY)
-WHERE t.name IN ['JBoss', 'ColdFusion', 'Struts', 'WebLogic', 'Tomcat', 'IIS']
+WITH t, coalesce(t.name, t.data) AS tech_name
+WHERE tech_name IN ['JBoss', 'ColdFusion', 'Struts', 'WebLogic', 'Tomcat', 'IIS']
 OR t.version =~ '.*[0-4]\\..*'
 MATCH (n)-[:HAS_TECHNOLOGY]->(t)
-RETURN labels(n)[0] as asset_type, n.name, t.name, t.version
+RETURN labels(n)[0] as asset_type, coalesce(n.name, n.data, n.host) AS asset, tech_name, t.version
 ```
 
 **Assets with a specific technology:**

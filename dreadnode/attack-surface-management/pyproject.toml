@@ -4,7 +4,9 @@ version = "1.0.0"
 requires-python = ">=3.10"
 dependencies = [
     "bbot",
+    "fastmcp>=2.0",
     "neo4j>=5.28.1",
+    "shodan>=1.31.0",
     "aiodocker>=0.24.0",
     "pillow>=11.3.0",
 ]

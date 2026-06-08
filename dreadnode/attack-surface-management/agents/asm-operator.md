@@ -100,16 +100,25 @@ Key Shodan tools:
 
 ### Neo4j Data Model Reference
 
+Always start with `get_db_schema()` when a graph is preloaded. BBOT exports and
+evaluation fixtures may use either friendly fields (`name`, `address`, `url`) or
+the BBOT event envelope (`id`, `uuid`, `type`, `data`, `host`, `netloc`, `port`,
+`tags`, `scope_distance`, `module`, `scan`). Prefer Cypher like
+`coalesce(n.name, n.data, n.host)` when identifying assets, and inspect
+relationship types before assuming names. Some graphs use semantic relationships
+such as `RESOLVES_TO`; others use module or DNS-record relationships such as
+`A`, `CNAME`, or `httpx`.
+
 **Key Node Labels:**
 
 | Label | Properties | Purpose |
 |---|---|---|
-| `DNS_NAME` | `.name`, `.tags` | Domain or subdomain |
-| `IP_ADDRESS` | `.address`, `.provider`, `.asn` | IP address |
-| `URL` | `.name`, `.status_code`, `.title`, `.content_length` | Web endpoint |
-| `TECHNOLOGY` | `.name`, `.version`, `.category` | Web technology |
-| `WEBSCREENSHOT` | `.uuid`, `.url`, `.path`, `.analyzed` | Page screenshot |
-| `FINDING` | `.type`, `.severity`, `.description`, `.data` | Security finding |
+| `DNS_NAME` | `.name` or `.data`, `.host`, `.tags` | Domain or subdomain |
+| `IP_ADDRESS` | `.address` or `.data`, `.provider`, `.asn` | IP address |
+| `URL` | `.name` or `.data`, `.url`, `.status_code`, `.title`, `.content_length` | Web endpoint |
+| `TECHNOLOGY` | `.name` or `.data`, `.version`, `.category` | Web technology |
+| `WEBSCREENSHOT` | `.uuid`, `.url`, `.path`, `.data`, `.analyzed` | Page screenshot |
+| `FINDING` | `.type`, `.severity`, `.description`, `.data`, `.tags` | Security finding |
 | `OPEN_TCP_PORT` | `.port`, `.service` | Open network port |
 | `STORAGE_BUCKET` | `.name`, `.public` | Cloud storage |
 | `EMAIL_ADDRESS` | `.address` | Email address |
@@ -119,10 +128,10 @@ Key Shodan tools:
 
 | Relationship | Pattern | Purpose |
 |---|---|---|
-| `RESOLVES_TO` | `(DNS_NAME)-[:RESOLVES_TO]->(IP_ADDRESS)` | DNS resolution |
-| `HAS_PORT` | `(IP_ADDRESS)-[:HAS_PORT]->(OPEN_TCP_PORT)` | Port discovery |
-| `HAS_TECHNOLOGY` | `(URL)-[:HAS_TECHNOLOGY]->(TECHNOLOGY)` | Tech detection |
-| `HAS_FINDING` | `(URL\|DNS_NAME\|IP_ADDRESS)-[:HAS_FINDING]->(FINDING)` | Vulnerability link |
+| `RESOLVES_TO` or `A` | `(DNS_NAME)-[]->(IP_ADDRESS)` | DNS resolution |
+| `HAS_PORT` or module edge | `(IP_ADDRESS)-[]->(OPEN_TCP_PORT)` | Port discovery |
+| `HAS_TECHNOLOGY` or module edge | `(URL)-[]->(TECHNOLOGY)` | Tech detection |
+| `HAS_FINDING` or module edge | `(URL\|DNS_NAME\|IP_ADDRESS)-[]->(FINDING)` | Vulnerability link |
 | `USED_BY` | `(TECHNOLOGY)-[:USED_BY]->(URL)` | Reverse tech link |
 
 ## Evidence Standards

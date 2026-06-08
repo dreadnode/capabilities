@@ -13,6 +13,7 @@ intelligence, and API usage tracking via the Shodan API.
 
 Environment variables:
     SHODAN_API_KEY: Required. Your Shodan API key.
+    SHODAN_API_URL: Optional. Base URL for a Shodan-compatible mock service.
 """
 
 from __future__ import annotations
@@ -20,21 +21,90 @@ from __future__ import annotations
 import json
 import os
 from typing import Annotated
+from urllib import parse, request
 
 import shodan
 from fastmcp import FastMCP
 
 SHODAN_API_KEY = os.environ.get("SHODAN_API_KEY", "")
+SHODAN_API_URL = os.environ.get("SHODAN_API_URL", "").rstrip("/")
 
 mcp = FastMCP("shodan")
 
 
-def _get_client() -> shodan.Shodan:
+class _HttpNamespace:
+    def __init__(self, client: "_HttpShodanClient", prefix: str) -> None:
+        self._client = client
+        self._prefix = prefix
+
+    def resolve(self, hostnames: str) -> dict:
+        return self._client.get_json(f"{self._prefix}/resolve", {"hostnames": hostnames})
+
+    def reverse(self, ips: str) -> dict:
+        return self._client.get_json(f"{self._prefix}/reverse", {"ips": ips})
+
+    def search(self, query: str, **options: object) -> dict:
+        return self._client.get_json(f"{self._prefix}/search", {"query": query, **options})
+
+    def tags(self, size: int = 20) -> object:
+        return self._client.get_json(f"{self._prefix}/tags", {"size": size})
+
+
+class _HttpShodanClient:
+    """Small Shodan-compatible HTTP adapter for task-local mock services."""
+
+    def __init__(self, base_url: str, api_key: str) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.dns = _HttpNamespace(self, "/dns")
+        self.exploits = _HttpNamespace(self, "/exploits")
+        self.queries = _HttpNamespace(self, "/shodan/query")
+
+    def get_json(self, path: str, params: dict[str, object] | None = None) -> object:
+        query_params = dict(params or {})
+        if self.api_key:
+            query_params["key"] = self.api_key
+        query = parse.urlencode(query_params, doseq=True)
+        url = f"{self.base_url}{path}"
+        if query:
+            url = f"{url}?{query}"
+
+        req = request.Request(url, headers={"Accept": "application/json"})
+        with request.urlopen(req, timeout=30) as response:
+            body = response.read().decode("utf-8")
+        return json.loads(body) if body else {}
+
+    def search(self, query: str, **options: object) -> dict:
+        result = self.get_json("/shodan/host/search", {"query": query, **options})
+        return result if isinstance(result, dict) else {}
+
+    def host(self, ip: str, history: bool = False) -> dict:
+        result = self.get_json(f"/shodan/host/{parse.quote(ip, safe='')}", {"history": str(history).lower()})
+        return result if isinstance(result, dict) else {}
+
+    def count(self, query: str, **options: object) -> dict:
+        result = self.get_json("/shodan/host/count", {"query": query, **options})
+        return result if isinstance(result, dict) else {}
+
+    def ports(self) -> object:
+        return self.get_json("/shodan/ports")
+
+    def protocols(self) -> object:
+        return self.get_json("/shodan/protocols")
+
+    def info(self) -> dict:
+        result = self.get_json("/api-info")
+        return result if isinstance(result, dict) else {}
+
+
+def _get_client() -> shodan.Shodan | _HttpShodanClient:
     if not SHODAN_API_KEY:
         raise RuntimeError(
             "SHODAN_API_KEY environment variable is not set. "
             "Get your API key at https://account.shodan.io"
         )
+    if SHODAN_API_URL:
+        return _HttpShodanClient(SHODAN_API_URL, SHODAN_API_KEY)
     return shodan.Shodan(SHODAN_API_KEY)
 
 

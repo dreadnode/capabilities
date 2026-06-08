@@ -9,6 +9,11 @@ description: Shodan query strategies for internet-wide host intelligence, asset 
 
 Use Shodan to complement BBOT reconnaissance with internet-wide scan intelligence. Shodan provides passive host data, banner analysis, CVE correlation, and historical records that BBOT's active scanning may miss.
 
+For evaluation tasks, the Shodan MCP can be pointed at a task-local mock service
+by setting `SHODAN_API_URL` while still providing any non-empty
+`SHODAN_API_KEY`. When `SHODAN_API_URL` is unset, the MCP uses the official
+Shodan API client.
+
 ## Integration with BBOT Graph
 
 The primary workflow is: **BBOT discovers assets → Shodan enriches them.**
