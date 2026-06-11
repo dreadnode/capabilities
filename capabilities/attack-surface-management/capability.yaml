@@ -1,0 +1,78 @@
+schema: 1
+name: attack-surface-management
+version: "1.1.60"
+description: >
+  External attack surface management with BBOT reconnaissance scanning,
+  Neo4j graph database analysis, Shodan internet intelligence, and
+  autonomous OODA-loop driven asset discovery. Covers subdomain
+  enumeration, web scanning, cloud resource discovery, technology
+  fingerprinting, vulnerability detection, screenshot triage, and
+  CVE/exploit correlation. Includes Cypher query playbooks for
+  graph-based infrastructure mapping and threat prioritization.
+
+agents:
+  - agents/
+
+skills:
+  - skills/
+
+tools:
+  - tools/
+
+workers:
+  coordinator:
+    path: workers/coordinator.py
+
+mcp:
+  servers:
+    bbot:
+      command: "python3"
+      args:
+        - "-m"
+        - "uv"
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/bbot.py"
+      init_timeout: 60
+      timeout: 3600
+    shodan:
+      command: "python3"
+      args:
+        - "-m"
+        - "uv"
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/shodan.py"
+      env:
+        SHODAN_API_KEY: "${SHODAN_API_KEY}"
+        SHODAN_API_URL: "${SHODAN_API_URL:-}"
+      init_timeout: 30
+
+dependencies:
+  python:
+    - "badsecrets~=0.13.47"
+    - "baddns~=1.12.294"
+    - "bbot"
+    - "aiosqlite>=0.21.0"
+    - "extractous~=0.3.0"
+    - "asyncpg>=0.31.0"
+    - "dnspython>=2.7.0,<2.8.0"
+    - "neo4j>=5.28.1"
+    - "shodan>=1.31.0"
+    - "tldextract>=5.3.1,<6.0.0"
+    - "pillow>=11.3.0"
+    - "pyOpenSSL~=25.3.0"
+    - "loguru>=0.7.0"
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - attack-surface-management
+  - reconnaissance
+  - bbot
+  - neo4j
+  - shodan
+  - subdomain-enumeration
+  - asset-discovery
+  - vulnerability-intelligence
