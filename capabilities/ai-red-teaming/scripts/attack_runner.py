@@ -775,6 +775,25 @@ ATTACK_ALIASES["j2"] = "j2_meta_attack"
 ATTACK_ALIASES["tmap"] = "tmap_trajectory_attack"
 ATTACK_ALIASES["aprt"] = "aprt_progressive_attack"
 
+# Attacks that do NOT accept airt_* span-linkage kwargs.
+# Determined by inspecting SDK function signatures. When airt_* kwargs are
+# absent, the platform may not link traces to the assessment — but passing
+# unsupported kwargs causes a hard TypeError crash, which is worse.
+_ATTACKS_WITHOUT_AIRT_KWARGS: set[str] = {
+    "rainbow_attack",
+    "gptfuzzer_attack",
+    "autodan_turbo_attack",
+    "renellm_attack",
+    "beast_attack",
+    "drattack",
+    "deep_inception_attack",
+    "hopskipjump_attack",
+    "simba_attack",
+    "nes_attack",
+    "zoo_attack",
+    "multimodal_attack",
+}
+
 _TRANSFORM_DEFS: dict[str, dict] = {
     # encoding
     "base64_encode": {"module": "dreadnode.transforms.encoding", "name": "base64_encode", "code": "base64_encode()"},
@@ -3144,10 +3163,14 @@ def _build_attack_params(
         params.append("{}={}".format(k, v))
     if transforms_expr is not None:
         params.append("transforms={}".format(transforms_expr))
-    # AIRT span linkage — links Study-created spans to assessment in ClickHouse
-    params.append("airt_assessment_id=assessment.assessment_id")
-    params.append("airt_goal_category={}".format(goal_category_expr))
-    params.append("airt_target_model=TARGET_MODEL")
+    # AIRT span linkage — links Study-created spans to assessment in ClickHouse.
+    # Only pass these kwargs to attacks that accept them; older attacks raise
+    # TypeError on unknown kwargs (see _ATTACKS_WITHOUT_AIRT_KWARGS).
+    canon = atk.get("canonical_name", atk.get("function", ""))
+    if canon not in _ATTACKS_WITHOUT_AIRT_KWARGS:
+        params.append("airt_assessment_id=assessment.assessment_id")
+        params.append("airt_goal_category={}".format(goal_category_expr))
+        params.append("airt_target_model=TARGET_MODEL")
     return ",\n        ".join(params)
 
 
@@ -3358,12 +3381,13 @@ def _generate_transform_study(config: dict) -> str:
     for k, v in atk.get("extra_defaults", {}).items():
         params.append("{}={}".format(k, v))
     params.append("transforms=transforms")
-    params.append("airt_assessment_id=assessment.assessment_id")
-    params.append("airt_goal_category=GOAL_CATEGORY.value")
-    params.append("airt_target_model=TARGET_MODEL")
-    attack_params = ",\n                ".join(params)
-
+    # Only pass airt_* kwargs to attacks that accept them
     canon = atk["canonical_name"]
+    if canon not in _ATTACKS_WITHOUT_AIRT_KWARGS:
+        params.append("airt_assessment_id=assessment.assessment_id")
+        params.append("airt_goal_category=GOAL_CATEGORY.value")
+        params.append("airt_target_model=TARGET_MODEL")
+    attack_params = ",\n                ".join(params)
     assessment_name = _safe_str(config.get("assessment_name") or "{} Transform Comparison".format(canon))
     assessment_kwargs = _build_assessment_kwargs(config, assessment_name, config.get("filename", ""))
 
@@ -3577,6 +3601,17 @@ async def main():
                     sys.stdout.flush()
 
                     try:
+                        # Build airt_* kwargs only for attacks that accept them
+                        import inspect as _inspect
+                        _sig = _inspect.signature(attack_fn)
+                        _airt_kw = {{}}
+                        if "airt_assessment_id" in _sig.parameters:
+                            _airt_kw["airt_assessment_id"] = assessment.assessment_id
+                            _airt_kw["airt_goal_category"] = goal_cat.value
+                            _airt_kw["airt_category"] = goal_row.get("category", "")
+                            _airt_kw["airt_sub_category"] = goal_sub
+                            _airt_kw["airt_target_model"] = TARGET_MODEL
+
                         study = attack_fn(
                             {attack_params},
                         )
@@ -3718,11 +3753,9 @@ def _generate_category_attack(config: dict) -> str:
     if transforms:
         transforms_expr = "[{}]".format(", ".join(t["code"] for t in transforms))
         params.append("transforms={}".format(transforms_expr))
-    params.append("airt_assessment_id=assessment.assessment_id")
-    params.append("airt_goal_category=goal_cat.value")
-    params.append("airt_category=goal_row.get('category', '')")
-    params.append("airt_sub_category=goal_sub")
-    params.append("airt_target_model=TARGET_MODEL")
+    # Build airt_* kwargs dict conditionally — only pass to attacks that accept them.
+    # The template uses **_airt_kw which unpacks to nothing for unsupported attacks.
+    params.append("**_airt_kw")
     attack_params = ",\n                        ".join(params)
 
     transform_names = [t["resolved_name"] for t in transforms] if transforms else []
