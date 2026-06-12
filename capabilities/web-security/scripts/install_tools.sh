@@ -119,6 +119,14 @@ if [ ! -d "$FIREPROX_DIR" ]; then
 fi
 pip install --break-system-packages -r "$FIREPROX_DIR/requirements.txt"
 
+# -- archivealchemist (malicious archive crafter) ---------------------------
+# Pure Python CLI for crafting Zip Slip, symlink, polyglot, and Unicode path
+# confusion archives. Cloned to a predictable path for the agent prompt.
+ARCHIVEALCHEMIST_DIR="$HOME/git/archivealchemist"
+if [ ! -d "$ARCHIVEALCHEMIST_DIR" ]; then
+  git clone --depth 1 https://github.com/avlidienbrunn/archivealchemist "$ARCHIVEALCHEMIST_DIR"
+fi
+
 # -- Clean up Go build cache -----------------------------------------------
 go clean -cache -modcache 2>/dev/null || true
 

