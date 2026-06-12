@@ -70,6 +70,12 @@ def _install_dreadnode_tools_stub() -> None:
         return decorator
 
     class Toolset:
+        def __init__(self, **kwargs: Any) -> None:
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+            if hasattr(self, "model_post_init"):
+                self.model_post_init(None)
+
         def get_tools(self):
             discovered = []
             for attr_name in dir(self):
