@@ -1,14 +1,15 @@
 schema: 1
 name: web-security
-version: "1.1.2"
+version: "1.1.3"
 description: >
   Web application penetration testing with 60+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
   vulnerabilities, authentication bypasses, parser differentials,
   AEM/Sling exploitation, and client-side attacks. Includes HTTP client
   tooling, Caido proxy integration via MCP, credential management, DNS
-  rebinding, AWS exploitation with Pacu, phone verification, and
-  vulnerability verification.
+  rebinding, AWS exploitation with Pacu, phone verification,
+  vulnerability verification, and Cloudflare Workers IP rotation via
+  Flareprox.
 
 mcp:
   servers:
@@ -131,3 +132,6 @@ keywords:
   - dispatcher-bypass
   - aws-security
   - cloud-security
+  - ip-rotation
+  - waf-bypass
+  - rate-limit-bypass
