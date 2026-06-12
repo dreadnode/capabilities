@@ -69,8 +69,8 @@ class CredenceTool(Toolset):
         you actually know vs. what you're inferring. Do NOT skip this for
         findings you plan to report or act on.
         """
-        trace_id = str(uuid.uuid4())
-        prefix = f"[{agent_string}] [trace_id:{trace_id}] "
+        credence_id = str(uuid.uuid4())
+        prefix = f"[{agent_string}] [credence_id:{credence_id}] "
 
         if confidence == "high" and evidence_basis in _STRONG_EVIDENCE:
             return (

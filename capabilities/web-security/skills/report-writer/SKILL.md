@@ -30,11 +30,11 @@ reports/R<NNN>-<slug>.md
 
 NNN = next sequential number (zero-padded: 001, 002, ...). slug = lowercase-hyphenated summary.
 
-## Confidence Trace
+## Credence Traceability
 
-- Extract the UUID from the `[trace_id:<uuid>]` token in the `assess_confidence` tool response
-- Copy that value into the report `confidence_trace_id` frontmatter field
-- If the tool response does NOT contain `[trace_id:<uuid>]`, set `confidence_trace_id: "MISSING"` — NEVER fabricate or guess an ID
+- Call `assess_confidence` for the final report confidence check
+- Extract the UUID from the `[credence_id:<uuid>]` token in the tool response
+- If the tool response does NOT contain `[credence_id:<uuid>]`, do NOT fabricate or guess an ID
 
 ## PoC Rules
 
@@ -56,10 +56,6 @@ NNN = next sequential number (zero-padded: 001, 002, ...). slug = lowercase-hyph
 ## Report Template
 
 ````markdown
----
-confidence_trace_id: "<trace_id from assess_confidence>"
----
-
 # Title
 
 <!-- FORMAT: [Vulnerability Type] in [Component/Feature] via [Vector] Leading to [Impact] -->

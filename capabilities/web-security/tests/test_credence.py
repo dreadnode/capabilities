@@ -210,6 +210,35 @@ class TestLowConfidence:
         assert "INSUFFICIENT" in result
 
 
+class TestCredenceId:
+    _UUID_RE = re.compile(r"\[credence_id:([a-f0-9-]{36})\]")
+
+    async def test_credence_id_present_in_all_outcomes(self, toolset: CredenceTool) -> None:
+        cases = [
+            ("high", "poc_confirmed"),
+            ("high", "pattern_only"),
+            ("medium", "poc_confirmed"),
+            ("medium", "pattern_only"),
+            ("low", "assumed"),
+        ]
+        for confidence, evidence in cases:
+            result = await toolset.assess_confidence(
+                claim="test", confidence=confidence, evidence_basis=evidence,
+            )
+            assert self._UUID_RE.search(result), f"No credence_id for {confidence}/{evidence}: {result}"
+
+    async def test_credence_id_is_unique(self, toolset: CredenceTool) -> None:
+        ids = set()
+        for _ in range(3):
+            result = await toolset.assess_confidence(
+                claim="test", confidence="high", evidence_basis="poc_confirmed",
+            )
+            match = self._UUID_RE.search(result)
+            assert match
+            ids.add(match.group(1))
+        assert len(ids) == 3, "credence_ids must be unique per call"
+
+
 class TestAgentString:
     async def test_agent_string_in_output(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
