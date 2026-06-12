@@ -14,12 +14,14 @@ validate strict="false":
     [[ "{{ strict }}" == "true" ]] && cmd+=(--strict)
     "${cmd[@]}"
 
-# Security scan all skills (pass capability to scan one, behavioral="true" for deep analysis)
+# Security scan all skills (pass capability to scan one)
+# Note: behavioral="true" is a no-op kept for compatibility; SkillSpector uses
+# --no-llm static analysis by default. Pass --llm to scripts/security-scan.sh
+# to enable LLM semantic analysis (requires API keys).
 security-scan capability="" behavioral="false":
     #!/usr/bin/env bash
     set -euo pipefail
     cmd=(./scripts/security-scan.sh)
-    [[ "{{ behavioral }}" == "true" ]] && cmd+=(--behavioral)
     [[ -n "{{ capability }}" ]] && cmd+=("{{ capability }}")
     "${cmd[@]}"
 

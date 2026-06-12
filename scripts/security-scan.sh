@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
-# security-scan.sh — Run cisco-ai-skill-scanner across all capabilities
+# security-scan.sh — Run NVIDIA SkillSpector across all capabilities
 #
 # Usage:
 #   ./scripts/security-scan.sh                      # scan all capabilities, summary
 #   ./scripts/security-scan.sh web-security         # scan one capability
 #   ./scripts/security-scan.sh --format json        # JSON output
-#   ./scripts/security-scan.sh --ci                 # CI mode: SARIF + fail on high
-#   ./scripts/security-scan.sh --behavioral         # enable behavioral analysis
+#   ./scripts/security-scan.sh --sarif FILE         # SARIF output
 #
 # Requires: uv (https://docs.astral.sh/uv/)
-# Package:  cisco-ai-skill-scanner (installed automatically via uvx)
+# Package:  skillspector (installed from git, see pyproject.toml)
+#
+# Note: SkillSpector is not yet on PyPI. We install from the public
+# GitHub repo. Use --no-llm in CI to keep scans deterministic and avoid
+# needing provider API keys.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-POLICY="${REPO_ROOT}/scan-policy.yaml"
-SCANNER="uvx --from cisco-ai-skill-scanner skill-scanner"
+# SkillSpector is not published to PyPI yet; install from git.
+SCANNER="uvx --from git+https://github.com/NVIDIA/SkillSpector skillspector"
 
 # Auto-discover capability directories under capabilities/
 CAPABILITY_DIRS=()
@@ -27,28 +30,24 @@ for dir in "${REPO_ROOT}"/capabilities/*/; do
 done
 
 # Defaults
-FORMAT="summary"
-CI_MODE=false
-USE_BEHAVIORAL=false
-FAIL_SEVERITY=""
+FORMAT="terminal"
+TARGET_CAPABILITY=""
 OUTPUT_SARIF=""
 OUTPUT_JSON=""
-TARGET_CAPABILITY=""
+NO_LLM=true
 EXTRA_ARGS=()
 
 usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS] [CAPABILITY]
 
-Scan capabilities for security issues using cisco-ai-skill-scanner.
+Scan capabilities for security issues using NVIDIA SkillSpector.
 
 Options:
-  --ci              CI mode: produce SARIF, fail on high+ severity
-  --format FMT      Output format: summary|json|markdown|table|sarif|html
-  --behavioral      Enable behavioral dataflow analysis (slower, deeper)
-  --fail-on SEV     Fail if findings >= severity (critical|high|medium|low)
+  --format FMT      Output format: terminal|json|markdown|sarif [default: terminal]
   --sarif FILE      Write SARIF report to FILE
   --json FILE       Write JSON report to FILE
+  --llm             Enable LLM semantic analysis (requires API keys)
   -h, --help        Show this help
 
 Arguments:
@@ -57,39 +56,30 @@ Arguments:
 Examples:
   $(basename "$0")                    # scan everything, summary output
   $(basename "$0") web-security       # scan one capability
-  $(basename "$0") --ci               # CI pipeline mode
-  $(basename "$0") --behavioral       # deep analysis
+  $(basename "$0") --format sarif --sarif report.sarif
 EOF
     exit 0
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --ci)
-            CI_MODE=true
-            FORMAT="summary"
-            FAIL_SEVERITY="high"
-            shift
-            ;;
         --format)
             FORMAT="$2"
             shift 2
             ;;
-        --behavioral)
-            USE_BEHAVIORAL=true
-            shift
-            ;;
-        --fail-on)
-            FAIL_SEVERITY="$2"
-            shift 2
-            ;;
         --sarif)
             OUTPUT_SARIF="$2"
+            FORMAT="sarif"
             shift 2
             ;;
         --json)
             OUTPUT_JSON="$2"
+            FORMAT="json"
             shift 2
+            ;;
+        --llm)
+            NO_LLM=false
+            shift
             ;;
         -h|--help)
             usage
@@ -117,25 +107,16 @@ fi
 # Build scanner command
 build_cmd() {
     local cap_dir="$1"
-    local cmd=(${SCANNER} scan-all "${REPO_ROOT}/capabilities/${cap_dir}")
-    cmd+=(--recursive --lenient)
-    cmd+=(--policy "${POLICY}")
+    local output_path="$2"
+    local cmd=(${SCANNER} scan "${REPO_ROOT}/capabilities/${cap_dir}")
     cmd+=(--format "${FORMAT}")
 
-    if [[ "${USE_BEHAVIORAL}" == true ]]; then
-        cmd+=(--use-behavioral)
+    if [[ "${NO_LLM}" == true ]]; then
+        cmd+=(--no-llm)
     fi
 
-    if [[ -n "${FAIL_SEVERITY}" ]]; then
-        cmd+=(--fail-on-severity "${FAIL_SEVERITY}")
-    fi
-
-    if [[ -n "${OUTPUT_SARIF}" ]]; then
-        cmd+=(--output-sarif "${OUTPUT_SARIF}")
-    fi
-
-    if [[ -n "${OUTPUT_JSON}" ]]; then
-        cmd+=(--output-json "${OUTPUT_JSON}")
+    if [[ -n "${output_path}" ]]; then
+        cmd+=(--output "${output_path}")
     fi
 
     cmd+=("${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}")
@@ -144,8 +125,6 @@ build_cmd() {
 }
 
 # Run scans
-overall_exit=0
-
 for cap_dir in "${CAPABILITY_DIRS[@]}"; do
     if [[ ! -d "${REPO_ROOT}/capabilities/${cap_dir}" ]]; then
         continue
@@ -160,45 +139,23 @@ for cap_dir in "${CAPABILITY_DIRS[@]}"; do
 
     echo "==> Scanning ${cap_dir}/ (${skill_count} skills)"
 
-    cmd=$(build_cmd "${cap_dir}")
-
-    if [[ "${CI_MODE}" == true ]]; then
-        # In CI mode, capture SARIF per-capability and merge later
-        sarif_file="${REPO_ROOT}/.security-scan-${cap_dir}.sarif"
-        cmd="${cmd} --output-sarif ${sarif_file}"
+    output_path=""
+    if [[ -n "${OUTPUT_SARIF}" ]]; then
+        output_path="${OUTPUT_SARIF}"
+    elif [[ -n "${OUTPUT_JSON}" ]]; then
+        output_path="${OUTPUT_JSON}"
     fi
 
+    cmd=$(build_cmd "${cap_dir}" "${output_path}")
+
+    # SkillSpector exits 1 when risk_score > 50. Security-focused
+    # capabilities often score high, so we report findings but do not
+    # fail the wrapper by default. CI can decide whether to gate merges.
     if eval "${cmd}"; then
-        echo "    ✓ ${cap_dir}/ passed"
+        echo "    ✓ ${cap_dir}/ scan completed"
     else
         exit_code=$?
-        echo "    ✗ ${cap_dir}/ has findings (exit ${exit_code})"
-        overall_exit=1
+        echo "    ⚠ ${cap_dir}/ scan completed with findings (exit ${exit_code})"
     fi
     echo ""
 done
-
-# CI summary
-if [[ "${CI_MODE}" == true ]]; then
-    sarif_files=()
-    for cap_dir in "${CAPABILITY_DIRS[@]}"; do
-        f="${REPO_ROOT}/.security-scan-${cap_dir}.sarif"
-        if [[ -f "${f}" ]]; then
-            sarif_files+=("${f}")
-        fi
-    done
-
-    if [[ ${#sarif_files[@]} -gt 0 ]]; then
-        if [[ -n "${OUTPUT_SARIF}" ]]; then
-            cp "${sarif_files[-1]}" "${OUTPUT_SARIF}"
-        fi
-        echo "SARIF reports: ${sarif_files[*]}"
-    fi
-fi
-
-if [[ "${overall_exit}" -eq 0 ]]; then
-    echo "All scans passed."
-else
-    echo "Security scan found issues above threshold."
-    exit 1
-fi

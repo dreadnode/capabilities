@@ -1,8 +1,14 @@
-# Security scan skills using cisco-ai-skill-scanner.
+# Security scan skills using NVIDIA SkillSpector.
 #
 # Triggers on all pushes to main and PRs. The detect-changes job
 # auto-discovers capability directories (capabilities/<cap>/capability.yaml)
 # and filters to only those with changed files.
+#
+# Note: SkillSpector is installed from GitHub (not PyPI yet) and runs in
+# static-only mode (--no-llm) so the workflow does not require provider
+# API keys. Security-focused capabilities may score high by design; the
+# workflow uploads SARIF to GitHub Code Scanning and reports findings but
+# does not block merges while thresholds are being tuned.
 
 name: Security Scan
 
@@ -71,8 +77,9 @@ jobs:
                 fi
               done
             done
-            # If scan-policy.yaml changed, scan everything
-            if git diff --name-only "${DIFF_BASE}" "${DIFF_HEAD}" 2>/dev/null | grep -q '^scan-policy\.yaml$'; then
+            # If security-scan workflow/script changed, scan everything
+            if git diff --name-only "${DIFF_BASE}" "${DIFF_HEAD}" 2>/dev/null \
+              | grep -qE '^(\.github/workflows/security-scan\.yml|scripts/security-scan\.sh)$'; then
               CAPS=("${ALL_CAPS[@]}")
             fi
           fi
@@ -102,9 +109,13 @@ jobs:
           enable-cache: true
 
       - name: Scan changed capabilities
+        id: scan
+        # Continue on error: security capabilities often score high by design.
+        # SARIF is uploaded for review; merge gating can be enabled once
+        # thresholds are tuned.
+        continue-on-error: true
         run: |
           set -euo pipefail
-          failed=0
           mkdir -p .sarif
 
           CAPS_JSON='${{ needs.detect-changes.outputs.capabilities }}'
@@ -120,16 +131,23 @@ jobs:
               continue
             fi
 
-            echo "==> Scanning ${skills_dir}/ (${skill_count} skills)"
-            uvx --from cisco-ai-skill-scanner skill-scanner scan-all "${skills_dir}" \
-              --recursive \
-              --use-behavioral \
-              --policy scan-policy.yaml \
-              --format summary \
+            echo "==> Scanning capabilities/${cap}/ (${skill_count} skills)"
+
+            # Human-readable terminal output for logs
+            uvx --from git+https://github.com/NVIDIA/SkillSpector \
+              skillspector scan "capabilities/${cap}" \
+              --format terminal \
+              --no-llm \
+              || echo "    ⚠ ${cap} scan reported findings (see logs above)"
+
+            # SARIF output for GitHub Code Scanning
+            uvx --from git+https://github.com/NVIDIA/SkillSpector \
+              skillspector scan "capabilities/${cap}" \
               --format sarif \
-              --output-sarif ".sarif/${cap}.sarif" \
-              --fail-on-severity high \
-            || failed=1
+              --output ".sarif/${cap}.sarif" \
+              --no-llm \
+              || echo "    ⚠ ${cap} SARIF generation reported findings"
+
             echo ""
           done
 
@@ -138,14 +156,16 @@ jobs:
             ls -la .sarif/
           fi
 
-          if [[ "${failed}" -eq 1 ]]; then
-            echo "::error::Security scan found HIGH+ severity findings"
-            exit 1
-          fi
-
       - name: Upload SARIF results
         if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: .sarif/
         continue-on-error: true
+
+      - name: Report scan outcome
+        if: always()
+        run: |
+          if [[ "${{ steps.scan.outcome }}" == "failure" ]]; then
+            echo "::warning::SkillSpector reported HIGH/CRITICAL risk findings. Review the uploaded SARIF before merging."
+          fi
