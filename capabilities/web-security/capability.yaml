@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.1.3"
+version: "1.1.4"
 description: >
   Web application penetration testing with 60+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
@@ -8,8 +8,8 @@ description: >
   AEM/Sling exploitation, and client-side attacks. Includes HTTP client
   tooling, Caido proxy integration via MCP, credential management, DNS
   rebinding, AWS exploitation with Pacu, phone verification,
-  vulnerability verification, and IP rotation helpers (Flareprox,
-  fireprox) for bypassing rate limits and IP bans.
+  vulnerability verification, IP rotation helpers (Flareprox, fireprox),
+  and archive extraction vulnerability crafting with archivealchemist.
 
 mcp:
   servers:
@@ -112,6 +112,8 @@ checks:
     command: command -v pacu
   - name: fireprox
     command: 'test -f "$HOME/git/fireprox/fire.py"'
+  - name: archivealchemist
+    command: 'test -f "$HOME/git/archivealchemist/archive-alchemist.py"'
   - name: jxscout
     command: command -v jxscout-pro-v2
 
@@ -137,3 +139,6 @@ keywords:
   - ip-rotation
   - waf-bypass
   - rate-limit-bypass
+  - archive-extraction
+  - zip-slip
+  - path-traversal

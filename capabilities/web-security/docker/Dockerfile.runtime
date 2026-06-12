@@ -122,6 +122,10 @@ RUN pip install --no-cache-dir \
 RUN git clone --depth 1 https://github.com/ustayready/fireprox /root/git/fireprox \
  && pip install --no-cache-dir -r /root/git/fireprox/requirements.txt
 
+# ── archivealchemist (malicious archive crafter) ────────────────────
+# Pure Python CLI for Zip Slip, symlink, polyglot, and Unicode path confusion.
+RUN git clone --depth 1 https://github.com/avlidienbrunn/archivealchemist /root/git/archivealchemist
+
 # ── Clean up Go build cache ─────────────────────────────────────────
 RUN go clean -cache -modcache
 
