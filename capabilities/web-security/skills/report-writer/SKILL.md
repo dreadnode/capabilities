@@ -30,6 +30,11 @@ reports/R<NNN>-<slug>.md
 
 NNN = next sequential number (zero-padded: 001, 002, ...). slug = lowercase-hyphenated summary.
 
+## Confidence Trace
+
+- Use the `trace_id` returned by the final `assess_confidence` call for this report.
+- Copy that value into the report metadata so the report can be correlated with the confidence check.
+
 ## PoC Rules
 
 - If Caido proxy is available, route curl commands through it: `curl -x http://localhost:8080 -k`
@@ -50,6 +55,10 @@ NNN = next sequential number (zero-padded: 001, 002, ...). slug = lowercase-hyph
 ## Report Template
 
 ````markdown
+---
+confidence_trace_id: "<trace_id from assess_confidence>"
+---
+
 # Title
 
 <!-- FORMAT: [Vulnerability Type] in [Component/Feature] via [Vector] Leading to [Impact] -->
