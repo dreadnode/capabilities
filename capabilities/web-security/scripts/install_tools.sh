@@ -110,6 +110,15 @@ pip install --break-system-packages waymore
 # -- Pacu (AWS exploitation framework) ----------------------------------------
 pip install --break-system-packages pacu
 
+# -- fireprox (AWS API Gateway IP rotation) ---------------------------------
+# Requires AWS credentials at runtime. Cloned to a predictable path so the
+# ip-rotation skill can reference it directly.
+FIREPROX_DIR="$HOME/git/fireprox"
+if [ ! -d "$FIREPROX_DIR" ]; then
+  git clone --depth 1 https://github.com/ustayready/fireprox "$FIREPROX_DIR"
+fi
+pip install --break-system-packages -r "$FIREPROX_DIR/requirements.txt"
+
 # -- Clean up Go build cache -----------------------------------------------
 go clean -cache -modcache 2>/dev/null || true
 

@@ -1,14 +1,15 @@
 schema: 1
 name: web-security
-version: "1.1.2"
+version: "1.1.3"
 description: >
   Web application penetration testing with 60+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
   vulnerabilities, authentication bypasses, parser differentials,
   AEM/Sling exploitation, and client-side attacks. Includes HTTP client
   tooling, Caido proxy integration via MCP, credential management, DNS
-  rebinding, AWS exploitation with Pacu, phone verification, and
-  vulnerability verification.
+  rebinding, AWS exploitation with Pacu, phone verification,
+  vulnerability verification, and IP rotation helpers (Flareprox,
+  fireprox) for bypassing rate limits and IP bans.
 
 mcp:
   servers:
@@ -109,6 +110,8 @@ checks:
     command: command -v waymore
   - name: pacu
     command: command -v pacu
+  - name: fireprox
+    command: 'test -f "$HOME/git/fireprox/fire.py"'
   - name: jxscout
     command: command -v jxscout-pro-v2
 
@@ -131,3 +134,6 @@ keywords:
   - dispatcher-bypass
   - aws-security
   - cloud-security
+  - ip-rotation
+  - waf-bypass
+  - rate-limit-bypass
