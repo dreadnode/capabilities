@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
-# test_security_scan.sh — Integration tests for the security scanning setup.
+# test_security_scan.sh — Integration tests for the SkillSpector scanning setup.
 #
 # Verifies that:
-#   1. The scanner is installable and runnable
-#   2. The custom policy loads without errors
-#   3. Individual skill scans produce valid output
-#   4. Batch scanning works across capabilities
-#   5. CI mode produces SARIF output
-#   6. The --fail-on-severity flag works correctly
-#   7. A deliberately malicious skill is caught
+#   1. SkillSpector is installable and runnable from git
+#   2. Individual skill scans produce valid output
+#   3. SARIF output is generated and valid
+#   4. A deliberately malicious skill scores higher than a clean one
 #
 # Usage:
 #   ./scripts/test_security_scan.sh         # run all tests
@@ -19,7 +16,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SCANNER="uvx --from cisco-ai-skill-scanner skill-scanner"
+SCANNER="uvx --from git+https://github.com/NVIDIA/SkillSpector skillspector"
 PASS=0
 FAIL=0
 VERBOSE=false
@@ -53,15 +50,6 @@ fail() {
     fi
 }
 
-assert_eq() {
-    local desc="$1" expected="$2" actual="$3"
-    if [[ "${expected}" == "${actual}" ]]; then
-        pass "${desc}"
-    else
-        fail "${desc}" "expected='${expected}' actual='${actual}'"
-    fi
-}
-
 assert_contains() {
     local desc="$1" haystack="$2" needle="$3"
     if echo "${haystack}" | grep -qF -- "${needle}"; then
@@ -80,192 +68,97 @@ assert_file_exists() {
     fi
 }
 
-assert_exit_code() {
-    local desc="$1" expected="$2"
-    shift 2
-    local actual=0
-    "$@" > /dev/null 2>&1 || actual=$?
-    if [[ "${expected}" -eq "${actual}" ]]; then
+assert_json_field_gt() {
+    local desc="$1" file="$2" jpath="$3" min="$4"
+    local actual
+    actual=$(jq -r "${jpath} // 0" "${file}")
+    if [[ "$(echo "${actual} > ${min}" | bc -l)" == "1" ]]; then
         pass "${desc}"
     else
-        fail "${desc}" "expected exit ${expected}, got ${actual}"
+        fail "${desc}" "expected ${jpath} > ${min}, got ${actual}"
     fi
 }
 
 # --- Tests ---------------------------------------------------------------
 
-echo "=== Security Scan Tests ==="
+echo "=== Security Scan Tests (SkillSpector) ==="
 echo ""
 setup_tmpdir
 
 # 1. Scanner is available
 echo "[1] Scanner availability"
-if ${SCANNER} --version > /dev/null 2>&1; then
-    pass "skill-scanner is available via uvx"
+version_out=$(${SCANNER} --version 2>&1) || true
+if echo "${version_out}" | grep -q "SkillSpector"; then
+    pass "SkillSpector is available via uvx from git"
 else
-    fail "skill-scanner is not available"
-    echo "FATAL: Cannot continue without scanner. Install with: pip install cisco-ai-skill-scanner"
+    fail "SkillSpector is not available"
+    echo "FATAL: Cannot continue without scanner."
     exit 1
 fi
 
-# 2. Custom policy loads
+# 2. Individual skill scan produces JSON
 echo ""
-echo "[2] Custom policy"
-output=$(${SCANNER} scan-all "${REPO_ROOT}/capabilities/ai-red-teaming" \
-    --recursive --lenient \
-    --policy "${REPO_ROOT}/scan-policy.yaml" \
-    --format json --compact 2>&1) || true
-assert_contains "policy loads without errors" "${output}" '"summary"'
-
-# Extract policy name from output
-policy_name=$(echo "${output}" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    r = data.get('results', [{}])[0]
-    print(r.get('scan_metadata', {}).get('policy_name', ''))
-except: print('')
-" 2>/dev/null) || true
-assert_eq "policy name is 'capabilities'" "capabilities" "${policy_name}"
-
-# 3. Individual skill scan
-echo ""
-echo "[3] Individual skill scan"
-# Find a real skill to test
+echo "[2] Individual skill scan"
 skill_dir=$(find "${REPO_ROOT}/capabilities/ai-red-teaming" -name "SKILL.md" -type f -print -quit 2>/dev/null | xargs dirname)
 if [[ -n "${skill_dir}" ]]; then
-    scan_out=$(${SCANNER} scan "${skill_dir}" \
-        --lenient --policy "${REPO_ROOT}/scan-policy.yaml" \
-        --format json --compact 2>&1)
-    assert_contains "scan produces valid JSON" "${scan_out}" '"skill_name"'
-    assert_contains "scan includes is_safe field" "${scan_out}" '"is_safe"'
-    assert_contains "scan includes analyzers_used" "${scan_out}" '"analyzers_used"'
-
-    # Verify static + bytecode + pipeline analyzers ran
-    analyzers=$(echo "${scan_out}" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    print(' '.join(data.get('analyzers_used', [])))
-except: print('')
-" 2>/dev/null) || true
-    assert_contains "static analyzer ran" "${analyzers}" "static"
-    assert_contains "pipeline analyzer ran" "${analyzers}" "pipeline"
+    scan_out=$(${SCANNER} scan "${skill_dir}" --format json --no-llm 2>&1)
+    assert_contains "scan produces JSON output" "${scan_out}" '"risk_assessment"'
+    assert_contains "scan includes issues array" "${scan_out}" '"issues"'
 else
     fail "no skills found to test"
 fi
 
-# 4. Batch scan produces summary
+# 3. SARIF output
 echo ""
-echo "[4] Batch scanning"
-batch_out=$(${SCANNER} scan-all "${REPO_ROOT}/capabilities/ai-red-teaming" \
-    --recursive --lenient \
-    --policy "${REPO_ROOT}/scan-policy.yaml" \
-    --format json --compact 2>&1)
-total=$(echo "${batch_out}" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    print(data.get('summary', {}).get('total_skills_scanned', 0))
-except: print(0)
-" 2>/dev/null) || true
-
-if [[ "${total}" -gt 0 ]]; then
-    pass "batch scan found ${total} skills"
-else
-    fail "batch scan found no skills"
-fi
-
-# 5. SARIF output
-echo ""
-echo "[5] SARIF output"
+echo "[3] SARIF output"
 sarif_file="${TMPDIR_BASE}/test.sarif"
-${SCANNER} scan-all "${REPO_ROOT}/capabilities/ai-red-teaming" \
-    --recursive --lenient \
-    --policy "${REPO_ROOT}/scan-policy.yaml" \
-    --format sarif \
-    --output-sarif "${sarif_file}" 2>/dev/null || true
+${SCANNER} scan "${skill_dir}" --format sarif --no-llm --output "${sarif_file}" 2>/dev/null || true
 assert_file_exists "SARIF file created" "${sarif_file}"
 
 if [[ -f "${sarif_file}" ]]; then
-    sarif_version=$(python3 -c "
-import json
-with open('${sarif_file}') as f:
-    data = json.load(f)
-print(data.get('version', ''))
-" 2>/dev/null) || true
-    assert_eq "SARIF version is 2.1.0" "2.1.0" "${sarif_version}"
+    sarif_version=$(jq -r '.version' "${sarif_file}" 2>/dev/null || true)
+    assert_contains "SARIF version is 2.1.0" "${sarif_version}" "2.1.0"
 
-    sarif_tool=$(python3 -c "
-import json
-with open('${sarif_file}') as f:
-    data = json.load(f)
-print(data.get('runs', [{}])[0].get('tool', {}).get('driver', {}).get('name', ''))
-" 2>/dev/null) || true
-    assert_eq "SARIF tool is skill-scanner" "skill-scanner" "${sarif_tool}"
+    sarif_tool=$(jq -r '.runs[0].tool.driver.name' "${sarif_file}" 2>/dev/null || true)
+    assert_contains "SARIF tool is skillspector" "${sarif_tool}" "skillspector"
 fi
 
-# 6. Fail-on-severity flag
+# 4. Malicious skill scores higher than clean skill
 echo ""
-echo "[6] Severity threshold"
-# Use pre-built malicious skill fixture
-malicious_dir="${REPO_ROOT}/scripts/fixtures/malicious-skill"
+echo "[4] Malicious vs clean skill detection"
+malicious_json="${TMPDIR_BASE}/malicious.json"
+clean_json="${TMPDIR_BASE}/clean.json"
 
-# This should find issues (redirect stderr to avoid warnings corrupting JSON)
-malicious_out=$(${SCANNER} scan "${malicious_dir}" \
-    --lenient --format json --compact 2>/dev/null) || true
-is_safe=$(echo "${malicious_out}" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    print(str(data.get('is_safe', True)).lower())
-except: print('true')
-" 2>/dev/null) || true
-assert_eq "malicious skill detected as unsafe" "false" "${is_safe}"
+${SCANNER} scan "${REPO_ROOT}/scripts/fixtures/malicious-skill" \
+  --format json --no-llm --output "${malicious_json}" 2>/dev/null || true
+${SCANNER} scan "${REPO_ROOT}/scripts/fixtures/clean-skill" \
+  --format json --no-llm --output "${clean_json}" 2>/dev/null || true
 
-findings_count=$(echo "${malicious_out}" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    print(data.get('findings_count', 0))
-except: print(0)
-" 2>/dev/null) || true
+assert_file_exists "malicious skill JSON report created" "${malicious_json}"
+assert_file_exists "clean skill JSON report created" "${clean_json}"
 
-if [[ "${findings_count}" -gt 0 ]]; then
-    pass "malicious skill produced ${findings_count} findings"
-else
-    fail "malicious skill produced no findings"
+if [[ -f "${malicious_json}" && -f "${clean_json}" ]]; then
+    assert_json_field_gt "malicious skill has higher risk score than clean" \
+      "${malicious_json}" '.risk_assessment.score' '0'
+
+    clean_score=$(jq -r '.risk_assessment.score // 0' "${clean_json}")
+    malicious_score=$(jq -r '.risk_assessment.score // 0' "${malicious_json}")
+    if [[ "${malicious_score}" -gt "${clean_score}" ]]; then
+        pass "malicious skill (${malicious_score}) scores higher than clean (${clean_score})"
+    else
+        fail "malicious skill (${malicious_score}) did not score higher than clean (${clean_score})"
+    fi
+
+    if [[ "${malicious_score}" -gt 50 ]]; then
+        pass "malicious skill exceeds risk threshold (>50)"
+    else
+        fail "malicious skill did not exceed risk threshold" "score=${malicious_score}"
+    fi
 fi
 
-# --fail-on-severity should return non-zero for malicious content
-set +e
-${SCANNER} scan "${malicious_dir}" \
-    --lenient --format json --compact \
-    --fail-on-severity medium > /dev/null 2>&1
-exit_code=$?
-set -e
-if [[ "${exit_code}" -ne 0 ]]; then
-    pass "--fail-on-severity returns non-zero for malicious skill"
-else
-    fail "--fail-on-severity returned 0 for malicious skill" "exit code: ${exit_code}"
-fi
-
-# Clean skill fixture should pass
-clean_dir="${REPO_ROOT}/scripts/fixtures/clean-skill"
-clean_out=$(${SCANNER} scan "${clean_dir}" \
-    --lenient --format json --compact 2>&1) || true
-clean_safe=$(echo "${clean_out}" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    print(str(data.get('is_safe', False)).lower())
-except: print('false')
-" 2>/dev/null) || true
-assert_eq "clean skill detected as safe" "true" "${clean_safe}"
-
-# 7. Script wrapper
+# 5. Script wrapper
 echo ""
-echo "[7] Script wrapper"
+echo "[5] Script wrapper"
 assert_file_exists "security-scan.sh exists" "${REPO_ROOT}/scripts/security-scan.sh"
 if [[ -x "${REPO_ROOT}/scripts/security-scan.sh" ]]; then
     pass "security-scan.sh is executable"
@@ -273,23 +166,12 @@ else
     fail "security-scan.sh is not executable"
 fi
 
-# Test --help
 help_out=$("${REPO_ROOT}/scripts/security-scan.sh" --help 2>&1) || true
 assert_contains "help shows usage" "${help_out}" "Usage"
-assert_contains "help shows --ci flag" "${help_out}" "--ci"
+assert_contains "help shows --format flag" "${help_out}" "--format"
 
-# Test wrapper runs successfully on a single capability
 wrapper_out=$("${REPO_ROOT}/scripts/security-scan.sh" ai-red-teaming 2>&1) || true
 assert_contains "wrapper scans ai-red-teaming" "${wrapper_out}" "ai-red-teaming"
-
-# 8. Behavioral analysis
-echo ""
-echo "[8] Behavioral analysis"
-behavioral_out=$(${SCANNER} scan "${skill_dir}" \
-    --lenient --use-behavioral \
-    --policy "${REPO_ROOT}/scan-policy.yaml" \
-    --format json --compact 2>&1) || true
-assert_contains "behavioral analyzer available" "${behavioral_out}" "behavioral"
 
 # --- Summary -------------------------------------------------------------
 echo ""
