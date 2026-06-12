@@ -32,8 +32,9 @@ NNN = next sequential number (zero-padded: 001, 002, ...). slug = lowercase-hyph
 
 ## Confidence Trace
 
-- Use the `trace_id` returned by the final `assess_confidence` call for this report.
-- Copy that value into the report metadata so the report can be correlated with the confidence check.
+- Extract the UUID from the `[trace_id:<uuid>]` token in the `assess_confidence` tool response
+- Copy that value into the report `confidence_trace_id` frontmatter field
+- If the tool response does NOT contain `[trace_id:<uuid>]`, set `confidence_trace_id: "MISSING"` — NEVER fabricate or guess an ID
 
 ## PoC Rules
 
