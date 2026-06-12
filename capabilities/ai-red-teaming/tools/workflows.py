@@ -26,6 +26,36 @@ safe_tool = _errors_mod.safe_tool
 from dreadnode.app.env import resolve_python_executable
 
 
+def _resolve_platform_env() -> dict[str, str]:
+    """Build env dict with platform credentials for subprocess execution.
+
+    Mirrors attack_runner._resolve_platform_env so manually-executed
+    workflows get the same credential resolution as auto-executed ones.
+    """
+    env = os.environ.copy()
+    if env.get("DREADNODE_SERVER") and env.get("DREADNODE_API_KEY"):
+        return env
+    if env.get("DREADNODE_LLM_BASE") and env.get("DREADNODE_LLM_API_KEY"):
+        return env
+    try:
+        import yaml
+        config_path = Path.home() / ".dreadnode" / "config.yaml"
+        if config_path.exists():
+            config = yaml.safe_load(config_path.read_text())
+            active = config.get("active")
+            servers = config.get("servers", {})
+            if active and active in servers:
+                profile = servers[active]
+                env.setdefault("DREADNODE_SERVER", profile.get("url", ""))
+                env.setdefault("DREADNODE_API_KEY", profile.get("api_key", ""))
+                env.setdefault("DREADNODE_ORGANIZATION", profile.get("default_organization", ""))
+                env.setdefault("DREADNODE_WORKSPACE", profile.get("default_workspace", ""))
+                env.setdefault("DREADNODE_PROJECT", profile.get("default_project", ""))
+    except Exception:
+        pass
+    return env
+
+
 # Get org/workspace from active profile, with fallbacks
 def _get_workspace_path() -> Path:
     try:
@@ -165,7 +195,7 @@ def list_workflows() -> str:
 @safe_tool
 def execute_workflow(
     filename: t.Annotated[str, "Workflow filename to execute"],
-    timeout: t.Annotated[int, "Max execution time in seconds (max 600)"] = 540,
+    timeout: t.Annotated[int, "Max execution time in seconds (max 3600)"] = 540,
 ) -> str:
     """Execute a saved attack workflow script.
 
@@ -179,7 +209,7 @@ def execute_workflow(
     if not filepath.exists():
         return f"Workflow not found: {filename}. Use list_workflows to see available."
 
-    timeout = min(timeout, 600)
+    timeout = min(timeout, 3600)
 
     try:
         python_executable = resolve_python_executable()
@@ -193,6 +223,7 @@ def execute_workflow(
             text=True,
             timeout=timeout,
             cwd=str(WORKFLOWS_DIR.parent),
+            env=_resolve_platform_env(),
         )
         output = result.stdout
         if result.stderr:

@@ -95,7 +95,7 @@ def _resolve_platform_env() -> dict[str, str]:
     return env
 
 
-def _auto_execute_workflow(filename: str, timeout: int = 540) -> str:
+def _auto_execute_workflow(filename: str, timeout: int = 3600) -> str:
     """Execute a workflow script and return output. Used for auto-execution after generate."""
     filepath = WORKFLOWS_DIR / filename
     if not filepath.exists():
