@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -19,10 +21,18 @@ sys.path.insert(0, str(_REPO_ROOT / "capabilities" / "web-security" / "tools"))
 
 from credence import CredenceTool
 
+TRACE_ID_RE = re.compile(r"\[trace_id:([0-9a-f-]{36})\]")
+
 
 @pytest.fixture
 def toolset() -> CredenceTool:
     return CredenceTool()
+
+
+def extract_trace_id(result: str) -> uuid.UUID:
+    match = TRACE_ID_RE.search(result)
+    assert match is not None
+    return uuid.UUID(match.group(1))
 
 
 class TestToolDiscovery:
@@ -47,6 +57,11 @@ class TestToolDiscovery:
         assert "confidence" in props
         assert "evidence_basis" in props
 
+    def test_schema_does_not_accept_trace_id(self, toolset: CredenceTool) -> None:
+        tool = toolset.get_tools()[0]
+        props = tool.parameters_schema.get("properties", {})
+        assert "trace_id" not in props
+
 
 class TestHighConfidence:
     async def test_high_with_poc_confirmed(self, toolset: CredenceTool) -> None:
@@ -56,6 +71,7 @@ class TestHighConfidence:
             evidence_basis="poc_confirmed",
         )
         assert "CONFIRMED" in result
+        extract_trace_id(result)
 
     async def test_high_with_response_verified(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
@@ -73,7 +89,9 @@ class TestHighConfidence:
         )
         assert "CONFIRMED" in result
 
-    async def test_high_with_pattern_only_is_overconfident(self, toolset: CredenceTool) -> None:
+    async def test_high_with_pattern_only_is_overconfident(
+        self, toolset: CredenceTool
+    ) -> None:
         result = await toolset.assess_confidence(
             claim="innerHTML usage found in dashboard.js",
             confidence="high",
@@ -82,7 +100,9 @@ class TestHighConfidence:
         assert "OVERCONFIDENT" in result
         assert "lead/gadget" in result.lower()
 
-    async def test_high_with_scanner_output_is_overconfident(self, toolset: CredenceTool) -> None:
+    async def test_high_with_scanner_output_is_overconfident(
+        self, toolset: CredenceTool
+    ) -> None:
         result = await toolset.assess_confidence(
             claim="nuclei flagged potential SSRF",
             confidence="high",
@@ -90,7 +110,9 @@ class TestHighConfidence:
         )
         assert "OVERCONFIDENT" in result
 
-    async def test_high_with_assumed_is_overconfident(self, toolset: CredenceTool) -> None:
+    async def test_high_with_assumed_is_overconfident(
+        self, toolset: CredenceTool
+    ) -> None:
         result = await toolset.assess_confidence(
             claim="probably using MySQL based on error page",
             confidence="high",
@@ -98,7 +120,9 @@ class TestHighConfidence:
         )
         assert "OVERCONFIDENT" in result
 
-    async def test_high_with_behavior_observed_is_overconfident(self, toolset: CredenceTool) -> None:
+    async def test_high_with_behavior_observed_is_overconfident(
+        self, toolset: CredenceTool
+    ) -> None:
         result = await toolset.assess_confidence(
             claim="timing difference suggests blind SQLi",
             confidence="high",
@@ -106,7 +130,9 @@ class TestHighConfidence:
         )
         assert "OVERCONFIDENT" in result
 
-    async def test_high_with_code_pattern_is_overconfident(self, toolset: CredenceTool) -> None:
+    async def test_high_with_code_pattern_is_overconfident(
+        self, toolset: CredenceTool
+    ) -> None:
         result = await toolset.assess_confidence(
             claim="eval() called with user input nearby",
             confidence="high",
@@ -133,7 +159,9 @@ class TestMediumConfidence:
         )
         assert "UNCONFIRMED LEAD" in result
 
-    async def test_medium_with_strong_evidence_suggests_upgrade(self, toolset: CredenceTool) -> None:
+    async def test_medium_with_strong_evidence_suggests_upgrade(
+        self, toolset: CredenceTool
+    ) -> None:
         result = await toolset.assess_confidence(
             claim="BOLA confirmed with cross-user data",
             confidence="medium",
@@ -141,7 +169,9 @@ class TestMediumConfidence:
         )
         assert "UPGRADE" in result
 
-    async def test_medium_with_response_verified_suggests_upgrade(self, toolset: CredenceTool) -> None:
+    async def test_medium_with_response_verified_suggests_upgrade(
+        self, toolset: CredenceTool
+    ) -> None:
         result = await toolset.assess_confidence(
             claim="path traversal returns /etc/passwd",
             confidence="medium",
@@ -168,7 +198,9 @@ class TestLowConfidence:
         )
         assert "INSUFFICIENT" in result
 
-    async def test_low_with_strong_evidence_still_insufficient(self, toolset: CredenceTool) -> None:
+    async def test_low_with_strong_evidence_still_insufficient(
+        self, toolset: CredenceTool
+    ) -> None:
         """Even strong evidence with low confidence = don't assert."""
         result = await toolset.assess_confidence(
             claim="got a 500 but not sure it's exploitable",
@@ -213,6 +245,24 @@ class TestAgentString:
         assert "agent_string" in props
 
 
+class TestTraceId:
+    async def test_trace_id_is_generated_for_each_assessment(
+        self, toolset: CredenceTool
+    ) -> None:
+        first = await toolset.assess_confidence(
+            claim="XSS confirmed",
+            confidence="high",
+            evidence_basis="poc_confirmed",
+        )
+        second = await toolset.assess_confidence(
+            claim="XSS confirmed",
+            confidence="high",
+            evidence_basis="poc_confirmed",
+        )
+
+        assert extract_trace_id(first) != extract_trace_id(second)
+
+
 class TestHandleToolCall:
     async def test_via_handle_tool_call(self, toolset: CredenceTool) -> None:
         from dreadnode.agents.tools import FunctionCall, ToolCall
@@ -229,7 +279,9 @@ class TestHandleToolCall:
         assert stop is False
         assert "CONFIRMED" in message.content
 
-    async def test_overconfident_via_handle_tool_call(self, toolset: CredenceTool) -> None:
+    async def test_overconfident_via_handle_tool_call(
+        self, toolset: CredenceTool
+    ) -> None:
         from dreadnode.agents.tools import FunctionCall, ToolCall
 
         tools = {t.name: t for t in toolset.get_tools()}

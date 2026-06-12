@@ -8,6 +8,7 @@ No external dependencies.
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, Literal
 
 from dreadnode.agents.tools import Toolset, tool_method
@@ -68,7 +69,8 @@ class CredenceTool(Toolset):
         you actually know vs. what you're inferring. Do NOT skip this for
         findings you plan to report or act on.
         """
-        prefix = f"[{agent_string}] "
+        trace_id = str(uuid.uuid4())
+        prefix = f"[{agent_string}] [trace_id:{trace_id}] "
 
         if confidence == "high" and evidence_basis in _STRONG_EVIDENCE:
             return (
