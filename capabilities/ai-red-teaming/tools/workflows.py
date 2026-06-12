@@ -26,6 +26,36 @@ safe_tool = _errors_mod.safe_tool
 from dreadnode.app.env import resolve_python_executable
 
 
+def _resolve_platform_env() -> dict[str, str]:
+    """Build env dict with platform credentials for subprocess execution.
+
+    Mirrors attack_runner._resolve_platform_env so manually-executed
+    workflows get the same credential resolution as auto-executed ones.
+    Always reads the saved profile to fill org/workspace/project scope.
+    """
+    env = os.environ.copy()
+    try:
+        from dreadnode.app.config import UserConfig
+
+        config = UserConfig.read()
+        profile_data = config.active_profile
+        if profile_data:
+            _, profile = profile_data
+            if profile.url:
+                env.setdefault("DREADNODE_SERVER", profile.url)
+            if profile.api_key:
+                env.setdefault("DREADNODE_API_KEY", profile.api_key)
+            if profile.organization:
+                env.setdefault("DREADNODE_ORGANIZATION", profile.organization)
+            if profile.workspace:
+                env.setdefault("DREADNODE_WORKSPACE", profile.workspace)
+            if profile.project:
+                env.setdefault("DREADNODE_PROJECT", profile.project)
+    except Exception:
+        pass
+    return env
+
+
 # Get org/workspace from active profile, with fallbacks
 def _get_workspace_path() -> Path:
     try:
@@ -165,7 +195,7 @@ def list_workflows() -> str:
 @safe_tool
 def execute_workflow(
     filename: t.Annotated[str, "Workflow filename to execute"],
-    timeout: t.Annotated[int, "Max execution time in seconds (max 600)"] = 540,
+    timeout: t.Annotated[int, "Max execution time in seconds (max 3600)"] = 540,
 ) -> str:
     """Execute a saved attack workflow script.
 
@@ -179,7 +209,7 @@ def execute_workflow(
     if not filepath.exists():
         return f"Workflow not found: {filename}. Use list_workflows to see available."
 
-    timeout = min(timeout, 600)
+    timeout = min(timeout, 3600)
 
     try:
         python_executable = resolve_python_executable()
@@ -193,6 +223,7 @@ def execute_workflow(
             text=True,
             timeout=timeout,
             cwd=str(WORKFLOWS_DIR.parent),
+            env=_resolve_platform_env(),
         )
         output = result.stdout
         if result.stderr:

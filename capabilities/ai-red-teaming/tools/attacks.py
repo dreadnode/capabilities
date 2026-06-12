@@ -42,7 +42,7 @@ def _call_runner(name: str, params: dict) -> str:
             input=payload,
             capture_output=True,
             text=True,
-            timeout=660,  # 11min: runner has 9min internal timeout + overhead
+            timeout=3660,  # 61min: runner has 60min internal timeout + overhead
         )
         output = result.stdout.strip()
         if result.returncode != 0:

@@ -55,47 +55,44 @@ METADATA_FILE = WORKFLOWS_DIR / ".workflow_metadata.json"
 def _resolve_platform_env() -> dict[str, str]:
     """Build env dict with platform credentials for subprocess execution.
 
-    In sandbox mode, env vars are already set. In TUI/CLI mode, reads from
-    the saved profile at ~/.cache/dreadnode/config.yaml.
+    In sandbox mode, env vars are already set (DREADNODE_SERVER + API_KEY).
+    In TUI mode, the runtime sets DREADNODE_LLM_BASE + LLM_API_KEY for the
+    LLM proxy but does NOT set SERVER/API_KEY/ORG/WORKSPACE/PROJECT — those
+    come from the saved profile (``dn login``).
+
+    We ALWAYS read the saved profile to fill in scope vars (org, workspace,
+    project) so the subprocess respects the user's TUI context.  ``setdefault``
+    ensures explicit env vars (sandbox) take precedence over the profile.
     """
     env = os.environ.copy()
 
-    # If the runtime already provides platform credentials in any of the
-    # forms the SDK understands, pass the env through untouched -- the
-    # generated script self-configures via dn.configure(), whose precedence
-    # is: explicit args > env vars > saved profile.
-    #   - DREADNODE_SERVER + DREADNODE_API_KEY  (classic platform env)
-    #   - DREADNODE_LLM_BASE + DREADNODE_LLM_API_KEY  (runtime LLM proxy env)
-    if env.get("DREADNODE_SERVER") and env.get("DREADNODE_API_KEY"):
-        return env
-    if env.get("DREADNODE_LLM_BASE") and env.get("DREADNODE_LLM_API_KEY"):
-        return env
-
-    # Fall back to saved profile (TUI/CLI mode)
-    # Profile lives at ~/.dreadnode/config.yaml (YAML format)
+    # Read saved profile via the SDK's own config system.  This respects
+    # ``dn login``, ``/workspace`` switches, and profile selection — no
+    # need to parse YAML manually.
     try:
-        from pathlib import Path as _Path
-        import yaml  # type: ignore[import-untyped]
+        from dreadnode.app.config import UserConfig
 
-        config_path = _Path.home() / ".dreadnode" / "config.yaml"
-        if config_path.exists():
-            config = yaml.safe_load(config_path.read_text())
-            active = config.get("active")
-            servers = config.get("servers", {})
-            if active and active in servers:
-                profile = servers[active]
-                env.setdefault("DREADNODE_SERVER", profile.get("url", ""))
-                env.setdefault("DREADNODE_API_KEY", profile.get("api_key", ""))
-                env.setdefault("DREADNODE_ORGANIZATION", profile.get("default_organization", ""))
-                env.setdefault("DREADNODE_WORKSPACE", profile.get("default_workspace", ""))
-                env.setdefault("DREADNODE_PROJECT", profile.get("default_project", ""))
+        config = UserConfig.read()
+        profile_data = config.active_profile
+        if profile_data:
+            _, profile = profile_data
+            if profile.url:
+                env.setdefault("DREADNODE_SERVER", profile.url)
+            if profile.api_key:
+                env.setdefault("DREADNODE_API_KEY", profile.api_key)
+            if profile.organization:
+                env.setdefault("DREADNODE_ORGANIZATION", profile.organization)
+            if profile.workspace:
+                env.setdefault("DREADNODE_WORKSPACE", profile.workspace)
+            if profile.project:
+                env.setdefault("DREADNODE_PROJECT", profile.project)
     except Exception:
-        pass  # Best-effort — will fail later in the script with a clear error
+        pass  # Best-effort — dn.configure() in the script will try again
 
     return env
 
 
-def _auto_execute_workflow(filename: str, timeout: int = 540) -> str:
+def _auto_execute_workflow(filename: str, timeout: int = 3600) -> str:
     """Execute a workflow script and return output. Used for auto-execution after generate."""
     filepath = WORKFLOWS_DIR / filename
     if not filepath.exists():
@@ -774,6 +771,8 @@ ATTACK_ALIASES["cot"] = "cot_jailbreak_attack"
 ATTACK_ALIASES["j2"] = "j2_meta_attack"
 ATTACK_ALIASES["tmap"] = "tmap_trajectory_attack"
 ATTACK_ALIASES["aprt"] = "aprt_progressive_attack"
+
+
 
 _TRANSFORM_DEFS: dict[str, dict] = {
     # encoding
@@ -3144,7 +3143,8 @@ def _build_attack_params(
         params.append("{}={}".format(k, v))
     if transforms_expr is not None:
         params.append("transforms={}".format(transforms_expr))
-    # AIRT span linkage — links Study-created spans to assessment in ClickHouse
+    # AIRT span linkage — links Study-created spans to assessment in ClickHouse.
+    # All SDK attacks accept these kwargs as of dreadnode-tiger#1693.
     params.append("airt_assessment_id=assessment.assessment_id")
     params.append("airt_goal_category={}".format(goal_category_expr))
     params.append("airt_target_model=TARGET_MODEL")
@@ -3358,12 +3358,12 @@ def _generate_transform_study(config: dict) -> str:
     for k, v in atk.get("extra_defaults", {}).items():
         params.append("{}={}".format(k, v))
     params.append("transforms=transforms")
+    # AIRT span linkage — all attacks accept these as of dreadnode-tiger#1693
     params.append("airt_assessment_id=assessment.assessment_id")
     params.append("airt_goal_category=GOAL_CATEGORY.value")
     params.append("airt_target_model=TARGET_MODEL")
-    attack_params = ",\n                ".join(params)
-
     canon = atk["canonical_name"]
+    attack_params = ",\n                ".join(params)
     assessment_name = _safe_str(config.get("assessment_name") or "{} Transform Comparison".format(canon))
     assessment_kwargs = _build_assessment_kwargs(config, assessment_name, config.get("filename", ""))
 
@@ -3718,6 +3718,7 @@ def _generate_category_attack(config: dict) -> str:
     if transforms:
         transforms_expr = "[{}]".format(", ".join(t["code"] for t in transforms))
         params.append("transforms={}".format(transforms_expr))
+    # AIRT span linkage — all attacks accept these as of dreadnode-tiger#1693
     params.append("airt_assessment_id=assessment.assessment_id")
     params.append("airt_goal_category=goal_cat.value")
     params.append("airt_category=goal_row.get('category', '')")
