@@ -55,42 +55,39 @@ METADATA_FILE = WORKFLOWS_DIR / ".workflow_metadata.json"
 def _resolve_platform_env() -> dict[str, str]:
     """Build env dict with platform credentials for subprocess execution.
 
-    In sandbox mode, env vars are already set. In TUI/CLI mode, reads from
-    the saved profile at ~/.cache/dreadnode/config.yaml.
+    In sandbox mode, env vars are already set (DREADNODE_SERVER + API_KEY).
+    In TUI mode, the runtime sets DREADNODE_LLM_BASE + LLM_API_KEY for the
+    LLM proxy but does NOT set SERVER/API_KEY/ORG/WORKSPACE/PROJECT — those
+    come from the saved profile (``dn login``).
+
+    We ALWAYS read the saved profile to fill in scope vars (org, workspace,
+    project) so the subprocess respects the user's TUI context.  ``setdefault``
+    ensures explicit env vars (sandbox) take precedence over the profile.
     """
     env = os.environ.copy()
 
-    # If the runtime already provides platform credentials in any of the
-    # forms the SDK understands, pass the env through untouched -- the
-    # generated script self-configures via dn.configure(), whose precedence
-    # is: explicit args > env vars > saved profile.
-    #   - DREADNODE_SERVER + DREADNODE_API_KEY  (classic platform env)
-    #   - DREADNODE_LLM_BASE + DREADNODE_LLM_API_KEY  (runtime LLM proxy env)
-    if env.get("DREADNODE_SERVER") and env.get("DREADNODE_API_KEY"):
-        return env
-    if env.get("DREADNODE_LLM_BASE") and env.get("DREADNODE_LLM_API_KEY"):
-        return env
-
-    # Fall back to saved profile (TUI/CLI mode)
-    # Profile lives at ~/.dreadnode/config.yaml (YAML format)
+    # Read saved profile via the SDK's own config system.  This respects
+    # ``dn login``, ``/workspace`` switches, and profile selection — no
+    # need to parse YAML manually.
     try:
-        from pathlib import Path as _Path
-        import yaml  # type: ignore[import-untyped]
+        from dreadnode.app.config import UserConfig
 
-        config_path = _Path.home() / ".dreadnode" / "config.yaml"
-        if config_path.exists():
-            config = yaml.safe_load(config_path.read_text())
-            active = config.get("active")
-            servers = config.get("servers", {})
-            if active and active in servers:
-                profile = servers[active]
-                env.setdefault("DREADNODE_SERVER", profile.get("url", ""))
-                env.setdefault("DREADNODE_API_KEY", profile.get("api_key", ""))
-                env.setdefault("DREADNODE_ORGANIZATION", profile.get("default_organization", ""))
-                env.setdefault("DREADNODE_WORKSPACE", profile.get("default_workspace", ""))
-                env.setdefault("DREADNODE_PROJECT", profile.get("default_project", ""))
+        config = UserConfig.read()
+        profile_data = config.active_profile
+        if profile_data:
+            _, profile = profile_data
+            if profile.url:
+                env.setdefault("DREADNODE_SERVER", profile.url)
+            if profile.api_key:
+                env.setdefault("DREADNODE_API_KEY", profile.api_key)
+            if profile.organization:
+                env.setdefault("DREADNODE_ORGANIZATION", profile.organization)
+            if profile.workspace:
+                env.setdefault("DREADNODE_WORKSPACE", profile.workspace)
+            if profile.project:
+                env.setdefault("DREADNODE_PROJECT", profile.project)
     except Exception:
-        pass  # Best-effort — will fail later in the script with a clear error
+        pass  # Best-effort — dn.configure() in the script will try again
 
     return env
 
