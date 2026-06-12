@@ -263,6 +263,47 @@ class TestTraceId:
         assert extract_trace_id(first) != extract_trace_id(second)
 
 
+class TestCvssScore:
+    async def test_cvss_tag_in_output(self, toolset: CredenceTool) -> None:
+        result = await toolset.assess_confidence(
+            claim="IDOR on /api/users/{id}",
+            confidence="high",
+            evidence_basis="poc_confirmed",
+            cvss_score=7.5,
+        )
+        assert "[cvss:7.5]" in result
+        assert "CONFIRMED" in result
+
+    async def test_no_cvss_tag_when_omitted(self, toolset: CredenceTool) -> None:
+        result = await toolset.assess_confidence(
+            claim="test", confidence="high", evidence_basis="poc_confirmed",
+        )
+        assert "[cvss:" not in result
+
+    async def test_low_confidence_high_cvss_warns(self, toolset: CredenceTool) -> None:
+        result = await toolset.assess_confidence(
+            claim="maybe RCE", confidence="low", evidence_basis="assumed",
+            cvss_score=9.8,
+        )
+        assert "CVSS WARNING" in result
+        assert "inflated" in result
+
+    async def test_high_confidence_critical_cvss_warns(self, toolset: CredenceTool) -> None:
+        result = await toolset.assess_confidence(
+            claim="full RCE", confidence="high", evidence_basis="poc_confirmed",
+            cvss_score=9.8,
+        )
+        assert "CVSS WARNING" in result
+        assert "Critical" in result
+
+    async def test_matching_cvss_no_warning(self, toolset: CredenceTool) -> None:
+        result = await toolset.assess_confidence(
+            claim="info disclosure", confidence="high", evidence_basis="poc_confirmed",
+            cvss_score=4.3,
+        )
+        assert "CVSS WARNING" not in result
+
+
 class TestHandleToolCall:
     async def test_via_handle_tool_call(self, toolset: CredenceTool) -> None:
         from dreadnode.agents.tools import FunctionCall, ToolCall
