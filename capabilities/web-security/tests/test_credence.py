@@ -9,8 +9,6 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
-
 # Add tools directory to path for import
 _REPO_ROOT = Path(__file__).resolve()
 while _REPO_ROOT != _REPO_ROOT.parent:
@@ -64,6 +62,7 @@ class TestToolDiscovery:
 
 
 class TestHighConfidence:
+    @pytest.mark.asyncio
     async def test_high_with_poc_confirmed(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
             claim="SQLi in /api/users?id=1' OR 1=1--",
@@ -73,6 +72,7 @@ class TestHighConfidence:
         assert "CONFIRMED" in result
         extract_trace_id(result)
 
+    @pytest.mark.asyncio
     async def test_high_with_response_verified(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
             claim="XSS reflected unencoded in search param",
@@ -81,6 +81,7 @@ class TestHighConfidence:
         )
         assert "CONFIRMED" in result
 
+    @pytest.mark.asyncio
     async def test_high_with_data_flow_traced(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
             claim="user input reaches innerHTML in app.js:456",
@@ -89,6 +90,7 @@ class TestHighConfidence:
         )
         assert "CONFIRMED" in result
 
+    @pytest.mark.asyncio
     async def test_high_with_pattern_only_is_overconfident(
         self, toolset: CredenceTool
     ) -> None:
@@ -100,6 +102,7 @@ class TestHighConfidence:
         assert "OVERCONFIDENT" in result
         assert "lead/gadget" in result.lower()
 
+    @pytest.mark.asyncio
     async def test_high_with_scanner_output_is_overconfident(
         self, toolset: CredenceTool
     ) -> None:
@@ -110,6 +113,7 @@ class TestHighConfidence:
         )
         assert "OVERCONFIDENT" in result
 
+    @pytest.mark.asyncio
     async def test_high_with_assumed_is_overconfident(
         self, toolset: CredenceTool
     ) -> None:
@@ -120,6 +124,7 @@ class TestHighConfidence:
         )
         assert "OVERCONFIDENT" in result
 
+    @pytest.mark.asyncio
     async def test_high_with_behavior_observed_is_overconfident(
         self, toolset: CredenceTool
     ) -> None:
@@ -130,6 +135,7 @@ class TestHighConfidence:
         )
         assert "OVERCONFIDENT" in result
 
+    @pytest.mark.asyncio
     async def test_high_with_code_pattern_is_overconfident(
         self, toolset: CredenceTool
     ) -> None:
@@ -142,6 +148,7 @@ class TestHighConfidence:
 
 
 class TestMediumConfidence:
+    @pytest.mark.asyncio
     async def test_medium_with_weak_evidence(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
             claim="possible IDOR on /api/orders/{id}",
@@ -151,6 +158,7 @@ class TestMediumConfidence:
         assert "UNCONFIRMED LEAD" in result
         assert "report" not in result.lower() or "do not" in result.lower()
 
+    @pytest.mark.asyncio
     async def test_medium_with_behavior_observed(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
             claim="different response length for admin vs user",
@@ -159,6 +167,7 @@ class TestMediumConfidence:
         )
         assert "UNCONFIRMED LEAD" in result
 
+    @pytest.mark.asyncio
     async def test_medium_with_strong_evidence_suggests_upgrade(
         self, toolset: CredenceTool
     ) -> None:
@@ -169,6 +178,7 @@ class TestMediumConfidence:
         )
         assert "UPGRADE" in result
 
+    @pytest.mark.asyncio
     async def test_medium_with_response_verified_suggests_upgrade(
         self, toolset: CredenceTool
     ) -> None:
@@ -181,6 +191,7 @@ class TestMediumConfidence:
 
 
 class TestLowConfidence:
+    @pytest.mark.asyncio
     async def test_low_confidence(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
             claim="might have command injection somewhere",
@@ -190,6 +201,7 @@ class TestLowConfidence:
         assert "INSUFFICIENT" in result
         assert "gadget" in result.lower()
 
+    @pytest.mark.asyncio
     async def test_uncertain_confidence(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
             claim="not sure what this endpoint does",
@@ -198,6 +210,7 @@ class TestLowConfidence:
         )
         assert "INSUFFICIENT" in result
 
+    @pytest.mark.asyncio
     async def test_low_with_strong_evidence_still_insufficient(
         self, toolset: CredenceTool
     ) -> None:
@@ -211,6 +224,7 @@ class TestLowConfidence:
 
 
 class TestAgentString:
+    @pytest.mark.asyncio
     async def test_agent_string_in_output(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
             claim="XSS confirmed",
@@ -221,6 +235,7 @@ class TestAgentString:
         assert result.startswith("[agent-opus] ")
         assert "CONFIRMED" in result
 
+    @pytest.mark.asyncio
     async def test_different_agent_strings(self, toolset: CredenceTool) -> None:
         for agent in ("dn-agent-kimi", "agent-codex", "agent-opus"):
             result = await toolset.assess_confidence(
@@ -231,6 +246,7 @@ class TestAgentString:
             )
             assert result.startswith(f"[{agent}] ")
 
+    @pytest.mark.asyncio
     async def test_default_agent_string(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
             claim="test claim",
@@ -239,6 +255,7 @@ class TestAgentString:
         )
         assert result.startswith("[unknown] ")
 
+    @pytest.mark.asyncio
     async def test_agent_string_in_schema(self, toolset: CredenceTool) -> None:
         tool = toolset.get_tools()[0]
         props = tool.parameters_schema.get("properties", {})
@@ -246,6 +263,7 @@ class TestAgentString:
 
 
 class TestTraceId:
+    @pytest.mark.asyncio
     async def test_trace_id_is_generated_for_each_assessment(
         self, toolset: CredenceTool
     ) -> None:
@@ -264,6 +282,7 @@ class TestTraceId:
 
 
 class TestCvssScore:
+    @pytest.mark.asyncio
     async def test_cvss_tag_in_output(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
             claim="IDOR on /api/users/{id}",
@@ -274,37 +293,52 @@ class TestCvssScore:
         assert "[cvss:7.5]" in result
         assert "CONFIRMED" in result
 
+    @pytest.mark.asyncio
     async def test_no_cvss_tag_when_omitted(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
-            claim="test", confidence="high", evidence_basis="poc_confirmed",
+            claim="test",
+            confidence="high",
+            evidence_basis="poc_confirmed",
         )
         assert "[cvss:" not in result
 
+    @pytest.mark.asyncio
     async def test_low_confidence_high_cvss_warns(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
-            claim="maybe RCE", confidence="low", evidence_basis="assumed",
+            claim="maybe RCE",
+            confidence="low",
+            evidence_basis="assumed",
             cvss_score=9.8,
         )
         assert "CVSS WARNING" in result
         assert "inflated" in result
 
-    async def test_high_confidence_critical_cvss_warns(self, toolset: CredenceTool) -> None:
+    @pytest.mark.asyncio
+    async def test_high_confidence_critical_cvss_warns(
+        self, toolset: CredenceTool
+    ) -> None:
         result = await toolset.assess_confidence(
-            claim="full RCE", confidence="high", evidence_basis="poc_confirmed",
+            claim="full RCE",
+            confidence="high",
+            evidence_basis="poc_confirmed",
             cvss_score=9.8,
         )
         assert "CVSS WARNING" in result
         assert "Critical" in result
 
+    @pytest.mark.asyncio
     async def test_matching_cvss_no_warning(self, toolset: CredenceTool) -> None:
         result = await toolset.assess_confidence(
-            claim="info disclosure", confidence="high", evidence_basis="poc_confirmed",
+            claim="info disclosure",
+            confidence="high",
+            evidence_basis="poc_confirmed",
             cvss_score=4.3,
         )
         assert "CVSS WARNING" not in result
 
 
 class TestHandleToolCall:
+    @pytest.mark.asyncio
     async def test_via_handle_tool_call(self, toolset: CredenceTool) -> None:
         from dreadnode.agents.tools import FunctionCall, ToolCall
 
@@ -320,6 +354,7 @@ class TestHandleToolCall:
         assert stop is False
         assert "CONFIRMED" in message.content
 
+    @pytest.mark.asyncio
     async def test_overconfident_via_handle_tool_call(
         self, toolset: CredenceTool
     ) -> None:
