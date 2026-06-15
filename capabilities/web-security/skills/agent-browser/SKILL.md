@@ -273,6 +273,18 @@ agent-browser diff url https://staging.example.com https://prod.example.com --sc
 
 `diff snapshot` output uses `+` for additions and `-` for removals, similar to git diff. `diff screenshot` produces a diff image with changed pixels highlighted in red, plus a mismatch percentage.
 
+## XSS Execution Verification
+
+When the web-security capability exposes `agent_browser_xss_verifier_*` MCP tools, use them for XSS sink confirmation instead of relying on reflection or challenge-status APIs alone:
+
+1. Navigate to the page where the payload will render.
+2. Call `agent_browser_xss_verifier_start` in that browser session.
+3. Adapt one returned token payload to the suspected sink.
+4. Trigger rendering or required user interaction.
+5. Call `agent_browser_xss_verifier_check`.
+
+Treat `CONFIRMED` as browser-side proof of controlled JavaScript execution. Treat `PARTIAL` as injection evidence only: a script node containing the token appeared, but no proof channel returned the token. Re-arm after navigation because the verifier is page-context scoped.
+
 ## Timeouts and Slow Pages
 
 Default timeout is 25s (override with `AGENT_BROWSER_DEFAULT_TIMEOUT` in ms). For slow pages, use explicit waits after `open`:
