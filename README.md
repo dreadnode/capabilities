@@ -48,13 +48,15 @@ Every directory under `capabilities/` is a shipped, working example. Read one al
 
 ## Security scanning
 
-Every skill in this repo is scanned with [cisco-ai-defense/skill-scanner](https://github.com/cisco-ai-defense/skill-scanner) for prompt injection, data exfiltration, tool-chaining abuse, and supply chain risk. CI fails on HIGH+ findings and uploads SARIF reports to GitHub Code Scanning. The repo policy in [`scan-policy.yaml`](scan-policy.yaml) tunes the scanner for security-focused content.
+Every skill in this repo is scanned with [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) for prompt injection, data exfiltration, tool-chaining abuse, and supply chain risk. CI runs SkillSpector in static mode (`--no-llm`) for deterministic scans without provider API keys, uploads SARIF reports to GitHub Code Scanning, and reports findings. Because security-focused capabilities intentionally contain offensive security content, the workflow currently reports findings without blocking merges while thresholds are tuned.
 
 ```bash
 just security-scan                    # scan all capabilities
 just security-scan web-security       # scan one capability
-just security-scan behavioral="true"  # deep dataflow analysis
+just security-scan behavioral="true"  # ignored by SkillSpector; kept for compatibility
 ```
+
+> **Note:** SkillSpector is not yet published to PyPI. The scanner is installed from `git+https://github.com/NVIDIA/SkillSpector` on each run; uv caches the build aggressively.
 
 ## Contributing
 
