@@ -49,7 +49,29 @@ WORKFLOWS_DIR = (
     Path(os.environ.get("AIRT_WORKFLOWS_DIR")) if os.environ.get("AIRT_WORKFLOWS_DIR") else _get_workspace_path()
 )
 METADATA_FILE = WORKFLOWS_DIR / ".workflow_metadata.json"
-METADATA_FILE = WORKFLOWS_DIR / ".workflow_metadata.json"
+
+
+def _unique_workflow_path(filename: str) -> tuple[Path, str]:
+    """Return a collision-free path under WORKFLOWS_DIR.
+
+    Never overwrite an existing workflow file — the user may have hand-patched
+    it after generation (ENG-6813). If ``filename`` already exists, save as a
+    new versioned file (``name_v2.py``, ``name_v3.py``, ...) and return the
+    actual filename used so callers can report it.
+    """
+    WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
+    candidate = WORKFLOWS_DIR / filename
+    if not candidate.exists():
+        return candidate, filename
+
+    stem, suffix = candidate.stem, candidate.suffix
+    version = 2
+    while True:
+        new_name = "{}_v{}{}".format(stem, version, suffix)
+        new_path = WORKFLOWS_DIR / new_name
+        if not new_path.exists():
+            return new_path, new_name
+        version += 1
 
 
 def _resolve_platform_env() -> dict[str, str]:
@@ -3882,8 +3904,7 @@ def generate_category_attack(params: dict) -> dict:
         }
 
     # Save the script
-    WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
-    filepath = WORKFLOWS_DIR / filename
+    filepath, filename = _unique_workflow_path(filename)
     filepath.write_text(script)
 
     # Update metadata
@@ -4051,8 +4072,7 @@ def generate_attack(params: dict) -> dict:
         }
 
     # Save the script
-    WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
-    filepath = WORKFLOWS_DIR / filename
+    filepath, filename = _unique_workflow_path(filename)
     filepath.write_text(script)
 
     # Update metadata
@@ -4486,8 +4506,7 @@ def generate_agentic_attack(params: dict) -> dict:
         }
 
     # Save the script
-    WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
-    filepath = WORKFLOWS_DIR / filename
+    filepath, filename = _unique_workflow_path(filename)
     filepath.write_text(script)
 
     # Update metadata
@@ -4943,8 +4962,7 @@ def generate_image_attack(params: dict) -> dict:
         }
 
     # Save
-    WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
-    filepath = WORKFLOWS_DIR / filename
+    filepath, filename = _unique_workflow_path(filename)
     filepath.write_text(script)
 
     # Update metadata
@@ -5257,8 +5275,7 @@ except Exception:
         }
 
     # Save
-    WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
-    filepath = WORKFLOWS_DIR / filename
+    filepath, filename = _unique_workflow_path(filename)
     filepath.write_text(script)
 
     # Update metadata

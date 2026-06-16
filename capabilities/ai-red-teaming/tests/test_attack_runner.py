@@ -451,3 +451,39 @@ class TestGeneratedScriptQuality:
         )
         assert "tap_attack(" in script
         assert "goat_attack(" in script
+
+
+class TestUniqueWorkflowPath:
+    """Collision-safe workflow saving (ENG-6813).
+
+    Regeneration must never overwrite an existing workflow file — a user may
+    have hand-patched it after generation.
+    """
+
+    def test_returns_original_when_no_collision(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        path, name = runner._unique_workflow_path("attack.py")
+        assert name == "attack.py"
+        assert path == tmp_path / "attack.py"
+
+    def test_does_not_overwrite_hand_patched_file(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        existing = tmp_path / "attack.py"
+        existing.write_text("# hand-patched, do not clobber")
+
+        path, name = runner._unique_workflow_path("attack.py")
+
+        assert name == "attack_v2.py"
+        assert path == tmp_path / "attack_v2.py"
+        # Original is left untouched.
+        assert existing.read_text() == "# hand-patched, do not clobber"
+
+    def test_increments_version_until_free(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        (tmp_path / "a.py").write_text("x")
+        (tmp_path / "a_v2.py").write_text("x")
+
+        path, name = runner._unique_workflow_path("a.py")
+
+        assert name == "a_v3.py"
+        assert path == tmp_path / "a_v3.py"
