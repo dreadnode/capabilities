@@ -9,7 +9,8 @@ description: >
   tooling, Caido proxy integration via MCP, credential management, DNS
   rebinding, AWS exploitation with Pacu, phone verification,
   vulnerability verification, IP rotation helpers (Flareprox, fireprox),
-  and archive extraction vulnerability crafting with archivealchemist.
+  archive extraction vulnerability crafting with archivealchemist,
+  and EXIF metadata manipulation via exiftool.
 
 hooks:
   - hooks/interrupted_tool_result.py
@@ -117,6 +118,8 @@ checks:
     command: 'test -f "$HOME/git/fireprox/fire.py"'
   - name: archivealchemist
     command: 'test -f "$HOME/git/archivealchemist/archive-alchemist.py"'
+  - name: exiftool
+    command: command -v exiftool
   - name: jxscout
     command: command -v jxscout-pro-v2
 
