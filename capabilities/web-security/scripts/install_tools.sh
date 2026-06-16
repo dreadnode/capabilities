@@ -96,6 +96,11 @@ elif ! command -v jxscout-pro-v2 &>/dev/null; then
   echo "WARN: jxscout-pro-v2 not found. Set JXSCOUT_BINARY_URL to install, or place binary on PATH."
 fi
 
+# -- exiftool (EXIF metadata manipulation) ---------------------------------
+if ! command -v exiftool &>/dev/null; then
+  apt-get install -y --no-install-recommends libimage-exiftool-perl
+fi
+
 # -- Node.js + agent-browser -----------------------------------------------
 if ! command -v node &>/dev/null; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
