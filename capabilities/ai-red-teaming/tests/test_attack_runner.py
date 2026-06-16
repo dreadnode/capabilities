@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -487,3 +488,62 @@ class TestUniqueWorkflowPath:
 
         assert name == "a_v3.py"
         assert path == tmp_path / "a_v3.py"
+
+
+class TestGeneratedWorkflowAssessmentMethods:
+    """Generated workflows must only call methods that exist on the SDK
+    ``Assessment`` class (ENG-6777).
+
+    Older templates called ``assessment.record_attack()``, ``analyze()``,
+    ``push_analytics()``, ``generate_report()`` and ``push_report()`` — none
+    of which exist on the current ``Assessment`` — so the TUI's primary path
+    crashed with ``AttributeError`` on a fresh install. These tests guard
+    against that class of regression.
+    """
+
+    # The five methods named in the ticket that no longer exist.
+    DEAD_METHODS = (
+        "record_attack",
+        "analyze",
+        "push_analytics",
+        "generate_report",
+        "push_report",
+    )
+
+    def test_runner_source_has_no_dead_methods(self) -> None:
+        """No generator template (any mode) emits a dead Assessment call."""
+        source = RUNNER_PATH.read_text()
+        for method in self.DEAD_METHODS:
+            assert ".{}(".format(method) not in source, (
+                "attack_runner references removed Assessment method "
+                "'{}' — generated workflows will crash (ENG-6777)".format(method)
+            )
+
+    def _generate_script(self, tmp_path, monkeypatch, params: dict) -> str:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        result = runner.generate_attack({**params, "generate_only": True})
+        assert "error" not in result, result
+        return Path(result["filepath"]).read_text()
+
+    def test_single_attack_calls_exist_on_assessment(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Every ``assessment.<m>()`` in the template is a real Assessment attr.
+
+        Checks dynamically against the installed SDK so the test also fails if
+        the SDK renames/removes a method the template still relies on.
+        """
+        from dreadnode.airt.assessment import Assessment
+
+        script = self._generate_script(
+            tmp_path,
+            monkeypatch,
+            {"attack_type": "tap", "goal": "test", "target_model": "groq"},
+        )
+        called = set(re.findall(r"\bassessment\.(\w+)\s*\(", script))
+        assert called, "expected assessment.<method>() calls in generated script"
+        missing = sorted(m for m in called if not hasattr(Assessment, m))
+        assert not missing, (
+            "generated workflow calls Assessment methods that do not exist: "
+            "{}".format(missing)
+        )
