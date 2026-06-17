@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import types
 from pathlib import Path
@@ -54,18 +55,25 @@ def test_expected_tools_registered() -> None:
         "agent_browser_screenshot",
         "agent_browser_set_viewport",
         "agent_browser_close",
+        "agent_browser_start_js_execution_proof",
+        "agent_browser_check_js_execution_proof",
+        "agent_browser_reset_js_execution_proof",
     }
     assert set(MODULE.mcp._tools) == expected
 
 
-def test_resolve_command_prefers_configured_command(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_command_prefers_configured_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("AGENT_BROWSER_COMMAND", "npx --yes agent-browser")
 
     with patch.object(MODULE.shutil, "which", return_value="/usr/bin/npx"):
         assert MODULE._resolve_command() == ["npx", "--yes", "agent-browser"]
 
 
-def test_resolve_command_prefers_agent_browser_binary(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_command_prefers_agent_browser_binary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("AGENT_BROWSER_COMMAND", raising=False)
 
     def fake_which(name: str) -> str | None:
@@ -85,7 +93,9 @@ def test_resolve_command_falls_back_to_npx(monkeypatch: pytest.MonkeyPatch) -> N
         assert MODULE._resolve_command() == ["npx", "--yes", "agent-browser"]
 
 
-def test_resolve_command_returns_none_when_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_command_returns_none_when_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("AGENT_BROWSER_COMMAND", raising=False)
     with patch.object(MODULE.shutil, "which", return_value=None):
         assert MODULE._resolve_command() is None
@@ -136,3 +146,170 @@ async def test_open_passes_argv_without_shell() -> None:
 async def test_run_empty_args_errors() -> None:
     result = await MODULE.agent_browser_run([])
     assert result == "Error: args must include an agent-browser subcommand."
+
+
+@pytest.mark.asyncio
+async def test_js_execution_proof_start_returns_token_payloads() -> None:
+    MODULE._JS_PROOF_SESSIONS.clear()
+    with (
+        patch.object(MODULE.secrets, "token_urlsafe", return_value="proof-token"),
+        patch.object(
+            MODULE,
+            "_run_agent_browser",
+            return_value=json.dumps(
+                {
+                    "status": "armed",
+                    "kind": "browser_js_execution",
+                    "token": "proof-token",
+                    "url": "https://target.test/search",
+                }
+            ),
+        ) as run_browser,
+    ):
+        result = await MODULE.agent_browser_start_js_execution_proof(
+            proof_id="case-1",
+            global_args=["--session-name", "case-1"],
+        )
+
+    assert result["kind"] == "browser_js_execution"
+    assert result["status"] == "armed"
+    assert result["token"] == "proof-token"
+    assert result["payloads"]["script_tag"].startswith("<script>")
+    assert "proof-token" in result["payloads"]["event_handler"]
+    assert "__dreadnode_js_proof" in result["payloads"]["script_tag"]
+    assert MODULE._JS_PROOF_SESSIONS["case-1"]["token"] == "proof-token"
+    run_browser.assert_called_once()
+    assert run_browser.call_args.kwargs["global_args"] == ["--session-name", "case-1"]
+    assert run_browser.call_args.args[0][0] == "eval"
+
+
+@pytest.mark.asyncio
+async def test_js_execution_proof_check_confirms_proof_event() -> None:
+    MODULE._JS_PROOF_SESSIONS.clear()
+    MODULE._JS_PROOF_SESSIONS["case-1"] = {
+        "token": "proof-token",
+        "global_args": json.dumps(["--session-name", "case-1"]),
+    }
+    state = {
+        "armed": True,
+        "token": "proof-token",
+        "url": "https://target.test/search?q=xss",
+        "events": [
+            {
+                "channel": "proof-function",
+                "value": "proof-token",
+                "matched": True,
+                "url": "https://target.test/search?q=xss",
+            }
+        ],
+    }
+    with patch.object(MODULE, "_run_agent_browser", return_value=json.dumps(state)):
+        result = await MODULE.agent_browser_check_js_execution_proof(proof_id="case-1")
+
+    assert result["kind"] == "browser_js_execution"
+    assert result["verified"] is True
+    assert result["verdict"] == "CONFIRMED"
+    assert result["confidence"] == "high"
+    assert result["evidence"][0]["channel"] == "proof-function"
+
+
+@pytest.mark.asyncio
+async def test_js_execution_proof_check_accepts_nested_json_string() -> None:
+    MODULE._JS_PROOF_SESSIONS.clear()
+    MODULE._JS_PROOF_SESSIONS["case-1"] = {
+        "token": "proof-token",
+        "global_args": "[]",
+    }
+    state = {
+        "armed": True,
+        "token": "proof-token",
+        "url": "https://target.test/search?q=xss",
+        "events": [
+            {
+                "channel": "alert",
+                "value": "__DN_JS_PROOF__:proof-token",
+                "matched": True,
+            }
+        ],
+    }
+    with patch.object(
+        MODULE,
+        "_run_agent_browser",
+        return_value=json.dumps(json.dumps(state)),
+    ):
+        result = await MODULE.agent_browser_check_js_execution_proof(proof_id="case-1")
+
+    assert result["verified"] is True
+    assert result["verdict"] == "CONFIRMED"
+
+
+@pytest.mark.asyncio
+async def test_js_execution_proof_check_reports_lost_canary() -> None:
+    MODULE._JS_PROOF_SESSIONS.clear()
+    MODULE._JS_PROOF_SESSIONS["case-1"] = {
+        "token": "proof-token",
+        "global_args": "[]",
+    }
+    with patch.object(
+        MODULE,
+        "_run_agent_browser",
+        return_value=json.dumps({"armed": False, "url": "https://target.test/next"}),
+    ):
+        result = await MODULE.agent_browser_check_js_execution_proof(proof_id="case-1")
+
+    assert result["verified"] is False
+    assert result["verdict"] == "CANARY_NOT_OBSERVED"
+    assert "Trigger the payload" in result["reason"]
+
+
+@pytest.mark.asyncio
+async def test_js_execution_proof_check_confirms_storage_marker_without_armed_hook() -> (
+    None
+):
+    MODULE._JS_PROOF_SESSIONS.clear()
+    MODULE._JS_PROOF_SESSIONS["case-1"] = {
+        "token": "proof-token",
+        "global_args": "[]",
+    }
+    state = {
+        "kind": "browser_js_execution",
+        "armed": False,
+        "url": "https://target.test/search?q=xss",
+        "storage": {"localStorage": "proof-token", "sessionStorage": ""},
+    }
+    with patch.object(MODULE, "_run_agent_browser", return_value=json.dumps(state)):
+        result = await MODULE.agent_browser_check_js_execution_proof(proof_id="case-1")
+
+    assert result["verified"] is True
+    assert result["verdict"] == "CONFIRMED"
+    assert result["evidence"][0]["channel"] == "localStorage"
+
+
+@pytest.mark.asyncio
+async def test_js_execution_proof_check_requires_token() -> None:
+    MODULE._JS_PROOF_SESSIONS.clear()
+    with pytest.raises(RuntimeError, match="No proof token"):
+        await MODULE.agent_browser_check_js_execution_proof(proof_id="missing")
+
+
+@pytest.mark.asyncio
+async def test_js_execution_proof_reset_clears_session() -> None:
+    MODULE._JS_PROOF_SESSIONS.clear()
+    MODULE._JS_PROOF_SESSIONS["case-1"] = {
+        "token": "proof-token",
+        "global_args": "[]",
+    }
+    with patch.object(
+        MODULE,
+        "_run_agent_browser",
+        return_value=json.dumps({"status": "reset", "url": "https://target.test/"}),
+    ):
+        result = await MODULE.agent_browser_reset_js_execution_proof(proof_id="case-1")
+
+    assert result == {
+        "kind": "browser_js_execution",
+        "status": "reset",
+        "proof_id": "case-1",
+        "url": "https://target.test/",
+    }
+    assert "case-1" not in MODULE._JS_PROOF_SESSIONS

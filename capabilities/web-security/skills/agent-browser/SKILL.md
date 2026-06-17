@@ -13,6 +13,8 @@ metadata:
 
 The CLI uses Chrome/Chromium via CDP directly. Install via `npm i -g agent-browser`, `brew install agent-browser`, or `cargo install agent-browser`. Run `agent-browser install` to download Chrome.
 
+If `agent-browser` is not on `PATH`, first try `export PATH="$PATH:/home/user/workspace/node_modules/.bin"` and rerun the command. If it is still unavailable and `npx` exists, use `npx --yes agent-browser <command> ...`. Do not spend repeated turns searching for the binary.
+
 ## Core Workflow
 
 Every browser automation follows this pattern:

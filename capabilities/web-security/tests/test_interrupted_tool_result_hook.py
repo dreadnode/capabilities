@@ -128,8 +128,11 @@ async def test_manifest_wires_hook_file() -> None:
     manifest_path = Path(__file__).resolve().parents[1] / "capability.yaml"
     manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
 
-    assert manifest["version"] == "1.1.5"
-    assert manifest["hooks"] == ["hooks/interrupted_tool_result.py"]
+    assert manifest["version"] == "1.1.12"
+    assert manifest["hooks"] == [
+        "hooks/interrupted_tool_result.py",
+        "hooks/evidence_guard.py",
+    ]
 
 
 @pytest.mark.asyncio
