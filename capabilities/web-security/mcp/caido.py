@@ -34,7 +34,9 @@ from fastmcp import FastMCP
 DEFAULT_CAIDO_URL = "http://localhost:8080"
 DEFAULT_TOKEN_PATH = Path.home() / ".caido-mcp" / "token.json"
 MAX_OUTPUT_CHARS = 50_000
-CONNECT_TIMEOUT = 10
+CONNECT_TIMEOUT = 30
+_SAFE_GET_RETRIES = 1
+_SAFE_GET_RETRY_DELAY = 2.0  # seconds
 
 
 class _CaidoClient:
@@ -77,11 +79,24 @@ class _CaidoClient:
         return self._client
 
     async def safe_get(self) -> tuple[Client | None, str | None]:
-        try:
-            return await self.get(), None
-        except Exception as exc:
-            self._client = None
-            return None, f"Error: {exc}"
+        """Get the client, retrying once on transient failures.
+
+        The lazy ``get()`` can fail transiently when Caido is under load
+        or when the token-refresh ``connect()`` times out.  A single
+        retry with a short delay absorbs the transient so the model
+        doesn't conclude the proxy is permanently unavailable.
+        """
+        for attempt in range(_SAFE_GET_RETRIES + 1):
+            try:
+                return await self.get(), None
+            except Exception as exc:
+                self._client = None
+                if attempt < _SAFE_GET_RETRIES:
+                    await asyncio.sleep(_SAFE_GET_RETRY_DELAY)
+                    continue
+                return None, f"Error: {exc}"
+        # Unreachable — satisfies the type checker.
+        return None, "Error: exhausted retries"  # pragma: no cover
 
 
 _caido = _CaidoClient()
