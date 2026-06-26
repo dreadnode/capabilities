@@ -23,8 +23,12 @@
 #   - surf                (SSRF target identification)
 #   - pacu                (AWS exploitation framework)
 #
-# Tools NOT included (require external instances reachable by network):
-#   - Caido   — set CAIDO_URL to a running instance
+# Tools with bundled SDK/MCP integration (require a running instance
+# reachable by network — the client library and MCP server are included):
+#   - Caido   — caido-sdk-client + MCP server bundled; set CAIDO_URL
+#               to a running Caido instance
+#
+# Tools NOT included (require external setup):
 #   - Burp    — set burp MCP url to a running instance
 #   - jxscout — commercial binary, requires license activation
 
