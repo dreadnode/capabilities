@@ -2820,7 +2820,6 @@ def _build_imports(attacks: list[dict], transforms: list[dict], has_scorers: boo
         "from dreadnode import task",
         "from dreadnode.generators.generator import get_generator, GenerateParams",
         "from dreadnode.generators.message import Message",
-        "from dreadnode.generators.proxy import resolve_dn_model_to_generator",
     ]
 
     attack_funcs = set()
@@ -3006,18 +3005,39 @@ def _build_proxy_routing() -> str:
 #             untouched so litellm resolves it with the user's own local provider
 #             API keys (GROQ_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, ...).
 #
-# resolve_dn_model_to_generator() returns a proxy-configured Generator for dn/*
-# ids and the original string for everything else. The MODEL string constants are
-# preserved for the platform UI labels; the *_GEN values below drive inference.
+# _resolve_dn_model() returns a proxy-configured Generator for dn/* ids and the
+# original string for everything else. It is inlined here (rather than imported
+# from dreadnode.generators.proxy) so the workflow runs under ANY SDK build —
+# including installed CLI tools whose proxy module predates that helper. The MODEL
+# string constants are preserved for the platform UI labels; the *_GEN values below
+# drive inference.
 _DIRECT_PROVIDERS = ("groq/", "anthropic/", "together_ai/", "bedrock/", "azure/",
                      "vertex_ai/", "cohere/", "replicate/", "mistral/", "ollama/",
                      "fireworks_ai/", "deepseek/", "huggingface/", "openai/")
 
-TARGET_MODEL_GEN = resolve_dn_model_to_generator(TARGET_MODEL)
-ATTACKER_MODEL_GEN = resolve_dn_model_to_generator(ATTACKER_MODEL)
-JUDGE_MODEL_GEN = resolve_dn_model_to_generator(JUDGE_MODEL)
+def _resolve_dn_model(model_name):
+    # dn/* -> LiteLLM-proxy Generator via DREADNODE_LLM_*; else the id unchanged.
+    if not isinstance(model_name, str) or not model_name.startswith("dn/"):
+        return model_name
+    _api_base = (os.environ.get("DREADNODE_LLM_BASE", "") or "").strip() or None
+    _api_key = (os.environ.get("DREADNODE_LLM_API_KEY", "") or "").strip() or None
+    if not _api_base or not _api_key:
+        raise RuntimeError(
+            "Missing proxy configuration — set DREADNODE_LLM_BASE and "
+            "DREADNODE_LLM_API_KEY to use " + model_name
+        )
+    _gen = get_generator(
+        model_name,
+        params=GenerateParams(api_base=_api_base, extra={"custom_llm_provider": "litellm_proxy"}),
+    )
+    _gen.api_key = _api_key
+    return _gen
+
+TARGET_MODEL_GEN = _resolve_dn_model(TARGET_MODEL)
+ATTACKER_MODEL_GEN = _resolve_dn_model(ATTACKER_MODEL)
+JUDGE_MODEL_GEN = _resolve_dn_model(JUDGE_MODEL)
 try:
-    TRANSFORM_MODEL_GEN = resolve_dn_model_to_generator(TRANSFORM_MODEL)
+    TRANSFORM_MODEL_GEN = _resolve_dn_model(TRANSFORM_MODEL)
 except NameError:
     TRANSFORM_MODEL_GEN = None
 
