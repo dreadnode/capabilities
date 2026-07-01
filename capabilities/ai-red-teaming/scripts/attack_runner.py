@@ -795,7 +795,6 @@ ATTACK_ALIASES["tmap"] = "tmap_trajectory_attack"
 ATTACK_ALIASES["aprt"] = "aprt_progressive_attack"
 
 
-
 _TRANSFORM_DEFS: dict[str, dict] = {
     # encoding
     "base64_encode": {"module": "dreadnode.transforms.encoding", "name": "base64_encode", "code": "base64_encode()"},
@@ -1026,21 +1025,21 @@ _TRANSFORM_DEFS: dict[str, dict] = {
     "adapt_language": {
         "module": "dreadnode.transforms.language",
         "name": "adapt_language",
-        "code": 'adapt_language("Spanish", adapter_model=TRANSFORM_MODEL)',
+        "code": 'adapt_language("Spanish", adapter_model=TRANSFORM_MODEL_GEN)',
         "llm_powered": True,
         "parameterized": True,
     },
     "code_switch": {
         "module": "dreadnode.transforms.language",
         "name": "code_switch",
-        "code": 'code_switch(["English", "Spanish"], adapter_model=TRANSFORM_MODEL, switch_ratio=0.4)',
+        "code": 'code_switch(["English", "Spanish"], adapter_model=TRANSFORM_MODEL_GEN, switch_ratio=0.4)',
         "llm_powered": True,
         "parameterized": True,
     },
     "dialectal_variation": {
         "module": "dreadnode.transforms.language",
         "name": "dialectal_variation",
-        "code": 'dialectal_variation("AAVE", adapter_model=TRANSFORM_MODEL, intensity="moderate")',
+        "code": 'dialectal_variation("AAVE", adapter_model=TRANSFORM_MODEL_GEN, intensity="moderate")',
         "llm_powered": True,
         "parameterized": True,
     },
@@ -2721,7 +2720,7 @@ def _quote_arg_if_needed(arg: str) -> str:
     # Python identifier (e.g. TRANSFORM_MODEL, True, False, None)
     if re.match(r"^[A-Z_][A-Z_0-9]*$", arg) or arg in ("True", "False", "None"):
         return arg
-    # Keyword argument (e.g. adapter_model=TRANSFORM_MODEL)
+    # Keyword argument (e.g. adapter_model=TRANSFORM_MODEL_GEN)
     if "=" in arg:
         return arg
     # List literal
@@ -2751,7 +2750,7 @@ def _resolve_transform(raw: str) -> dict:
         quoted_args = ", ".join(_quote_arg_if_needed(a) for a in _split_args(args_part))
         code = "{}({})".format(defn["name"], quoted_args)
         if defn.get("llm_powered") and "adapter_model" not in args_part:
-            code = "{}({}, adapter_model=TRANSFORM_MODEL)".format(defn["name"], quoted_args)
+            code = "{}({}, adapter_model=TRANSFORM_MODEL_GEN)".format(defn["name"], quoted_args)
         return {**defn, "code": code, "resolved_name": canonical}
 
     key = raw.lower().replace("-", "_").replace(" ", "_")
@@ -2995,69 +2994,71 @@ def _build_proxy_routing() -> str:
     a provider prefix. Models like groq/*, anthropic/*, together_ai/*, etc.
     are handled natively by litellm SDK using provider API keys from env.
     """
-    return '''
-# Route LLM calls through the LiteLLM proxy when appropriate.
-# Models with explicit provider prefixes (groq/, anthropic/, together_ai/, etc.)
-# are routed directly by litellm SDK using provider API keys from the sandbox env.
-# Only models without a provider prefix get routed through the proxy.
+    return """
+# Model routing — supports Dreadnode-proxied and bring-your-own-key models
+# side by side, for the target, attacker, judge, and transform models alike:
+#
+#   * dn/*  -> routed through the platform LiteLLM proxy using the
+#             DREADNODE_LLM_BASE / DREADNODE_LLM_API_KEY that the platform injects
+#             (both the cloud sandbox and the local TUI/CLI runtime set these).
+#   * everything else (groq/*, anthropic/*, openai/*, together_ai/*, ...) is left
+#             untouched so litellm resolves it with the user's own local provider
+#             API keys (GROQ_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, ...).
+#
+# _resolve_dn_model() returns a proxy-configured Generator for dn/* ids and the
+# original string for everything else. It is inlined here (rather than imported
+# from dreadnode.generators.proxy) so the workflow runs under ANY SDK build —
+# including installed CLI tools whose proxy module predates that helper. The MODEL
+# string constants are preserved for the platform UI labels; the *_GEN values below
+# drive inference.
 _DIRECT_PROVIDERS = ("groq/", "anthropic/", "together_ai/", "bedrock/", "azure/",
                      "vertex_ai/", "cohere/", "replicate/", "mistral/", "ollama/",
-                     "fireworks_ai/", "deepseek/", "huggingface/")
-_proxy_key = os.environ.get("OPENAI_API_KEY", "")
-_proxy_base = os.environ.get("OPENAI_BASE_URL", "")
+                     "fireworks_ai/", "deepseek/", "huggingface/", "openai/")
 
-def _maybe_proxy(model_name: str) -> str:
-    """Prefix with openai/ only if model needs proxy routing."""
-    if any(model_name.startswith(p) for p in _DIRECT_PROVIDERS):
-        return model_name  # Direct provider — litellm SDK routes natively
-    if model_name.startswith("openai/"):
-        return model_name  # Already prefixed
-    if _proxy_key and _proxy_base:
-        return f"openai/{model_name}"  # Route through proxy
-    return model_name
+def _resolve_dn_model(model_name):
+    # dn/* -> LiteLLM-proxy Generator via DREADNODE_LLM_*; else the id unchanged.
+    if not isinstance(model_name, str) or not model_name.startswith("dn/"):
+        return model_name
+    _api_base = (os.environ.get("DREADNODE_LLM_BASE", "") or "").strip() or None
+    _api_key = (os.environ.get("DREADNODE_LLM_API_KEY", "") or "").strip() or None
+    if not _api_base or not _api_key:
+        raise RuntimeError(
+            "Missing proxy configuration — set DREADNODE_LLM_BASE and "
+            "DREADNODE_LLM_API_KEY to use " + model_name
+        )
+    _gen = get_generator(
+        model_name,
+        params=GenerateParams(api_base=_api_base, extra={"custom_llm_provider": "litellm_proxy"}),
+    )
+    _gen.api_key = _api_key
+    return _gen
 
-_orig_target = TARGET_MODEL
-_orig_attacker = ATTACKER_MODEL
-_orig_judge = JUDGE_MODEL
-TARGET_MODEL = _maybe_proxy(TARGET_MODEL)
-ATTACKER_MODEL = _maybe_proxy(ATTACKER_MODEL)
-JUDGE_MODEL = _maybe_proxy(JUDGE_MODEL)
-# Also proxy TRANSFORM_MODEL if it exists (used by LLM-powered transforms)
+TARGET_MODEL_GEN = _resolve_dn_model(TARGET_MODEL)
+ATTACKER_MODEL_GEN = _resolve_dn_model(ATTACKER_MODEL)
+JUDGE_MODEL_GEN = _resolve_dn_model(JUDGE_MODEL)
 try:
-    _orig_transform = TRANSFORM_MODEL
-    TRANSFORM_MODEL = _maybe_proxy(TRANSFORM_MODEL)
+    TRANSFORM_MODEL_GEN = _resolve_dn_model(TRANSFORM_MODEL)
 except NameError:
-    _orig_transform = None
+    TRANSFORM_MODEL_GEN = None
 
-_any_proxied = (TARGET_MODEL != _orig_target or ATTACKER_MODEL != _orig_attacker
-                or JUDGE_MODEL != _orig_judge
-                or (_orig_transform is not None and TRANSFORM_MODEL != _orig_transform))
-if _any_proxied:
-    print(f"  [proxy] Routing via {_proxy_base}")
-    if TARGET_MODEL != _orig_target:
-        print(f"  [proxy] target:   {_orig_target} -> {TARGET_MODEL}")
-    if ATTACKER_MODEL != _orig_attacker:
-        print(f"  [proxy] attacker: {_orig_attacker} -> {ATTACKER_MODEL}")
-    if JUDGE_MODEL != _orig_judge:
-        print(f"  [proxy] judge:    {_orig_judge} -> {JUDGE_MODEL}")
-    if _orig_transform is not None and TRANSFORM_MODEL != _orig_transform:
-        print(f"  [proxy] transform: {_orig_transform} -> {TRANSFORM_MODEL}")
-    sys.stdout.flush()
+# The target task needs a concrete Generator; resolve_* returns a plain string for
+# non-dn/ ids, so build one from it in that case.
+TARGET_GENERATOR = (
+    TARGET_MODEL_GEN if not isinstance(TARGET_MODEL_GEN, str) else get_generator(TARGET_MODEL_GEN)
+)
 
-# Warn if direct-provider models are missing their API key
-_models_to_check = [("TARGET_MODEL", TARGET_MODEL, "target"),
-                    ("ATTACKER_MODEL", ATTACKER_MODEL, "attacker"),
-                    ("JUDGE_MODEL", JUDGE_MODEL, "judge")]
-if _orig_transform is not None:
-    _models_to_check.append(("TRANSFORM_MODEL", TRANSFORM_MODEL, "transform"))
-for _, _val, _label in _models_to_check:
-    if any(_val.startswith(p) for p in _DIRECT_PROVIDERS):
-        _provider = _val.split("/")[0].upper().replace("_AI", "")
-        _key_var = f"{_provider}_API_KEY"
+# Report routing, and warn if a direct-provider model is missing its local key.
+for _val, _label in (
+    (TARGET_MODEL, "target"), (ATTACKER_MODEL, "attacker"), (JUDGE_MODEL, "judge")
+):
+    if _val.startswith("dn/"):
+        print(f"  [proxy] {_label}: {_val} -> Dreadnode LiteLLM proxy")
+    elif any(_val.startswith(p) for p in _DIRECT_PROVIDERS):
+        _key_var = _val.split("/")[0].upper().replace("_AI", "") + "_API_KEY"
         if not os.environ.get(_key_var):
             print(f"  [warn] {_label} uses {_val} but {_key_var} not found in env")
 sys.stdout.flush()
-'''
+"""
 
 
 def _build_assessment_kwargs(config: dict, assessment_name: str, filename: str) -> str:
@@ -3129,7 +3130,7 @@ def _build_target() -> str:
     return """\
 @task
 async def target(prompt: str) -> str:
-    generator = get_generator(TARGET_MODEL)
+    generator = TARGET_GENERATOR
     messages = [Message(role="user", content=prompt)]
     last_error = None
     for attempt in range(3):
@@ -3158,8 +3159,8 @@ def _build_attack_params(
     """Build the parameter string for an attack function call."""
     params = ["goal={}".format(goal_expr), "target=target"]
     if atk["has_attacker"]:
-        params.append("attacker_model=ATTACKER_MODEL")
-    params.append("evaluator_model=JUDGE_MODEL")
+        params.append("attacker_model=ATTACKER_MODEL_GEN")
+    params.append("evaluator_model=JUDGE_MODEL_GEN")
     params.append("n_iterations=MAX_ITERATIONS")
     for k, v in atk.get("extra_defaults", {}).items():
         params.append("{}={}".format(k, v))
@@ -3374,8 +3375,8 @@ def _generate_transform_study(config: dict) -> str:
     # Build attack params for the loop (transforms come from loop variable)
     params = ["goal=GOAL", "target=target"]
     if atk["has_attacker"]:
-        params.append("attacker_model=ATTACKER_MODEL")
-    params.append("evaluator_model=JUDGE_MODEL")
+        params.append("attacker_model=ATTACKER_MODEL_GEN")
+    params.append("evaluator_model=JUDGE_MODEL_GEN")
     params.append("n_iterations=MAX_ITERATIONS")
     for k, v in atk.get("extra_defaults", {}).items():
         params.append("{}={}".format(k, v))
@@ -3732,8 +3733,8 @@ def _generate_category_attack(config: dict) -> str:
     # Build attack params for the template (goal comes from loop)
     params = ["goal=goal_text", "target=target"]
     if attacks[0]["has_attacker"]:
-        params.append("attacker_model=ATTACKER_MODEL")
-    params.append("evaluator_model=JUDGE_MODEL")
+        params.append("attacker_model=ATTACKER_MODEL_GEN")
+    params.append("evaluator_model=JUDGE_MODEL_GEN")
     params.append("n_iterations=MAX_ITERATIONS")
     for k, v in attacks[0].get("extra_defaults", {}).items():
         params.append("{}={}".format(k, v))
@@ -3805,8 +3806,9 @@ def generate_category_attack(params: dict) -> dict:
     if not attack_names:
         return {
             "error": (
-                "attacks must be one or more attack names, e.g. ['tap', 'goat'] "
-                "or 'tap,goat'. Got: {!r}".format(attacks_raw)
+                "attacks must be one or more attack names, e.g. ['tap', 'goat'] " "or 'tap,goat'. Got: {!r}".format(
+                    attacks_raw
+                )
             )
         }
 
