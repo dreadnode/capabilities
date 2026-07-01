@@ -1,10 +1,23 @@
 ---
 name: blind-ssrf-chains
-description: "Escalate blind SSRF to proven impact via internal service canaries, port fingerprinting, and chained exploitation targeting Redis, Docker API, Jenkins, and cloud metadata. Use when blind SSRF is confirmed but you need to demonstrate CIA impact beyond 'I can reach internal hosts.'"
+description: "Escalate blind SSRF to proven impact via internal service canaries, port fingerprinting, chained exploitation targeting Redis, Docker API, Jenkins, and cloud metadata, and attacker-controlled infrastructure for dangling resource claims and redirect servers. Use when blind SSRF is confirmed but you need to demonstrate CIA impact beyond 'I can reach internal hosts.'"
 ---
 # Blind SSRF Chains
 
 You have blind SSRF. You can hit internal IPs but get no response body. The program will reject "I can reach 127.0.0.1." You need to prove impact.
+
+## Attacker Infrastructure for SSRF Proof
+
+When SSRF is confirmed but you need attacker-controlled infrastructure to complete the chain (claim a dangling bucket, serve redirects, host custom content for a parser), do not guess or auto-provision. Detect what cloud/hosting CLIs are on the shell (`which aws az gcloud fly netlify wrangler docker ngrok`), present the available options and what the situation requires, then use AskUserQuestion for approval and credential guidance. Do not block other testing while waiting.
+
+**Trigger signals:**
+- Server response contains `NoSuchBucket`, `BlobNotFound`, or similar dangling cloud resource error — claim the resource name, upload payload
+- SSRF follows redirects but you need a reliable controlled redirector (httpbin.org rate-limits) — deploy a minimal 302 server
+- Server fetches and parses attacker content (PEM, XML, JSON, WSDL) but OOB callback can only receive, not serve — host a file at a public URL
+
+**S3 redirect caveat:** `x-amz-website-redirect-location` metadata only fires on the S3 website endpoint (`bucket.s3-website-region.amazonaws.com`), not the REST API path-style URL (`s3.amazonaws.com/bucket/key`). If the server uses path-style, content injection is the finding, not the redirect chain.
+
+**Cleanup is mandatory.** Tear down all provisioned infrastructure after triage. Log what you created in the gadget ledger.
 
 ## Constraint Assessment (do this FIRST)
 
