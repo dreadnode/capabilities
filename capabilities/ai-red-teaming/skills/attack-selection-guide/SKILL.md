@@ -1,7 +1,7 @@
 ---
 name: attack-selection-guide
 description: Decision tree for selecting AIRT attacks based on goals, target type, and constraints
-allowed-tools: register_assessment generate_attack generate_agentic_attack generate_category_attack
+allowed-tools: register_assessment generate_attack generate_agentic_attack generate_atlas_attack generate_category_attack
 ---
 
 # Attack Selection Guide
@@ -20,6 +20,19 @@ Use `generate_agentic_attack` with the appropriate preset (`openai_assistants`, 
 
 ### Custom API Endpoint
 Any HTTP endpoint. Use `generate_agentic_attack` with `agent_preset="custom"` and provide request/response templates.
+
+### Multi-Agent System (Delegation Chains, Trust Boundaries)
+A system of cooperating agents (entry → mid → privileged) where the attack must
+cross trust boundaries or propagate through delegation to make a downstream agent
+execute a tool. Use `generate_atlas_attack` (ATLAS — Adaptive Topology-Level Attack
+Synthesis). Point it at a deployed environment exposing
+`POST /attack {prompt, surface, injection} -> {content, tool_calls, ...}`.
+ATLAS profiles the system's defenses (Bayesian), routes one of eight attack modes
+per objective (MDP + Hedge), and — critically — gates success on *real tool
+execution*, retrying via delegation (peer_message) when the agent complies
+verbally but no tool fired. Set `scenario_name` (finops/devsecops/healthcare/soc)
+for scenario-specific probes and pass `objectives` ({id, category, goal}) or use
+the built-in per-category defaults.
 
 ## Step 2: Select Attack Algorithm
 

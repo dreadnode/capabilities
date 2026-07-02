@@ -279,6 +279,55 @@ def generate_agentic_attack(
 
 
 @safe_tool
+def generate_atlas_attack(
+    agent_url: t.Annotated[str, "HTTP /attack endpoint of the deployed multi-agent environment"],
+    attacker_model: t.Annotated[str, "LLM that generates adversarial prompts (e.g. groq scout, gpt-4.1)"],
+    objectives: t.Annotated[
+        list[dict] | None,
+        "Campaign objectives, each {id, category, goal}. Categories: TW, EA, TB, "
+        "CB, DE, GH, RP, MP. Defaults to one objective per category if omitted.",
+    ] = None,
+    scenario_name: t.Annotated[
+        str, "Scenario for scenario-specific probes: finops, devsecops, healthcare, soc"
+    ] = "",
+    total_budget: t.Annotated[int, "Total attack episodes across the campaign"] = 64,
+    evaluator_model: t.Annotated[str, "Judge LLM (defaults to attacker_model)"] = "",
+    agent_auth_type: t.Annotated[str, "Auth scheme: 'none', 'bearer', or 'api_key'"] = "none",
+    agent_auth_env_var: t.Annotated[str, "Env var holding the auth credential"] = "AGENT_API_KEY",
+    goal_category: t.Annotated[str, "Default goal category for span labeling"] = "",
+    assessment_name: t.Annotated[str, "Assessment name"] = "",
+) -> str:
+    """Generate an ATLAS multi-agent red-teaming campaign workflow.
+
+    ATLAS (Adaptive Topology-Level Attack Synthesis, ICML AI-WILD 2026) treats
+    the target as a topology of agents and runs Probe -> Route -> Learn over a
+    budget of episodes, driving GOAT/Crescendo through three injection surfaces
+    (direct / tool_output / peer_message) and gating success on *real tool
+    execution* (not just verbal compliance). Point it at a deployed multi-agent
+    environment that exposes POST /attack {prompt, surface, injection} ->
+    {content, tool_calls, ...}.
+    """
+    params: dict[str, t.Any] = {
+        "agent_url": agent_url,
+        "attacker_model": attacker_model,
+        "scenario_name": scenario_name,
+        "total_budget": total_budget,
+        "agent_auth_type": agent_auth_type,
+        "agent_auth_env_var": agent_auth_env_var,
+    }
+    if objectives:
+        params["objectives"] = objectives
+    if evaluator_model:
+        params["evaluator_model"] = evaluator_model
+    if goal_category:
+        params["goal_category"] = goal_category
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+
+    return _call_runner("generate_atlas_attack", params)
+
+
+@safe_tool
 def generate_image_attack(
     attack_type: t.Annotated[
         str,
