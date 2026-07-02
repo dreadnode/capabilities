@@ -143,6 +143,7 @@ The AI Red Teaming capability provides these tools:
 - **generate_attack** — Generate + auto-execute an attack workflow (single, campaign, or transform study)
 - **generate_category_attack** — Generate + auto-execute a category-based assessment from bundled goals
 - **generate_agentic_attack** — Generate + auto-execute an attack against an HTTP agent API
+- **generate_atlas_attack** — Generate + auto-execute an ATLAS multi-agent campaign (Adaptive Topology-Level Attack Synthesis) against a deployed multi-agent environment. Runs a Probe → Route → Learn loop over a budget of episodes, driving GOAT/Crescendo through three injection surfaces (direct / tool_output / peer_message) and gating success on *real tool execution*. Use for multi-agent systems with delegation chains and trust boundaries.
 - **generate_image_attack** — Generate + auto-execute a traditional ML adversarial attack (HopSkipJump, SimBA, NES, ZOO) against an image classifier endpoint
 
 **Workflow Management:**
