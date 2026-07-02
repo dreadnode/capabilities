@@ -1055,3 +1055,21 @@ class TestAtlasValidation:
         result = _generate_method("generate_atlas_attack", params)
         assert "error" in result
         assert "total_budget" in result["error"]
+
+
+class TestAtlasDataset:
+    def test_dataset_loads_25_objectives_across_8_categories(self):
+        objs = runner._load_atlas_dataset()
+        assert len(objs) == 25
+        cats = {o["category"] for o in objs}
+        assert cats == {"TW", "EA", "TB", "CB", "DE", "GH", "RP", "MP"}
+        for o in objs:
+            assert o["id"] and o["category"] and o["goal"]
+
+    def test_dataset_is_campaign_default(self):
+        # With no explicit objectives, the generated campaign embeds the dataset.
+        result = _generate_method("generate_atlas_attack", _ATLAS_BASE)
+        assert "error" not in result, result.get("error")
+        script = Path(result["filepath"]).read_text()
+        # 25 objective ids from the dataset should be embedded.
+        assert script.count("'category':") >= 25 or script.count('"category":') >= 25
