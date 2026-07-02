@@ -1,6 +1,6 @@
 schema: 1
 name: ai-red-teaming
-version: "1.7.1"
+version: "1.5.0"
 description: >
   Probe the security and safety of AI applications, agents, and foundation models.
   Orchestrates adversarial attack workflows to discover vulnerabilities in LLMs,
@@ -9,10 +9,8 @@ description: >
   prompt injection, data exfiltration, tool manipulation, reasoning attacks, guardrail
   bypass, and more — mapped to OWASP LLM Top 10, OWASP ASI01-ASI10, MITRE ATLAS,
   and NIST AI RMF compliance frameworks. 45 attack algorithms (41 LLM + 4 adversarial
-  ML samplers), 500+ transforms (including 160+ image/audio/video multimodal
-  perturbations spanning AugLy, Albumentations, ImageNet-C, SpecAugment, and
-  published multimodal jailbreak families), an extensive scorer catalog, and 260
-  bundled harm goals across 25 sub-categories in safety, security, and agentic tiers.
+  ML samplers), 500+ transforms, an extensive scorer catalog, and 260 bundled harm
+  goals across 25 sub-categories in safety, security, and agentic tiers.
 
 agents:
   - agents/

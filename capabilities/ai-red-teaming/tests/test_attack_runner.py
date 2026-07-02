@@ -955,3 +955,103 @@ class TestGenerateMultimodalCategoryAttack:
         compile(script, "multimodal.py", "exec")
         # Sampled category goals become the per-media prompts.
         assert "PROMPTS = [" in script and "PROMPTS = []" not in script
+
+# =============================================================================
+# ATLAS multi-agent campaign generation
+# =============================================================================
+
+
+def _generate_method(method: str, params: dict, timeout: int = 30) -> dict:
+    """Call attack_runner via subprocess for an arbitrary method and return JSON."""
+    payload = json.dumps({"name": method, "parameters": params})
+    env = {**os.environ, "AIRT_WORKFLOWS_DIR": "/tmp/airt_test_workflows"}
+    python_executable = resolve_python_executable()
+    result = subprocess.run(
+        [python_executable, str(RUNNER_PATH)],
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        env=env,
+    )
+    return json.loads(result.stdout)
+
+
+_ATLAS_BASE = {
+    "agent_url": "http://localhost:8000/attack",
+    "attacker_model": "groq scout",
+    "scenario_name": "finops",
+    "total_budget": 8,
+    "generate_only": True,
+}
+
+
+class TestAtlasGeneration:
+    def test_generates_without_error(self):
+        result = _generate_method("generate_atlas_attack", _ATLAS_BASE)
+        assert "error" not in result, result.get("error")
+        assert result["filename"].startswith("atlas_")
+
+    def test_generated_script_compiles_and_has_expected_pieces(self):
+        result = _generate_method("generate_atlas_attack", _ATLAS_BASE)
+        assert "error" not in result, result.get("error")
+        script = Path(result["filepath"]).read_text()
+        # Compiles cleanly.
+        compile(script, result["filepath"], "exec")
+        # Wires the SDK ATLAS entrypoint and a 3-surface agent target.
+        assert "from dreadnode.airt.atlas import atlas_attack" in script
+        assert "async def target(prompt: str, *, surface: str" in script
+        assert '"surface": surface' in script
+        assert '"tool_calls": tool_calls' in script
+        assert "await atlas_attack(" in script
+        assert 'SCENARIO_NAME = "finops"' in script
+        assert "TOTAL_BUDGET = 8" in script
+        # Default objective catalog is embedded with category coverage.
+        assert "OBJECTIVES = " in script
+        for cat in ("TW", "EA", "CB", "DE", "GH", "MP", "TB", "RP"):
+            assert "'category': '{}'".format(cat) in script
+
+    def test_custom_objectives_are_embedded(self):
+        params = {
+            **_ATLAS_BASE,
+            "objectives": [{"id": "X1", "category": "TW", "goal": "do the bad thing"}],
+        }
+        result = _generate_method("generate_atlas_attack", params)
+        assert "error" not in result, result.get("error")
+        script = Path(result["filepath"]).read_text()
+        assert "'id': 'X1'" in script
+        assert "do the bad thing" in script
+
+    def test_bearer_auth_injects_header(self):
+        params = {**_ATLAS_BASE, "agent_auth_type": "bearer", "agent_auth_env_var": "ENV_TOK"}
+        result = _generate_method("generate_atlas_attack", params)
+        assert "error" not in result, result.get("error")
+        script = Path(result["filepath"]).read_text()
+        assert 'os.environ.get("ENV_TOK"' in script
+        assert "Authorization" in script
+
+
+class TestAtlasValidation:
+    def test_missing_agent_url_errors(self):
+        params = {k: v for k, v in _ATLAS_BASE.items() if k != "agent_url"}
+        result = _generate_method("generate_atlas_attack", params)
+        assert "error" in result
+        assert "agent_url" in result["error"]
+
+    def test_missing_attacker_model_errors(self):
+        params = {k: v for k, v in _ATLAS_BASE.items() if k != "attacker_model"}
+        result = _generate_method("generate_atlas_attack", params)
+        assert "error" in result
+        assert "attacker_model" in result["error"]
+
+    def test_malformed_objective_errors(self):
+        params = {**_ATLAS_BASE, "objectives": [{"id": "X1", "category": "TW"}]}  # no goal
+        result = _generate_method("generate_atlas_attack", params)
+        assert "error" in result
+        assert "goal" in result["error"]
+
+    def test_zero_budget_errors(self):
+        params = {**_ATLAS_BASE, "total_budget": 0}
+        result = _generate_method("generate_atlas_attack", params)
+        assert "error" in result
+        assert "total_budget" in result["error"]
