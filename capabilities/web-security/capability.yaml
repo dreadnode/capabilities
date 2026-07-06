@@ -86,6 +86,14 @@ mcp:
       url: "http://127.0.0.1:9876/"
       init_timeout: 15
       timeout: 3600
+    securitycontext:
+      command: "uv"
+      args:
+        - "run"
+        - "${CAPABILITY_ROOT}/mcp/securitycontext.py"
+      env:
+        SECURITYCONTEXT_API_KEY: "${SECURITYCONTEXT_API_KEY:-}"
+      init_timeout: 30
 
 dependencies:
   packages:
