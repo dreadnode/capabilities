@@ -1,17 +1,36 @@
 schema: 1
 name: network-ops
-version: "1.0.2"
+version: "2.0.0"
 description: >
-  Network operations and Active Directory exploitation. Autonomous red
-  teaming with Nmap scanning, Netexec enumeration, Impacket Kerberos
-  attacks, Certipy AD CS abuse, BloodyAD privilege escalation, Krbrelayx
-  relay attacks, and password cracking.
+  Network operations and Active Directory exploitation. Multi-agent
+  pipeline for autonomous red teaming with Nmap scanning, Netexec
+  enumeration, Impacket Kerberos attacks, Certipy AD CS abuse,
+  BloodyAD privilege escalation, Krbrelayx relay attacks, and
+  password cracking.
 
 author:
   name: Dreadnode
   url: https://dreadnode.io
 license: MIT
 repository: https://github.com/dreadnode/capabilities
+
+agents:
+  - agents/
+
+skills:
+  - skills/
+
+tools:
+  - tools/
+
+workers:
+  coordinator:
+    path: workers/coordinator.py
+
+dependencies:
+  python:
+    - "loguru>=0.7.0"
+
 keywords:
   - network-ops
   - red-team
