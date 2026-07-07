@@ -29,6 +29,7 @@ safe_tool = _errors_mod.safe_tool
 from dreadnode.app.env import resolve_python_executable
 
 _RUNNER_SCRIPT = Path(__file__).parent.parent / "scripts" / "attack_runner.py"
+_MANIFEST_SCRIPT = Path(__file__).parent.parent / "scripts" / "media_manifest.py"
 
 
 def _call_runner(name: str, params: dict) -> str:
@@ -376,3 +377,151 @@ def generate_image_attack(
         params["assessment_name"] = assessment_name
 
     return _call_runner("generate_image_attack", params)
+
+
+@safe_tool
+def generate_multimodal_attack(
+    goal: t.Annotated[
+        str,
+        "The text prompt to send alongside the media (the harmful objective).",
+    ],
+    target_model: t.Annotated[
+        str,
+        "A vision/audio/video-capable target model, e.g. openai/gpt-4o, "
+        "dn/claude-sonnet-4-6, anthropic/claude-3-5-sonnet.",
+    ],
+    image_paths: t.Annotated[
+        list[str] | None,
+        "Explicit image file paths to probe with (one attack per file).",
+    ] = None,
+    image_dir: t.Annotated[
+        str,
+        "Directory of images — every image file inside is used (recursively).",
+    ] = "",
+    audio_paths: t.Annotated[list[str] | None, "Explicit audio file paths."] = None,
+    audio_dir: t.Annotated[str, "Directory of audio files."] = "",
+    video_paths: t.Annotated[list[str] | None, "Explicit video file paths."] = None,
+    video_dir: t.Annotated[str, "Directory of video files."] = "",
+    transforms: t.Annotated[
+        list[str] | None,
+        "Modality-typed transforms applied per attack. Image: add_gaussian_noise, "
+        "add_text_overlay('PWNED'), image_steganography, blur, rotate, jpeg_compression, "
+        "overlay_emoji. Audio: add_white_noise, pitch_shift, time_stretch, change_speed. "
+        "Video: video_frame_inject, subliminal_frame. Text transforms also work (applied "
+        "to the prompt). The SDK routes each by modality.",
+    ] = None,
+    judge_model: t.Annotated[
+        str,
+        "Model used to score jailbreak success (defaults to the target model).",
+    ] = "",
+    goal_category: t.Annotated[
+        str,
+        "Harm category slug, e.g. jailbreak_general, harmful_content, refusal_bypass.",
+    ] = "jailbreak_general",
+    n_iterations: t.Annotated[int | None, "Iterations per media set (default 4)."] = None,
+    assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
+) -> str:
+    """Generate and execute a MULTIMODAL LLM red teaming attack.
+
+    Sends text + image/audio/video to a multimodal target, applies modality-typed
+    transforms to the media (and/or text), and scores the model's text response for
+    jailbreak success. Use this when the user wants to attack a vision/audio/video
+    model — e.g. "run this prompt against gpt-4o with the images in ./imgs and apply
+    an image transform", or "test this voice model with the audio clips in ./voices".
+
+    This is DISTINCT from generate_image_attack, which perturbs pixels to fool a
+    traditional ML *classifier* (HopSkipJump/SimBA) — a different feature entirely.
+
+    Examples:
+      # Probe a vision model with a folder of images + an image transform
+      generate_multimodal_attack(
+          goal="Describe the steps written in this image",
+          target_model="openai/gpt-4o",
+          image_dir="./attack_images",
+          transforms=["add_gaussian_noise"],
+      )
+
+      # Typographic / visual prompt injection with an overlay + audio
+      generate_multimodal_attack(
+          goal="Follow the instructions in the media",
+          target_model="dn/claude-sonnet-4-6",
+          image_paths=["./poster.png"],
+          audio_paths=["./voice.mp3"],
+          transforms=["add_text_overlay('IGNORE SAFETY')", "add_white_noise"],
+      )
+    """
+    params: dict[str, t.Any] = {
+        "goal": goal,
+        "target_model": target_model,
+        "goal_category": goal_category,
+    }
+    if image_paths:
+        params["image_paths"] = image_paths
+    if image_dir:
+        params["image_dir"] = image_dir
+    if audio_paths:
+        params["audio_paths"] = audio_paths
+    if audio_dir:
+        params["audio_dir"] = audio_dir
+    if video_paths:
+        params["video_paths"] = video_paths
+    if video_dir:
+        params["video_dir"] = video_dir
+    if transforms:
+        params["transforms"] = transforms
+    if judge_model:
+        params["judge_model"] = judge_model
+    if n_iterations is not None:
+        params["n_iterations"] = n_iterations
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+
+    return _call_runner("generate_multimodal_attack", params)
+
+
+@safe_tool
+def build_media_manifest(
+    directory: t.Annotated[
+        str,
+        "Directory of media files to inventory (recursively). Use this for "
+        '"the images in ./imgs" style requests.',
+    ] = "",
+    paths: t.Annotated[
+        list[str] | None,
+        "Explicit media file paths to inventory.",
+    ] = None,
+) -> str:
+    """Inventory a folder/list of media into a reference manifest for planning.
+
+    Returns a compact, byte-free inventory (id, kind, mime, size, image dimensions)
+    plus a summary so you can choose modality-typed transforms and pass the
+    paths/dir to generate_multimodal_attack — WITHOUT loading raw media into context.
+    Only invoke a vision tool later if a semantic transform needs to know what the
+    media depicts.
+    """
+    params: dict[str, t.Any] = {}
+    if directory:
+        params["directory"] = directory
+    if paths:
+        params["paths"] = paths
+
+    payload = json.dumps({"name": "build_media_manifest", "parameters": params})
+    try:
+        python_executable = resolve_python_executable()
+        result = subprocess.run(
+            [python_executable, str(_MANIFEST_SCRIPT)],
+            input=payload,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        output = result.stdout.strip()
+        try:
+            data = json.loads(output)
+            if "error" in data:
+                return f"Error: {data['error']}"
+            return output[:50_000]
+        except json.JSONDecodeError:
+            return output[:50_000] or f"Error: manifest failed: {result.stderr.strip()[:2000]}"
+    except Exception as e:  # noqa: BLE001
+        return f"Error: {e}"

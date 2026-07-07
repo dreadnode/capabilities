@@ -547,3 +547,97 @@ class TestGeneratedWorkflowAssessmentMethods:
             "generated workflow calls Assessment methods that do not exist: "
             "{}".format(missing)
         )
+
+
+class TestGenerateMultimodalAttack:
+    """Multimodal LLM red teaming script generation (text + image/audio/video)."""
+
+    def _gen(self, tmp_path, monkeypatch, params: dict) -> dict:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        monkeypatch.setattr(runner, "METADATA_FILE", tmp_path / ".workflow_metadata.json")
+        return runner.generate_multimodal_attack({**params, "generate_only": True})
+
+    def test_requires_goal_and_target(self, tmp_path, monkeypatch) -> None:
+        assert "error" in self._gen(tmp_path, monkeypatch, {"target_model": "openai/gpt-4o"})
+        assert "error" in self._gen(tmp_path, monkeypatch, {"goal": "x"})
+
+    def test_requires_some_media(self, tmp_path, monkeypatch) -> None:
+        res = self._gen(
+            tmp_path, monkeypatch, {"goal": "g", "target_model": "openai/gpt-4o"}
+        )
+        assert "error" in res
+        assert "image" in res["error"] or "media" in res["error"].lower()
+
+    def test_generates_compiling_script_with_image(self, tmp_path, monkeypatch) -> None:
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {
+                "goal": "describe the payload in this image",
+                "target_model": "openai/gpt-4o",
+                "judge_model": "openai/gpt-4o-mini",
+                "image_paths": ["/tmp/a.png", "/tmp/b.png"],
+                "transforms": ["add_gaussian_noise"],
+                "n_iterations": 3,
+            },
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        compile(script, "multimodal.py", "exec")
+        assert "multimodal_attack(" in script
+        assert "llm_judge(" in script
+        assert "async def target(message: Message)" in script
+        assert "from dreadnode.transforms.image import add_gaussian_noise" in script
+        assert "IMAGE_PATHS = ['/tmp/a.png', '/tmp/b.png']" in script
+
+    def test_image_dir_is_expanded(self, tmp_path, monkeypatch) -> None:
+        media_dir = tmp_path / "imgs"
+        media_dir.mkdir()
+        (media_dir / "one.png").write_bytes(b"x")
+        (media_dir / "two.jpg").write_bytes(b"y")
+        (media_dir / "notes.txt").write_text("ignore me")
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {
+                "goal": "g",
+                "target_model": "openai/gpt-4o",
+                "image_dir": str(media_dir),
+            },
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        assert "one.png" in script and "two.jpg" in script
+        assert "notes.txt" not in script  # non-media excluded
+
+    def test_media_transforms_route_by_modality(self, tmp_path, monkeypatch) -> None:
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {
+                "goal": "g",
+                "target_model": "openai/gpt-4o",
+                "image_paths": ["/tmp/a.png"],
+                "audio_paths": ["/tmp/v.mp3"],
+                "transforms": ["add_gaussian_noise", "add_white_noise", "authority"],
+            },
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        # Image, audio, and (fallback) text transforms all resolved + imported.
+        assert "from dreadnode.transforms.image import add_gaussian_noise" in script
+        assert "from dreadnode.transforms.audio import add_white_noise" in script
+        assert "add_gaussian_noise()" in script and "add_white_noise()" in script
+
+    def test_assessment_methods_exist(self, tmp_path, monkeypatch) -> None:
+        from dreadnode.airt.assessment import Assessment
+
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {"goal": "g", "target_model": "openai/gpt-4o", "image_paths": ["/tmp/a.png"]},
+        )
+        script = Path(res["filepath"]).read_text()
+        called = set(re.findall(r"\bassessment\.(\w+)\s*\(", script))
+        missing = sorted(m for m in called if not hasattr(Assessment, m))
+        assert not missing, "generated script calls missing Assessment methods: {}".format(missing)
