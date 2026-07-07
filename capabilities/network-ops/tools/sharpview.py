@@ -40,7 +40,7 @@ class SharpView(Toolset):
             # posix=False preserves backslashes (common in AD args like
             # domain\user) but keeps surrounding quotes — strip them.
             tokens = shlex.split(method_args, posix=False)
-            args.extend(t.strip('"').strip("'") for t in tokens)
+            args.extend(token.strip('"').strip("'") for token in tokens)
         return await execute(args, timeout=self.timeout)
 
     @tool_method(catch=True, variants=["all"])

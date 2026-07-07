@@ -49,7 +49,7 @@ def _extract_real_path_from_wrapper(wrapper_path: Path) -> Path | None:
     # or:   exec /path/to/python /path/to/script.py "$@"
     match = re.search(r"exec\s+\S*python\S*\s+(\S+\.py)", content)
     if match:
-        real_path = Path(match.group(1))
+        real_path = Path(match.group(1).strip("'\""))
         if real_path.is_file():
             return real_path.parent
 
