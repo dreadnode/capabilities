@@ -1,3 +1,5 @@
+import asyncio
+
 from dreadnode.agents.tools import Toolset, tool_method
 from dreadnode.tools.execute import execute
 from loguru import logger
@@ -34,16 +36,51 @@ class SmbClient(Toolset):
         smb_command = f"recurse ON; ls {path}"
 
         logger.info(f"Recursively listing files in {share_path}\\{path}")
-        return await execute(
-            [
-                "smbclient",
-                share_path,
-                "-U",
-                f"{username}%{password}",
-                "-c",
-                smb_command,
-            ]
+
+        # smbclient returns non-zero when any subdirectory is inaccessible
+        # during recursive listing, even when most of the tree enumerates
+        # successfully. We capture stdout regardless of exit code to preserve
+        # partial output.
+        timeout = 120
+        proc = await asyncio.create_subprocess_exec(
+            "smbclient",
+            share_path,
+            "-U",
+            f"{username}%{password}",
+            "-c",
+            smb_command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            start_new_session=True,
         )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        except TimeoutError:
+            proc.kill()
+            await proc.wait()
+            raise TimeoutError(
+                f"smbclient timed out after {timeout}s listing {share_path}\\{path}"
+            )
+        output = stdout.decode(errors="replace")
+        errors = stderr.decode(errors="replace")
+
+        if proc.returncode != 0 and output.strip():
+            if errors.strip():
+                logger.warning(
+                    f"smbclient exited {proc.returncode} with partial output. Errors: {errors.strip()}"
+                )
+            return (
+                f"{output}\n\n[smbclient warnings — some paths may be inaccessible]\n{errors}"
+                if errors.strip()
+                else output
+            )
+
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"Command failed ({proc.returncode}):\n{errors or output}"
+            )
+
+        return output
 
     @tool_method(catch=True)
     async def smb_download_file(

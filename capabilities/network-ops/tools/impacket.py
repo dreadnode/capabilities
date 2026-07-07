@@ -1,3 +1,4 @@
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -6,26 +7,82 @@ from dreadnode import Config
 from dreadnode.agents.tools import Toolset, tool_method
 from dreadnode.tools.execute import execute
 
+from loguru import logger
+
+
+def _is_python_script(path: Path) -> bool:
+    """Check if a file is a real Python script (not a shell wrapper)."""
+    try:
+        with open(path, "rb") as f:
+            first_line = f.readline(256)
+        # Shell wrappers start with #!/bin/bash or #!/bin/sh
+        if first_line.startswith(b"#!") and (
+            b"/bin/bash" in first_line
+            or b"/bin/sh" in first_line
+            or b"/usr/bin/env bash" in first_line
+            or b"/usr/bin/env sh" in first_line
+        ):
+            return False
+        return True
+    except OSError:
+        return False
+
+
+def _extract_real_path_from_wrapper(wrapper_path: Path) -> Path | None:
+    """
+    Extract the real script path from a shell wrapper.
+
+    These wrappers typically contain:
+        exec python3 /real/path/to/script.py "$@"
+    """
+    try:
+        content = wrapper_path.read_text()
+    except (OSError, UnicodeDecodeError):
+        return None
+
+    # Match: exec python[3] /path/to/script.py "$@"
+    # or:   exec /path/to/python /path/to/script.py "$@"
+    match = re.search(r"exec\s+\S*python\S*\s+(\S+\.py)", content)
+    if match:
+        real_path = Path(match.group(1))
+        if real_path.is_file():
+            return real_path.parent
+
+    return None
+
 
 def _get_impacket_script_path() -> Path:
     """
     Auto-discover the impacket scripts directory.
 
-    Always returns a directory path so that scripts are invoked via
-    sys.executable, bypassing potentially broken shebangs in wrapper
-    scripts (e.g. pipx or apt wrappers pointing to a missing venv).
+    Returns a directory containing real Python impacket scripts (not
+    shell wrappers) so they can be invoked via sys.executable.
 
     Tries multiple common locations:
-    1. Global PATH (pipx install): resolve the found script's directory
+    1. Global PATH: resolve the found script's directory, following
+       shell wrappers to the real scripts if needed
     2. pip-installed: site-packages/impacket/examples/
     3. apt-installed: /usr/share/doc/python3-impacket/examples/
     """
-    # Check if scripts are on PATH (pipx / manual install) and resolve
-    # the directory so we can invoke via sys.executable instead of
-    # relying on the wrapper's shebang.
+    # Check if scripts are on PATH (pipx / manual install)
     found = shutil.which("secretsdump.py")
     if found is not None:
-        return Path(found).resolve().parent
+        found_path = Path(found).resolve()
+        if _is_python_script(found_path):
+            return found_path.parent
+
+        # PATH entry is a shell wrapper — try to extract the real
+        # script path (e.g. "exec python3 /real/path/script.py")
+        real_dir = _extract_real_path_from_wrapper(found_path)
+        if real_dir is not None:
+            logger.debug(
+                f"Impacket wrapper at {found_path} points to real scripts at {real_dir}"
+            )
+            return real_dir
+
+        logger.warning(
+            f"Impacket script at {found_path} is a shell wrapper, skipping PATH discovery"
+        )
 
     # Try to find impacket in site-packages (pip install)
     try:

@@ -1,3 +1,4 @@
+import shlex
 import typing as t
 
 from dreadnode import Config
@@ -36,7 +37,7 @@ class SharpView(Toolset):
             return await self.apollo.sharpview(method=method, method_args=method_args)
         args = ["SharpView.exe", method]
         if method_args:
-            args.extend(method_args.split())
+            args.extend(shlex.split(method_args))
         return await execute(args, timeout=self.timeout)
 
     @tool_method(catch=True, variants=["all"])
