@@ -63,9 +63,13 @@ class Netexec(Toolset):
             cmd.extend(["-d", domain])
 
         if username:
-            cmd.extend(["-u", *(username if isinstance(username, list) else [username])])
+            cmd.extend(
+                ["-u", *(username if isinstance(username, list) else [username])]
+            )
         if password:
-            cmd.extend(["-p", *(password if isinstance(password, list) else [password])])
+            cmd.extend(
+                ["-p", *(password if isinstance(password, list) else [password])]
+            )
         if hash:
             cmd.extend(["-H", *(hash if isinstance(hash, list) else [hash])])
 
@@ -185,17 +189,27 @@ class Netexec(Toolset):
             kerberos: Kerberos ccache file path or AES key for authentication.
             local_auth: Use local authentication (`--local-auth`). Mutually exclusive with `domain`.
         """
-        return await self.netexec(
-            "smb",
-            targets,
-            args=["--groups", *groups],
-            username=username,
-            password=password,
-            domain=domain,
-            hash=hash,
-            kerberos=kerberos,
-            local_auth=local_auth,
-        )
+        # netexec --groups only accepts one group at a time, so we loop
+        # and join results when multiple groups are requested.
+        results: list[str] = []
+        for group in groups:
+            try:
+                output = await self.netexec(
+                    "smb",
+                    targets,
+                    args=["--groups", group],
+                    username=username,
+                    password=password,
+                    domain=domain,
+                    hash=hash,
+                    kerberos=kerberos,
+                    local_auth=local_auth,
+                )
+                results.append(output)
+            except Exception:
+                logger.exception(f"Failed to query SMB group '{group}'")
+                results.append(f"[error querying group '{group}']")
+        return "\n".join(results)
 
     @tool_method(catch=True, variants=["specialized", "all"])
     async def netexec_smb_enum_shares(
@@ -323,16 +337,26 @@ class Netexec(Toolset):
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
         """
-        return await self.netexec(
-            "ldap",
-            targets,
-            args=["--groups", *groups],
-            username=username,
-            password=password,
-            domain=domain,
-            hash=hash,
-            kerberos=kerberos,
-        )
+        # netexec --groups only accepts one group at a time, so we loop
+        # and join results when multiple groups are requested.
+        results: list[str] = []
+        for group in groups:
+            try:
+                output = await self.netexec(
+                    "ldap",
+                    targets,
+                    args=["--groups", group],
+                    username=username,
+                    password=password,
+                    domain=domain,
+                    hash=hash,
+                    kerberos=kerberos,
+                )
+                results.append(output)
+            except Exception:
+                logger.exception(f"Failed to query LDAP group '{group}'")
+                results.append(f"[error querying group '{group}']")
+        return "\n".join(results)
 
     @tool_method(catch=True, variants=["specialized", "all"])
     async def netexec_asreproast(
