@@ -12,6 +12,11 @@ description: >
   archive extraction vulnerability crafting with archivealchemist,
   and EXIF metadata manipulation via exiftool.
 
+produces:
+  values: [finding, asset]
+  web_vulnerability: items:WebVulnerability
+  web_endpoint: items:WebEndpoint
+
 hooks:
   - hooks/interrupted_tool_result.py
 
