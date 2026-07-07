@@ -37,7 +37,10 @@ class SharpView(Toolset):
             return await self.apollo.sharpview(method=method, method_args=method_args)
         args = ["SharpView.exe", method]
         if method_args:
-            args.extend(shlex.split(method_args))
+            # posix=False preserves backslashes (common in AD args like
+            # domain\user) but keeps surrounding quotes — strip them.
+            tokens = shlex.split(method_args, posix=False)
+            args.extend(t.strip('"').strip("'") for t in tokens)
         return await execute(args, timeout=self.timeout)
 
     @tool_method(catch=True, variants=["all"])

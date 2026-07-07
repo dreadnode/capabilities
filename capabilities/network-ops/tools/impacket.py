@@ -33,10 +33,12 @@ def _is_python_script(path: Path) -> bool:
 
 def _extract_real_path_from_wrapper(wrapper_path: Path) -> Path | None:
     """
-    Extract the real script path from a shell wrapper.
+    Extract the real script directory from a shell wrapper.
 
     These wrappers typically contain:
         exec python3 /real/path/to/script.py "$@"
+
+    Returns the parent directory of the real script, or None.
     """
     try:
         content = wrapper_path.read_text()
