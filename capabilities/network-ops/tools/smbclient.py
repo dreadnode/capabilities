@@ -69,11 +69,10 @@ class SmbClient(Toolset):
                 logger.warning(
                     f"smbclient exited {proc.returncode} with partial output. Errors: {errors.strip()}"
                 )
-            return (
-                f"{output}\n\n[smbclient warnings — some paths may be inaccessible]\n{errors}"
-                if errors.strip()
-                else output
-            )
+            warning = "\n\n[smbclient exited non-zero — listing may be incomplete]"
+            if errors.strip():
+                warning += f"\n{errors}"
+            return f"{output}{warning}"
 
         if proc.returncode != 0:
             raise RuntimeError(

@@ -11,10 +11,13 @@ from loguru import logger
 
 
 def _is_python_script(path: Path) -> bool:
-    """Check if a file is a real Python script (not a shell wrapper)."""
+    """Check if a file is a real Python script (not a shell wrapper or binary)."""
     try:
         with open(path, "rb") as f:
             first_line = f.readline(256)
+        # Binary files (ELF, etc.) are not Python
+        if b"\x00" in first_line:
+            return False
         # Shell wrappers start with #!/bin/bash or #!/bin/sh
         if first_line.startswith(b"#!") and (
             b"/bin/bash" in first_line

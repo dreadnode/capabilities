@@ -206,8 +206,9 @@ class Netexec(Toolset):
                     local_auth=local_auth,
                 )
                 results.append(output)
-            except Exception as e:
-                results.append(f"[error querying group '{group}': {e}]")
+            except Exception:
+                logger.exception(f"Failed to query SMB group '{group}'")
+                results.append(f"[error querying group '{group}']")
         return "\n".join(results)
 
     @tool_method(catch=True, variants=["specialized", "all"])
@@ -352,8 +353,9 @@ class Netexec(Toolset):
                     kerberos=kerberos,
                 )
                 results.append(output)
-            except Exception as e:
-                results.append(f"[error querying group '{group}': {e}]")
+            except Exception:
+                logger.exception(f"Failed to query LDAP group '{group}'")
+                results.append(f"[error querying group '{group}']")
         return "\n".join(results)
 
     @tool_method(catch=True, variants=["specialized", "all"])
