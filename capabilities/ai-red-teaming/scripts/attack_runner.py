@@ -5516,6 +5516,7 @@ async def main():
                 media_sets.append((set_prompt, *_media_at(media_idx)))
 
         total_sets = len(media_sets)
+        completed_sets = 0
         print(f"Running {{total_sets}} multimodal set(s)"
               + (f" (matrix: {{len(PROMPT_MATRIX)}} prompts x {{n_sets}} media)" if PROMPT_MATRIX else ""))
         sys.stdout.flush()
@@ -5542,8 +5543,9 @@ async def main():
                     airt_evaluator_model=JUDGE_MODEL,
                 )
                 await attack.run()
+                completed_sets += 1
             except Exception as e:
-                print(f"  ERROR in media set {{i}}: {{e}}")
+                print(f"  ERROR in media set {{set_number}}: {{e}}")
                 traceback.print_exc()
             # Flush spans between studies so each set's traces reach the platform.
             try:
@@ -5554,7 +5556,14 @@ async def main():
             except Exception:
                 pass
 
-    _write_local_analytics(assessment, target_model=TARGET_MODEL, evaluator_model=JUDGE_MODEL)
+    # Multimodal runs record their metrics on the platform (from the trial traces),
+    # not in the local attack_results object, so report the set count here rather
+    # than relying on the local-analytics writer (which would say "0 trials").
+    if completed_sets:
+        print(f"  {{completed_sets}}/{{total_sets}} multimodal set(s) completed. "
+              f"ASR and severity are computed on the platform from the trial traces.")
+    else:
+        print("  No multimodal sets completed — check the target model / errors above.")
     print("Assessment complete.")
     sys.stdout.flush()
 
