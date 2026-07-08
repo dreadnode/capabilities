@@ -101,6 +101,30 @@ Reference for common AD attack chains. Each pattern lists prerequisites, tool se
 
 **Critical:** Never spray more passwords than (lockout_threshold - 2) within the observation window.
 
+## Lateral Movement
+
+After recovering credentials with admin access (`Pwn3d!` confirmed), use remote execution to move through the network. Choose the method based on detection profile and what's available on the target.
+
+### Execution Method Selection
+
+| Method | Tool | Detection Profile | When to Use |
+|---|---|---|---|
+| WMI | `impacket_wmiexec` | Low — no disk write, no service | **Default choice.** Prefer unless WMI is blocked. |
+| DCOM | `impacket_dcomexec` | Low-Medium — depends on object | When WMI is filtered. Try `MMC20` first, then `ShellWindows`. |
+| SMBExec | `impacket_smbexec` | Medium — service creation, no binary | When WMI/DCOM blocked but SMB services work. |
+| Task Scheduler | `impacket_atexec` | Medium — scheduled task creation | When SMB services and WMI both blocked. |
+| PsExec | `impacket_psexec` | High — binary upload + service | Last resort. Reliable but noisy — AV may flag the uploaded binary. |
+
+### Lateral Movement Workflow
+
+| Step | Tool | Action |
+|---|---|---|
+| 1. Confirm admin access | `netexec_smb_auth` | Verify `(Pwn3d!)` on target host |
+| 2. Execute command | `impacket_wmiexec` | Run `whoami` to confirm execution context |
+| 3. Gather local info | `impacket_wmiexec` | Run `ipconfig /all`, `net localgroup administrators` |
+| 4. Dump credentials | `impacket_secretsdump` | Extract SAM/LSA from the new host |
+| 5. Repeat | — | Test new credentials against additional hosts |
+
 ## Credential Reuse Patterns
 
 When a credential is recovered, test it systematically:
@@ -125,4 +149,5 @@ When a credential is recovered, test it systematically:
 | Certificate ops | Certipy | — |
 | Delegation abuse | Impacket (S4U) | Krbrelayx for unconstrained delegation relay |
 | Credential dump | Impacket secretsdump | — |
+| Remote execution | `impacket_wmiexec` | `impacket_smbexec` → `impacket_atexec` → `impacket_dcomexec` → `impacket_psexec` (escalating detection) |
 | SPN manipulation | Krbrelayx addspn | BloodyAD for LDAP-based SPN changes |

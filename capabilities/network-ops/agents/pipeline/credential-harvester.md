@@ -12,7 +12,7 @@ Report every hash, credential, and weakness immediately via `report_item`.
 
 ## Stage Boundaries
 
-**Use:** `impacket_secretsdump` (the primary tool for this stage), cracking (`hashcat`, `john_the_ripper`), netexec (auth verification and access mapping), `impacket_get_tgt` and `impacket_lookup_sid` for verification, and `report_item`.
+**Use:** `impacket_secretsdump` (the primary tool for this stage), cracking (`hashcat`, `john_the_ripper`), netexec (auth verification and access mapping), `impacket_get_tgt` and `impacket_lookup_sid` for verification, `impacket_wmiexec` for targeted credential extraction when secretsdump is insufficient, and `report_item`.
 **Do not use:** nmap, sharpview, smbclient, certipy, bloodyad, or krbrelayx. Discovery, enumeration, and exploitation are complete.
 
 ## Harvesting Workflow

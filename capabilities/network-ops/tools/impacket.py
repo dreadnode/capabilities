@@ -3066,3 +3066,637 @@ class Impacket(Toolset):
             input=input,
             env=env,
         )
+
+    # -------------------------------------------------------------------
+    # Lateral movement / remote command execution
+    # -------------------------------------------------------------------
+
+    @tool_method(catch=True)
+    async def impacket_wmiexec(
+        self,
+        target: str,
+        *,
+        command: str | None = None,
+        domain: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        hashes: str | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        dc_ip: str | None = None,
+        target_ip: str | None = None,
+        share: str | None = None,
+        shell_type: str | None = None,
+        codec: str | None = None,
+        silentcommand: bool = False,
+        port: int | None = None,
+        timeout: int | None = None,
+        env: dict[str, str] | None = None,
+        input: str | None = None,
+    ) -> str:
+        r"""
+        Execute a command on a remote host via WMI (Windows Management Instrumentation).
+
+        Lowest detection profile of the impacket execution tools — semi-interactive,
+        no binary uploaded to disk, no service created. Preferred default for
+        lateral movement when stealth matters.
+
+        Usage Examples:
+            # Execute a command via WMI
+            await impacket_wmiexec(
+                target="web01.corp.local",
+                command="whoami /all",
+                domain="corp.local",
+                username="admin",
+                password="Password123"
+            )
+
+            # Execute via pass-the-hash
+            await impacket_wmiexec(
+                target="10.10.10.5",
+                command="ipconfig /all",
+                domain="corp.local",
+                username="administrator",
+                hashes="aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
+            )
+
+        <documentation>
+        A semi-interactive shell, used through Windows Management Instrumentation. It does not require
+        to install any service/agent at the target server. Runs as Administrator. Highly stealthy.
+
+        positional arguments:
+        target                [[domain/]username[:password]@]<targetName or address>
+        command               command to execute at the target. If empty it will launch a semi-interactive shell
+
+        options:
+        -h, --help            show this help message and exit
+        -share SHARE          share where the output will be grabbed from (default ADMIN$)
+        -nooutput             whether or not to print the output (no SMB connection created)
+        -ts                   Adds timestamp to every logging output
+        -silentcommand        does not execute cmd.exe to run given command (no output, cannot determine returncode)
+        -debug                Turn DEBUG output ON
+        -codec CODEC          Sets encoding used (codec) from the target's output (default "utf-8").
+        -shell-type {cmd,powershell}
+                              choose a command processor for the semi-interactive shell
+
+        authentication:
+        -hashes LMHASH:NTHASH NTLM hashes, format is LMHASH:NTHASH
+        -no-pass              don't ask for password (useful for -k)
+        -k                    Use Kerberos authentication.
+        -aesKey hex key       AES key to use for Kerberos Authentication
+
+        connection:
+        -dc-ip ip address     IP Address of the domain controller.
+        -target-ip ip address IP Address of the target machine.
+        -port [{139,445}]     Destination port to connect to SMB Server
+        </documentation>
+
+        Args:
+            target: Target hostname or IP address (required).
+            command: Command to execute on the remote host. If empty, returns shell banner.
+            domain: Domain name.
+            username: Username for authentication.
+            password: Password for authentication.
+            hashes: NTLM hashes in LMHASH:NTHASH format.
+            kerberos: Use Kerberos authentication.
+            aes_key: AES key for Kerberos authentication.
+            dc_ip: Domain controller IP address override.
+            target_ip: Target machine IP address override.
+            share: Share where output is grabbed from (default ADMIN$).
+            shell_type: Command processor — 'cmd' or 'powershell'.
+            codec: Output encoding codec (default utf-8).
+            silentcommand: Execute without cmd.exe wrapper (no output returned).
+            port: Destination SMB port (139 or 445).
+            timeout: Command timeout in seconds (overrides default).
+            env: Optional environment variables.
+            input: Optional stdin input.
+        """
+        identity = self._build_identity_with_target(
+            target, domain=domain, username=username, password=password
+        )
+
+        args = [identity]
+        if command:
+            args.append(command)
+
+        if share:
+            args.extend(["-share", share])
+        if shell_type:
+            args.extend(["-shell-type", shell_type])
+        if codec:
+            args.extend(["-codec", codec])
+        if silentcommand:
+            args.append("-silentcommand")
+        if port is not None:
+            args.extend(["-port", str(port)])
+
+        args.extend(
+            self._build_auth_flags(
+                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
+            )
+        )
+        args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
+
+        return await execute(
+            self._build_script_command("wmiexec.py", args),
+            timeout=timeout or self.timeout + 60,
+            input=input,
+            env=env,
+        )
+
+    @tool_method(catch=True)
+    async def impacket_psexec(
+        self,
+        target: str,
+        *,
+        command: str | None = None,
+        domain: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        hashes: str | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        dc_ip: str | None = None,
+        target_ip: str | None = None,
+        port: int | None = None,
+        service_name: str | None = None,
+        remote_binary_name: str | None = None,
+        codec: str | None = None,
+        timeout: int | None = None,
+        env: dict[str, str] | None = None,
+        input: str | None = None,
+    ) -> str:
+        r"""
+        Execute a command on a remote host via SMB service creation (PsExec-style).
+
+        Creates a service on the target to execute commands. High detection profile —
+        writes binary to disk and creates a Windows service. Use when reliability
+        matters more than stealth, or when WMI/DCOM are blocked.
+
+        Usage Examples:
+            # Execute a command via PsExec
+            await impacket_psexec(
+                target="srv01.corp.local",
+                command="whoami",
+                domain="corp.local",
+                username="admin",
+                password="Password123"
+            )
+
+            # Execute via pass-the-hash with custom service name
+            await impacket_psexec(
+                target="10.10.10.5",
+                command="ipconfig",
+                domain="corp.local",
+                username="administrator",
+                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                service_name="mySvc"
+            )
+
+        <documentation>
+        PSEXEC like functionality example using RemComSvc.
+
+        positional arguments:
+        target                [[domain/]username[:password]@]<targetName or address>
+        command               command (or arguments if -c is used) to execute at the target
+
+        options:
+        -h, --help            show this help message and exit
+        -c pathname           upload the shareName binary and execute it
+        -path PATH            path of the command to execute
+        -file FILE            alternative RemCom binary (be sure it doesn't require CRT)
+        -ts                   Adds timestamp to every logging output
+        -debug                Turn DEBUG output ON
+        -codec CODEC          Sets encoding used (codec) from the target's output
+        -service-name service_name
+                              The name of the service used to trigger the payload
+        -remote-binary-name remote_binary_name
+                              This will be the name of the executable uploaded on the target
+
+        authentication:
+        -hashes LMHASH:NTHASH NTLM hashes, format is LMHASH:NTHASH
+        -no-pass              don't ask for password (useful for -k)
+        -k                    Use Kerberos authentication.
+        -aesKey hex key       AES key to use for Kerberos Authentication
+
+        connection:
+        -dc-ip ip address     IP Address of the domain controller.
+        -target-ip ip address IP Address of the target machine.
+        -port [{139,445}]     Destination port to connect to SMB Server
+        </documentation>
+
+        Args:
+            target: Target hostname or IP address (required).
+            command: Command to execute on the remote host.
+            domain: Domain name.
+            username: Username for authentication.
+            password: Password for authentication.
+            hashes: NTLM hashes in LMHASH:NTHASH format.
+            kerberos: Use Kerberos authentication.
+            aes_key: AES key for Kerberos authentication.
+            dc_ip: Domain controller IP address override.
+            target_ip: Target machine IP address override.
+            port: Destination SMB port (139 or 445).
+            service_name: Custom name for the created service.
+            remote_binary_name: Custom name for the uploaded executable.
+            codec: Output encoding codec.
+            timeout: Command timeout in seconds.
+            env: Optional environment variables.
+            input: Optional stdin input.
+        """
+        identity = self._build_identity_with_target(
+            target, domain=domain, username=username, password=password
+        )
+
+        args = [identity]
+        if command:
+            args.append(command)
+
+        if service_name:
+            args.extend(["-service-name", service_name])
+        if remote_binary_name:
+            args.extend(["-remote-binary-name", remote_binary_name])
+        if codec:
+            args.extend(["-codec", codec])
+        if port is not None:
+            args.extend(["-port", str(port)])
+
+        args.extend(
+            self._build_auth_flags(
+                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
+            )
+        )
+        args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
+
+        return await execute(
+            self._build_script_command("psexec.py", args),
+            timeout=timeout or self.timeout + 60,
+            input=input,
+            env=env,
+        )
+
+    @tool_method(catch=True)
+    async def impacket_smbexec(
+        self,
+        target: str,
+        *,
+        command: str | None = None,
+        domain: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        hashes: str | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        dc_ip: str | None = None,
+        target_ip: str | None = None,
+        port: int | None = None,
+        share: str | None = None,
+        mode: str | None = None,
+        service_name: str | None = None,
+        codec: str | None = None,
+        timeout: int | None = None,
+        env: dict[str, str] | None = None,
+    ) -> str:
+        r"""
+        Execute a command on a remote host via SMB service creation (no binary upload).
+
+        Similar to PsExec but does not upload a binary — creates a service that
+        executes a command directly via cmd.exe. Medium detection profile.
+        Use when WMI is blocked but you want to avoid uploading binaries.
+
+        Note: smbexec opens a semi-interactive shell. The ``command`` parameter
+        is sent via stdin; if omitted only the shell banner is returned.
+
+        Usage Examples:
+            # Execute a command via SMBExec
+            await impacket_smbexec(
+                target="srv01.corp.local",
+                command="net user /domain",
+                domain="corp.local",
+                username="admin",
+                password="Password123"
+            )
+
+        <documentation>
+        A similar approach to PSEXEC w/o using RemComSvc. This implementation goes one step
+        further, instantiating a local smbserver to receive the output of the commands.
+        This is useful in the situation where the target machine does NOT have a writeable share available.
+
+        positional arguments:
+        target                [[domain/]username[:password]@]<targetName or address>
+
+        options:
+        -h, --help            show this help message and exit
+        -share SHARE          share where the output will be grabbed from (default C$)
+        -mode {SHARE,SERVER}  mode to use (default SHARE, SERVER requires root!)
+        -ts                   Adds timestamp to every logging output
+        -debug                Turn DEBUG output ON
+        -codec CODEC          Sets encoding used (codec) from the target's output
+        -service-name service_name
+                              The name of the service used to trigger the payload
+
+        authentication:
+        -hashes LMHASH:NTHASH NTLM hashes, format is LMHASH:NTHASH
+        -no-pass              don't ask for password (useful for -k)
+        -k                    Use Kerberos authentication.
+        -aesKey hex key       AES key to use for Kerberos Authentication
+
+        connection:
+        -dc-ip ip address     IP Address of the domain controller.
+        -target-ip ip address IP Address of the target machine.
+        -port [{139,445}]     Destination port to connect to SMB Server
+        </documentation>
+
+        Args:
+            target: Target hostname or IP address (required).
+            command: Command to send via stdin. If omitted, returns shell banner only.
+            domain: Domain name.
+            username: Username for authentication.
+            password: Password for authentication.
+            hashes: NTLM hashes in LMHASH:NTHASH format.
+            kerberos: Use Kerberos authentication.
+            aes_key: AES key for Kerberos authentication.
+            dc_ip: Domain controller IP address override.
+            target_ip: Target machine IP address override.
+            port: Destination SMB port (139 or 445).
+            share: Share for output capture (default C$).
+            mode: Execution mode — 'SHARE' or 'SERVER'.
+            service_name: Custom name for the created service.
+            codec: Output encoding codec.
+            timeout: Command timeout in seconds.
+            env: Optional environment variables.
+        """
+        identity = self._build_identity_with_target(
+            target, domain=domain, username=username, password=password
+        )
+
+        args = [identity]
+
+        if share:
+            args.extend(["-share", share])
+        if mode:
+            args.extend(["-mode", mode])
+        if service_name:
+            args.extend(["-service-name", service_name])
+        if codec:
+            args.extend(["-codec", codec])
+        if port is not None:
+            args.extend(["-port", str(port)])
+
+        args.extend(
+            self._build_auth_flags(
+                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
+            )
+        )
+        args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
+
+        # smbexec opens a shell — send command via stdin, then exit
+        stdin_input = f"{command}\nexit\n" if command else "exit\n"
+
+        return await execute(
+            self._build_script_command("smbexec.py", args),
+            timeout=timeout or self.timeout + 60,
+            input=stdin_input,
+            env=env,
+        )
+
+    @tool_method(catch=True)
+    async def impacket_atexec(
+        self,
+        target: str,
+        command: str,
+        *,
+        domain: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        hashes: str | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        dc_ip: str | None = None,
+        target_ip: str | None = None,
+        session_id: int | None = None,
+        codec: str | None = None,
+        timeout: int | None = None,
+        env: dict[str, str] | None = None,
+        input: str | None = None,
+    ) -> str:
+        r"""
+        Execute a command on a remote host via the Windows Task Scheduler service.
+
+        Creates a scheduled task to execute the command, then retrieves output.
+        Medium detection profile. Use when SMB service creation and WMI are blocked.
+
+        Usage Examples:
+            # Execute a command via Task Scheduler
+            await impacket_atexec(
+                target="srv01.corp.local",
+                command="whoami",
+                domain="corp.local",
+                username="admin",
+                password="Password123"
+            )
+
+        <documentation>
+        Executes a command on the target machine through the Task Scheduler service and
+        returns the output of the executed command.
+
+        positional arguments:
+        target                [[domain/]username[:password]@]<targetName or address>
+        command               command to execute at the target
+
+        options:
+        -h, --help            show this help message and exit
+        -session-id SESSION_ID
+                              an existed logon session to use (no output mode)
+        -ts                   Adds timestamp to every logging output
+        -debug                Turn DEBUG output ON
+        -codec CODEC          Sets encoding used (codec) from the target's output
+        -silentcommand        does not execute cmd.exe to run given command
+
+        authentication:
+        -hashes LMHASH:NTHASH NTLM hashes, format is LMHASH:NTHASH
+        -no-pass              don't ask for password (useful for -k)
+        -k                    Use Kerberos authentication.
+        -aesKey hex key       AES key to use for Kerberos Authentication
+
+        connection:
+        -dc-ip ip address     IP Address of the domain controller.
+        -target-ip ip address IP Address of the target machine.
+        </documentation>
+
+        Args:
+            target: Target hostname or IP address (required).
+            command: Command to execute on the remote host (required).
+            domain: Domain name.
+            username: Username for authentication.
+            password: Password for authentication.
+            hashes: NTLM hashes in LMHASH:NTHASH format.
+            kerberos: Use Kerberos authentication.
+            aes_key: AES key for Kerberos authentication.
+            dc_ip: Domain controller IP address override.
+            target_ip: Target machine IP address override.
+            session_id: Existing logon session ID to use (no output mode).
+            codec: Output encoding codec.
+            timeout: Command timeout in seconds.
+            env: Optional environment variables.
+            input: Optional stdin input.
+        """
+        identity = self._build_identity_with_target(
+            target, domain=domain, username=username, password=password
+        )
+
+        args = [identity, command]
+
+        if session_id is not None:
+            args.extend(["-session-id", str(session_id)])
+        if codec:
+            args.extend(["-codec", codec])
+
+        args.extend(
+            self._build_auth_flags(
+                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
+            )
+        )
+        args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
+
+        return await execute(
+            self._build_script_command("atexec.py", args),
+            timeout=timeout or self.timeout + 60,
+            input=input,
+            env=env,
+        )
+
+    @tool_method(catch=True)
+    async def impacket_dcomexec(
+        self,
+        target: str,
+        *,
+        command: str | None = None,
+        domain: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        hashes: str | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        dc_ip: str | None = None,
+        target_ip: str | None = None,
+        share: str | None = None,
+        dcom_object: str | None = None,
+        shell_type: str | None = None,
+        codec: str | None = None,
+        silentcommand: bool = False,
+        timeout: int | None = None,
+        env: dict[str, str] | None = None,
+        input: str | None = None,
+    ) -> str:
+        r"""
+        Execute a command on a remote host via DCOM (Distributed Component Object Model).
+
+        Uses DCOM objects for command execution. Low-medium detection profile depending
+        on the DCOM object used. Alternative to WMI when WMI is filtered but DCOM is available.
+
+        Usage Examples:
+            # Execute via DCOM using MMC20 object
+            await impacket_dcomexec(
+                target="srv01.corp.local",
+                command="whoami",
+                domain="corp.local",
+                username="admin",
+                password="Password123",
+                dcom_object="MMC20"
+            )
+
+            # Execute via ShellWindows object with pass-the-hash
+            await impacket_dcomexec(
+                target="10.10.10.5",
+                command="net localgroup administrators",
+                domain="corp.local",
+                username="administrator",
+                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                dcom_object="ShellWindows"
+            )
+
+        <documentation>
+        A semi-interactive shell similar to wmiexec.py, but using different DCOM endpoints.
+        Currently supports MMC20.Application, ShellWindows and ShellBrowserWindow objects.
+
+        positional arguments:
+        target                [[domain/]username[:password]@]<targetName or address>
+        command               command to execute at the target. If empty it will launch a semi-interactive shell
+
+        options:
+        -h, --help            show this help message and exit
+        -share SHARE          share where the output will be grabbed from (default ADMIN$)
+        -nooutput             whether or not to print the output
+        -ts                   Adds timestamp to every logging output
+        -debug                Turn DEBUG output ON
+        -codec CODEC          Sets encoding used (codec) from the target's output
+        -object [{ShellWindows,MMC20,ShellBrowserWindow}]
+                              DCOM object to be used to execute commands
+        -shell-type {cmd,powershell}
+                              choose a command processor for the semi-interactive shell
+        -silentcommand        does not execute cmd.exe to run given command
+
+        authentication:
+        -hashes LMHASH:NTHASH NTLM hashes, format is LMHASH:NTHASH
+        -no-pass              don't ask for password (useful for -k)
+        -k                    Use Kerberos authentication.
+        -aesKey hex key       AES key to use for Kerberos Authentication
+
+        connection:
+        -dc-ip ip address     IP Address of the domain controller.
+        -target-ip ip address IP Address of the target machine.
+        </documentation>
+
+        Args:
+            target: Target hostname or IP address (required).
+            command: Command to execute. If empty, returns shell banner.
+            domain: Domain name.
+            username: Username for authentication.
+            password: Password for authentication.
+            hashes: NTLM hashes in LMHASH:NTHASH format.
+            kerberos: Use Kerberos authentication.
+            aes_key: AES key for Kerberos authentication.
+            dc_ip: Domain controller IP address override.
+            target_ip: Target machine IP address override.
+            share: Share where output is grabbed from (default ADMIN$).
+            dcom_object: DCOM object — 'MMC20', 'ShellWindows', or 'ShellBrowserWindow'.
+            shell_type: Command processor — 'cmd' or 'powershell'.
+            codec: Output encoding codec.
+            silentcommand: Execute without cmd.exe wrapper (no output returned).
+            timeout: Command timeout in seconds.
+            env: Optional environment variables.
+            input: Optional stdin input.
+        """
+        identity = self._build_identity_with_target(
+            target, domain=domain, username=username, password=password
+        )
+
+        args = [identity]
+        if command:
+            args.append(command)
+
+        if share:
+            args.extend(["-share", share])
+        if dcom_object:
+            args.extend(["-object", dcom_object])
+        if shell_type:
+            args.extend(["-shell-type", shell_type])
+        if codec:
+            args.extend(["-codec", codec])
+        if silentcommand:
+            args.append("-silentcommand")
+
+        args.extend(
+            self._build_auth_flags(
+                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
+            )
+        )
+        args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
+
+        return await execute(
+            self._build_script_command("dcomexec.py", args),
+            timeout=timeout or self.timeout + 60,
+            input=input,
+            env=env,
+        )
