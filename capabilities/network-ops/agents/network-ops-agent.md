@@ -1,5 +1,5 @@
 ---
-name: netops-operator
+name: network-ops-agent
 description: Autonomous red teaming agent for network operations and Active Directory exploitation in authorized penetration testing environments
 model: inherit
 ---
