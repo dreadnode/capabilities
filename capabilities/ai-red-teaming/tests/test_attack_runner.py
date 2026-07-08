@@ -590,6 +590,26 @@ class TestGenerateMultimodalAttack:
         assert "from dreadnode.transforms.image import add_gaussian_noise" in script
         assert "IMAGE_PATHS = ['/tmp/a.png', '/tmp/b.png']" in script
 
+    def test_target_captures_generated_media_output(self, tmp_path, monkeypatch) -> None:
+        """The generated target returns the model's full reply when it carries
+        generated media (image/audio/video), so output parts are captured for
+        media-out targets (e.g. image-out or speech-to-speech), while text-out
+        replies still return `.content`."""
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {
+                "goal": "g",
+                "target_model": "openai/gpt-4o",
+                "audio_paths": ["/tmp/a.wav"],
+            },
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        compile(script, "multimodal.py", "exec")
+        assert '_MEDIA_KINDS = {"image_url", "input_audio", "video_url"}' in script
+        assert "return reply if has_media else reply.content" in script
+
     def test_image_dir_is_expanded(self, tmp_path, monkeypatch) -> None:
         media_dir = tmp_path / "imgs"
         media_dir.mkdir()

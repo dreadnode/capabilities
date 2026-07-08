@@ -5150,19 +5150,34 @@ def _build_multimodal_imports(transforms: list[dict]) -> str:
 
 
 def _build_multimodal_target() -> str:
-    """A @task target that sends a multimodal Message to the target and returns text."""
+    """A @task target that sends a multimodal Message to the target.
+
+    Returns the model's full reply when it contains generated media
+    (image/audio/video) so those *output* parts are captured and rendered — e.g.
+    an image-out model or a speech-to-speech target. Otherwise returns the plain
+    text content, so text-out targets behave exactly as before.
+    """
     return """\
 @task
-async def target(message: Message) -> str:
+async def target(message: Message):
     generator = TARGET_GENERATOR
     last_error = None
+    _MEDIA_KINDS = {"image_url", "input_audio", "video_url"}
     for attempt in range(3):
         try:
             results = await generator.generate_messages([[message]], [GenerateParams()])
             if not results or isinstance(results[0], BaseException):
                 last_error = RuntimeError(f"Generator failed: {results[0] if results else 'No response'}")
                 continue
-            return results[0].message.content
+            reply = results[0].message
+            # Return the whole reply only when the model generated media, so the
+            # SDK captures the output image/audio/video parts. Plain text replies
+            # return `.content` (a str) — unchanged text-out behaviour.
+            has_media = any(
+                getattr(p, "type", None) in _MEDIA_KINDS
+                for p in (getattr(reply, "content_parts", None) or [])
+            )
+            return reply if has_media else reply.content
         except Exception as e:
             last_error = e
             if attempt < 2:
