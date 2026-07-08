@@ -3197,10 +3197,13 @@ class Impacket(Toolset):
         )
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
+        # If no command given, send exit to prevent interactive shell hang
+        effective_input = input if command else (input or "exit\n")
+
         return await execute(
             self._build_script_command("wmiexec.py", args),
             timeout=timeout or self.timeout + 60,
-            input=input,
+            input=effective_input,
             env=env,
         )
 
@@ -3328,10 +3331,13 @@ class Impacket(Toolset):
         )
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
+        # If no command given, send exit to prevent interactive shell hang
+        effective_input = input if command else (input or "exit\n")
+
         return await execute(
             self._build_script_command("psexec.py", args),
             timeout=timeout or self.timeout + 60,
-            input=input,
+            input=effective_input,
             env=env,
         )
 
@@ -3694,9 +3700,12 @@ class Impacket(Toolset):
         )
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
+        # If no command given, send exit to prevent interactive shell hang
+        effective_input = input if command else (input or "exit\n")
+
         return await execute(
             self._build_script_command("dcomexec.py", args),
             timeout=timeout or self.timeout + 60,
-            input=input,
+            input=effective_input,
             env=env,
         )
