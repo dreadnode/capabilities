@@ -30,6 +30,7 @@ from dreadnode.app.env import resolve_python_executable
 
 _RUNNER_SCRIPT = Path(__file__).parent.parent / "scripts" / "attack_runner.py"
 _MANIFEST_SCRIPT = Path(__file__).parent.parent / "scripts" / "media_manifest.py"
+_MEDIA_GENERATOR_SCRIPT = Path(__file__).parent.parent / "scripts" / "media_generator.py"
 
 
 def _call_runner(name: str, params: dict) -> str:
@@ -109,6 +110,15 @@ def generate_attack(
     n_iterations: t.Annotated[int | None, "Iterations per attack"] = None,
     goal_category: t.Annotated[str, "Goal category for scoring"] = "",
     assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
+    custom_url: t.Annotated[
+        str,
+        "Target a custom HTTP endpoint instead of a litellm model. When set, "
+        "target_model is optional and the attacker/judge use real models.",
+    ] = "",
+    custom_auth_type: t.Annotated[str, "Auth scheme for custom_url: 'none', 'bearer', or 'api_key'"] = "none",
+    custom_auth_env_var: t.Annotated[str, "Env var holding the custom endpoint credential"] = "TARGET_API_KEY",
+    custom_request_template: t.Annotated[str, "JSON request template with a {prompt} placeholder"] = "",
+    custom_response_text_path: t.Annotated[str, "JSONPath to the response text (e.g. $.response)"] = "",
 ) -> str:
     """Generate, save, and execute a single attack workflow.
 
@@ -143,6 +153,16 @@ def generate_attack(
         params["goal_category"] = goal_category
     if assessment_name:
         params["assessment_name"] = assessment_name
+    if custom_url:
+        params["custom_url"] = custom_url
+    if custom_auth_type:
+        params["custom_auth_type"] = custom_auth_type
+    if custom_auth_env_var:
+        params["custom_auth_env_var"] = custom_auth_env_var
+    if custom_request_template:
+        params["custom_request_template"] = custom_request_template
+    if custom_response_text_path:
+        params["custom_response_text_path"] = custom_response_text_path
 
     return _call_runner("generate_attack", params)
 
@@ -420,6 +440,43 @@ def generate_multimodal_attack(
     ] = "jailbreak_general",
     n_iterations: t.Annotated[int | None, "Iterations per media set (default 4)."] = None,
     assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
+    prompts: t.Annotated[
+        list[str] | None,
+        "Per-media prompts aligned with media order (image files, then audio, then "
+        "video). Each media set uses its own prompt; falls back to `goal` when absent.",
+    ] = None,
+    prompts_csv: t.Annotated[
+        str,
+        "Path to a CSV of `media_filename,prompt` rows. Each media file is paired with "
+        "its prompt (matched by basename); unmapped media fall back to `goal`.",
+    ] = "",
+    custom_url: t.Annotated[
+        str,
+        "Target a custom multimodal HTTP endpoint instead of a litellm model. When "
+        "set, target_model is optional; the endpoint receives the text + base64 media.",
+    ] = "",
+    custom_auth_type: t.Annotated[str, "Auth scheme for custom_url: 'none', 'bearer', or 'api_key'"] = "none",
+    custom_auth_env_var: t.Annotated[str, "Env var holding the custom endpoint credential"] = "TARGET_API_KEY",
+    custom_request_template: t.Annotated[
+        str,
+        "JSON request template with {prompt}/{image_b64}/{audio_b64}/{video_b64} placeholders.",
+    ] = "",
+    custom_response_text_path: t.Annotated[str, "JSONPath to the response text (e.g. $.response)"] = "",
+    score_media_output: t.Annotated[
+        bool,
+        "Score the target's GENERATED media (image-out / speech-to-speech), not just its "
+        "text. Uses a media-aware judge per output modality; trial score = MAX across "
+        "modalities. Requires a vision/audio-capable judge_model.",
+    ] = False,
+    media_output_modalities: t.Annotated[
+        list[str] | None,
+        "Which output modalities to score ('image'/'audio'/'video'). Defaults to all "
+        "when score_media_output is set; only modalities actually present are scored.",
+    ] = None,
+    media_output_rubric: t.Annotated[
+        str,
+        "Rubric for scoring generated media (defaults to the jailbreak rubric).",
+    ] = "",
 ) -> str:
     """Generate and execute a MULTIMODAL LLM red teaming attack.
 
@@ -475,8 +532,99 @@ def generate_multimodal_attack(
         params["n_iterations"] = n_iterations
     if assessment_name:
         params["assessment_name"] = assessment_name
+    if prompts:
+        params["prompts"] = prompts
+    if prompts_csv:
+        params["prompts_csv"] = prompts_csv
+    if custom_url:
+        params["custom_url"] = custom_url
+    if custom_auth_type:
+        params["custom_auth_type"] = custom_auth_type
+    if custom_auth_env_var:
+        params["custom_auth_env_var"] = custom_auth_env_var
+    if custom_request_template:
+        params["custom_request_template"] = custom_request_template
+    if custom_response_text_path:
+        params["custom_response_text_path"] = custom_response_text_path
+    if score_media_output:
+        params["score_media_output"] = True
+    if media_output_modalities:
+        params["media_output_modalities"] = media_output_modalities
+    if media_output_rubric:
+        params["media_output_rubric"] = media_output_rubric
 
     return _call_runner("generate_multimodal_attack", params)
+
+
+@safe_tool
+def generate_multimodal_category_attack(
+    goal_category: t.Annotated[
+        str,
+        "Harm sub-category to sweep (e.g. weapons, cybersecurity, harmful_content). "
+        "Goals are sampled from the bundled dataset.",
+    ],
+    goals_per_category: t.Annotated[int, "How many goals to sample from the category (default 5)."] = 5,
+    render_from_goals: t.Annotated[
+        bool,
+        "Auto-render each sampled goal into a typographic injection image (turnkey — no "
+        "user media needed). One attack per goal. Use when the user has no media.",
+    ] = False,
+    target_model: t.Annotated[str, "Vision/audio/video-capable target model."] = "",
+    image_dir: t.Annotated[str, "User media: directory of images to pair with the goals."] = "",
+    image_paths: t.Annotated[list[str] | None, "User media: explicit image paths."] = None,
+    audio_dir: t.Annotated[str, "User media: directory of audio files."] = "",
+    audio_paths: t.Annotated[list[str] | None, "User media: explicit audio paths."] = None,
+    video_dir: t.Annotated[str, "User media: directory of video files."] = "",
+    video_paths: t.Annotated[list[str] | None, "User media: explicit video paths."] = None,
+    transforms: t.Annotated[list[str] | None, "Modality-typed transforms to apply."] = None,
+    judge_model: t.Annotated[str, "Model used to score jailbreak success."] = "",
+    n_iterations: t.Annotated[int | None, "Iterations per media set."] = None,
+    score_media_output: t.Annotated[bool, "Also score the target's generated media output."] = False,
+    assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
+) -> str:
+    """Sweep a MULTIMODAL attack across sampled goals from a harm category.
+
+    A multimodal category sweep needs media. Provide ONE of:
+      - `render_from_goals=True` — turnkey: each sampled goal is rendered into a
+        typographic prompt-injection image (harmful text in the image, benign framing
+        prompt). No user media required.
+      - user media (`image_dir`/`image_paths`/audio/video) — each sampled goal is paired
+        1:1 with a media file; provide one media per goal you want to test.
+
+    If the user wants a media-input sweep but gives no paths, ASK them for the media
+    folder/paths (or offer render_from_goals). You never view the goals or media.
+    """
+    if not goal_category:
+        return "Error: goal_category is required (e.g. weapons, cybersecurity, harmful_content)"
+    params: dict[str, t.Any] = {"goal_category": goal_category, "goals_per_category": goals_per_category}
+    if render_from_goals:
+        params["render_from_goals"] = True
+    if target_model:
+        params["target_model"] = target_model
+    if image_dir:
+        params["image_dir"] = image_dir
+    if image_paths:
+        params["image_paths"] = image_paths
+    if audio_dir:
+        params["audio_dir"] = audio_dir
+    if audio_paths:
+        params["audio_paths"] = audio_paths
+    if video_dir:
+        params["video_dir"] = video_dir
+    if video_paths:
+        params["video_paths"] = video_paths
+    if transforms:
+        params["transforms"] = transforms
+    if judge_model:
+        params["judge_model"] = judge_model
+    if n_iterations is not None:
+        params["n_iterations"] = n_iterations
+    if score_media_output:
+        params["score_media_output"] = True
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+
+    return _call_runner("generate_multimodal_category_attack", params)
 
 
 @safe_tool
@@ -496,8 +644,10 @@ def build_media_manifest(
     Returns a compact, byte-free inventory (id, kind, mime, size, image dimensions)
     plus a summary so you can choose modality-typed transforms and pass the
     paths/dir to generate_multimodal_attack — WITHOUT loading raw media into context.
-    Only invoke a vision tool later if a semantic transform needs to know what the
-    media depicts.
+    The media is attack content: never open, view, or reason about what it depicts.
+    Plan from the inventory metadata alone (kind/size/dimensions/paths), then hand the
+    paths + transforms + models to generate_multimodal_attack, which loads and probes
+    the media at runtime inside the workflow.
     """
     params: dict[str, t.Any] = {}
     if directory:
@@ -523,5 +673,70 @@ def build_media_manifest(
             return output[:50_000]
         except json.JSONDecodeError:
             return output[:50_000] or f"Error: manifest failed: {result.stderr.strip()[:2000]}"
+    except Exception as e:  # noqa: BLE001
+        return f"Error: {e}"
+
+
+@safe_tool
+def generate_injection_images(
+    texts: t.Annotated[
+        list[str] | None,
+        "Attack texts to rasterize — one image per text (typographic prompt injection).",
+    ] = None,
+    texts_csv: t.Annotated[
+        str,
+        "Path to a CSV whose first column is the attack text (one image per row). "
+        "Use when the user hands you a CSV of prompts to render as images.",
+    ] = "",
+    output_dir: t.Annotated[
+        str, "Directory to write the images into (default ./injection_images)."
+    ] = "",
+    base_image: t.Annotated[
+        str, "Optional base image path to overlay the text onto (else a plain canvas)."
+    ] = "",
+    font_size: t.Annotated[int, "Font size for the rendered text (default 40)."] = 40,
+) -> str:
+    """Render attack text into typographic/visual prompt-injection IMAGES.
+
+    Turns caller-supplied text (or a CSV of texts) into image files so you can probe a
+    vision model with a "typographic jailbreak" WITHOUT supplying your own media. This
+    CREATES the attack data for the user — you never view or reason about the text; you
+    just render it and pass the resulting image paths to generate_multimodal_attack.
+
+    Returns the written image paths + a byte-free summary. Typical flow:
+      generate_injection_images(texts_csv="./prompts.csv", output_dir="./inj")
+      → generate_multimodal_attack(goal="Follow the instructions in the image",
+                                   target_model="openai/gpt-4o", image_dir="./inj")
+    """
+    params: dict[str, t.Any] = {}
+    if texts:
+        params["texts"] = texts
+    if texts_csv:
+        params["texts_csv"] = texts_csv
+    if output_dir:
+        params["output_dir"] = output_dir
+    if base_image:
+        params["base_image"] = base_image
+    if font_size:
+        params["font_size"] = font_size
+
+    payload = json.dumps({"name": "generate_injection_images", "parameters": params})
+    try:
+        python_executable = resolve_python_executable()
+        result = subprocess.run(
+            [python_executable, str(_MEDIA_GENERATOR_SCRIPT)],
+            input=payload,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        output = result.stdout.strip()
+        try:
+            data = json.loads(output)
+            if "error" in data:
+                return f"Error: {data['error']}"
+            return output[:50_000]
+        except json.JSONDecodeError:
+            return output[:50_000] or f"Error: generation failed: {result.stderr.strip()[:2000]}"
     except Exception as e:  # noqa: BLE001
         return f"Error: {e}"
