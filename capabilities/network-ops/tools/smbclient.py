@@ -19,6 +19,24 @@ def _require_smbclient() -> str:
     return path
 
 
+_SMBCLIENT_UNSAFE_CHARS = set(';!"\n\r')
+
+
+def _sanitize_smb_path(path: str) -> str:
+    """Quote a path for smbclient ``-c`` commands, rejecting unsafe characters.
+
+    smbclient's command language treats ``;`` as a command separator and
+    ``!`` as a shell escape.  These cannot be safely quoted, so we reject
+    them outright.
+    """
+    bad = _SMBCLIENT_UNSAFE_CHARS & set(path)
+    if bad:
+        raise ValueError(
+            f"SMB path contains unsafe characters {bad!r}: {path!r}"
+        )
+    return f'"{path}"'
+
+
 class SmbClient(Toolset):
     """
     Toolset for interacting with SMB shares using smbclient.
@@ -47,7 +65,7 @@ class SmbClient(Toolset):
             The text output of the recursive file listing.
         """
         share_path = f"//{target}/{share_name}"
-        smb_command = f"recurse ON; ls {path}"
+        smb_command = f"recurse ON; ls {_sanitize_smb_path(path)}"
 
         logger.info(f"Recursively listing files in {share_path}\\{path}")
 
@@ -118,7 +136,7 @@ class SmbClient(Toolset):
             The content of the downloaded file as a string.
         """
         share_path = f"//{target}/{share_name}"
-        smb_command = f"get {remote_path} /dev/stdout"
+        smb_command = f"get {_sanitize_smb_path(remote_path)} /dev/stdout"
 
         logger.info(f"Downloading file {remote_path} from {share_path}")
         return await execute(
@@ -161,14 +179,15 @@ class SmbClient(Toolset):
         """
         share_path = f"//{target}/{share_name}"
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".tmp", delete=False) as tmp:
-            tmp.write(content)
-            local_path = tmp.name
-
-        smb_command = f"put {local_path} {remote_path}"
-        logger.info(f"Uploading to {share_path}\\{remote_path}")
-
+        local_path: str | None = None
         try:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".tmp", delete=False) as tmp:
+                tmp.write(content)
+                local_path = tmp.name
+
+            smb_command = f"put {_sanitize_smb_path(local_path)} {_sanitize_smb_path(remote_path)}"
+            logger.info(f"Uploading to {share_path}\\{remote_path}")
+
             return await execute(
                 [
                     _require_smbclient(),
@@ -180,4 +199,5 @@ class SmbClient(Toolset):
                 ]
             )
         finally:
-            os.unlink(local_path)
+            if local_path is not None:
+                os.unlink(local_path)

@@ -29,14 +29,14 @@ g_default_dfscoerce_path = Path("/opt/DFSCoerce/")
 g_default_shadowcoerce_path = Path("/opt/ShadowCoerce/")
 
 
-def _resolve_script(base_path: Path, script_name: str) -> Path:
+def _resolve_script(base_path: Path, script_name: str, repo_url: str) -> Path:
     """Locate a coercion script, raising a clear error if not found."""
     script = base_path / script_name
     if script.is_file():
         return script
     raise FileNotFoundError(
         f"Coercion script '{script_name}' not found at '{base_path}'. "
-        f"Install via: git clone <repo> {base_path}"
+        f"Install via: git clone {repo_url} {base_path}"
     )
 
 
@@ -179,7 +179,10 @@ class Coercion(Toolset):
 
         args.extend([listener, target])
 
-        script = _resolve_script(self.petitpotam_path, "PetitPotam.py")
+        script = _resolve_script(
+            self.petitpotam_path, "PetitPotam.py",
+            "https://github.com/topotam/PetitPotam",
+        )
         return await execute(
             [sys.executable, str(script), *args],
             timeout=self.timeout,
@@ -288,7 +291,10 @@ class Coercion(Toolset):
 
         args.extend([listener, target])
 
-        script = _resolve_script(self.dfscoerce_path, "dfscoerce.py")
+        script = _resolve_script(
+            self.dfscoerce_path, "dfscoerce.py",
+            "https://github.com/Wh04m1001/DFSCoerce",
+        )
         return await execute(
             [sys.executable, str(script), *args],
             timeout=self.timeout,
@@ -386,7 +392,10 @@ class Coercion(Toolset):
 
         args.extend([listener, target])
 
-        script = _resolve_script(self.shadowcoerce_path, "shadowcoerce.py")
+        script = _resolve_script(
+            self.shadowcoerce_path, "shadowcoerce.py",
+            "https://github.com/ShutdownRepo/ShadowCoerce",
+        )
         return await execute(
             [sys.executable, str(script), *args],
             timeout=self.timeout,

@@ -87,7 +87,7 @@ class NetopsPipelineTools(Toolset):
             "Optional model id for worker agents.",
         ] = None,
         max_steps: t.Annotated[
-            int, "Maximum autonomous steps across all pipeline stages."
+            int, "Maximum autonomous steps per pipeline stage (each stage is capped independently)."
         ] = 240,
         timeout: t.Annotated[
             int | None,
@@ -339,7 +339,8 @@ def _load_coordinator_module() -> t.Any:
     sys.modules["dreadnode.capabilities.worker"] = worker_module
 
     # Stub loguru so the coordinator can be imported without the package.
-    if "loguru" not in sys.modules:
+    previous_loguru = sys.modules.get("loguru")
+    if previous_loguru is None:
         loguru_module = types.ModuleType("loguru")
 
         class _StubLogger:
@@ -360,6 +361,10 @@ def _load_coordinator_module() -> t.Any:
             sys.modules["dreadnode.capabilities.worker"] = (
                 previous_worker_module
             )
+        if previous_loguru is None:
+            sys.modules.pop("loguru", None)
+        else:
+            sys.modules["loguru"] = previous_loguru
 
 
 def _patch_websockets_proxy_compat() -> None:
