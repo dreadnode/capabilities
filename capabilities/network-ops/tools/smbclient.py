@@ -1,10 +1,22 @@
 import asyncio
 import os
+import shutil
 import tempfile
 
 from dreadnode.agents.tools import Toolset, tool_method
 from dreadnode.tools.execute import execute
 from loguru import logger
+
+
+def _require_smbclient() -> str:
+    """Return the smbclient binary path, raising a clear error if missing."""
+    path = shutil.which("smbclient")
+    if path is None:
+        raise FileNotFoundError(
+            "smbclient is not installed or not on PATH. "
+            "Install via: apt install smbclient"
+        )
+    return path
 
 
 class SmbClient(Toolset):
@@ -45,7 +57,7 @@ class SmbClient(Toolset):
         # partial output.
         timeout = 120
         proc = await asyncio.create_subprocess_exec(
-            "smbclient",
+            _require_smbclient(),
             share_path,
             "-U",
             f"{username}%{password}",
@@ -111,7 +123,7 @@ class SmbClient(Toolset):
         logger.info(f"Downloading file {remote_path} from {share_path}")
         return await execute(
             [
-                "smbclient",
+                _require_smbclient(),
                 share_path,
                 "-U",
                 f"{username}%{password}",
@@ -159,7 +171,7 @@ class SmbClient(Toolset):
         try:
             return await execute(
                 [
-                    "smbclient",
+                    _require_smbclient(),
                     share_path,
                     "-U",
                     f"{username}%{password}",
