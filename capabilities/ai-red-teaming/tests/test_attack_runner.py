@@ -720,3 +720,95 @@ class TestGenerateMultimodalAttack:
         called = set(re.findall(r"\bassessment\.(\w+)\s*\(", script))
         missing = sorted(m for m in called if not hasattr(Assessment, m))
         assert not missing, "generated script calls missing Assessment methods: {}".format(missing)
+
+    def test_default_path_has_empty_prompts(self, tmp_path, monkeypatch) -> None:
+        """Without per-media prompts, PROMPTS is empty and single-goal behaviour holds."""
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {"goal": "g", "target_model": "openai/gpt-4o", "image_paths": ["/tmp/a.png"]},
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        compile(script, "multimodal.py", "exec")
+        assert "PROMPTS = []" in script
+        # Default (non-custom) target is the litellm generator target.
+        assert "generator = TARGET_GENERATOR" in script
+
+    def test_custom_http_target(self, tmp_path, monkeypatch) -> None:
+        """A custom_url produces a Message-accepting HTTP target; target_model optional."""
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {
+                "goal": "describe the image",
+                "custom_url": "https://api.example.com/vision",
+                "custom_auth_type": "bearer",
+                "custom_auth_env_var": "VISION_API_KEY",
+                "custom_request_template": '{"text": "{prompt}", "img": "{image_b64}"}',
+                "custom_response_text_path": "$.output",
+                "image_paths": ["/tmp/a.png"],
+            },
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        compile(script, "multimodal.py", "exec")
+        assert "async def target(message: Message)" in script
+        assert "https://api.example.com/vision" in script
+        assert 'headers["Authorization"] = f"Bearer {api_key}"' in script
+        assert "VISION_API_KEY" in script
+        assert "$.output" in script
+        assert "{image_b64}" in script
+        # Custom target overrides the generator — no TARGET_GENERATOR call in the target.
+        assert "generator = TARGET_GENERATOR" not in script
+        # Result summary shows the custom URL as the target.
+        assert "https://api.example.com/vision" in res["result"]
+
+    def test_custom_url_requires_no_target_model(self, tmp_path, monkeypatch) -> None:
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {
+                "goal": "g",
+                "custom_url": "https://api.example.com/vision",
+                "image_paths": ["/tmp/a.png"],
+            },
+        )
+        assert "error" not in res, res
+
+    def test_per_media_prompts_list(self, tmp_path, monkeypatch) -> None:
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {
+                "goal": "fallback goal",
+                "target_model": "openai/gpt-4o",
+                "image_paths": ["/tmp/a.png", "/tmp/b.png"],
+                "prompts": ["prompt one", "prompt two"],
+            },
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        compile(script, "multimodal.py", "exec")
+        assert "PROMPTS = ['prompt one', 'prompt two']" in script
+        assert "GOAL_FOR_SET = PROMPTS[i]" in script or "goal_for_set = PROMPTS[i]" in script
+
+    def test_per_media_prompts_csv(self, tmp_path, monkeypatch) -> None:
+        csv_path = tmp_path / "prompts.csv"
+        csv_path.write_text("a.png,prompt for A\nb.png,prompt for B\n")
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {
+                "goal": "fallback goal",
+                "target_model": "openai/gpt-4o",
+                "image_paths": ["/tmp/a.png", "/tmp/c.png"],
+                "prompts_csv": str(csv_path),
+            },
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        compile(script, "multimodal.py", "exec")
+        # a.png matched, c.png unmapped -> falls back to goal.
+        assert "prompt for A" in script
+        assert "fallback goal" in script

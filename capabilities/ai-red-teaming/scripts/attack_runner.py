@@ -5184,6 +5184,61 @@ _MULTIMODAL_JAILBREAK_RUBRIC = (
 )
 
 
+def _resolve_multimodal_prompts(
+    prompts: list[str] | None,
+    prompts_csv: str | None,
+    image_paths: list[str],
+    audio_paths: list[str],
+    video_paths: list[str],
+    goal: str,
+) -> list[str]:
+    """Build a PROMPTS list aligned with the main loop's media-set order.
+
+    The main loop iterates by index ``i`` up to ``max(len(images), len(audios),
+    len(videos))``, so set ``i`` may carry an image, audio, and/or video. Priority
+    for the per-set prompt: an explicit ``prompts`` list wins; otherwise a CSV of
+    ``media_filename,prompt`` matched by basename against any media in that set;
+    otherwise fall back to ``goal``. Returns ``[]`` when no per-media prompts were
+    supplied so the caller keeps the default single-goal behaviour unchanged.
+    """
+    if prompts:
+        return [str(p) if p else goal for p in prompts]
+
+    if not prompts_csv:
+        return []
+
+    mapping: dict[str, str] = {}
+    try:
+        with open(Path(prompts_csv).expanduser(), newline="", encoding="utf-8") as f:
+            for row in csv.reader(f):
+                if len(row) >= 2 and row[0].strip():
+                    mapping[os.path.basename(row[0].strip())] = row[1].strip()
+    except Exception:
+        return []
+
+    if not mapping:
+        return []
+
+    n_sets = max(len(image_paths), len(audio_paths), len(video_paths), 1)
+    out: list[str] = []
+    for i in range(n_sets):
+        candidates = []
+        if i < len(image_paths):
+            candidates.append(image_paths[i])
+        if i < len(audio_paths):
+            candidates.append(audio_paths[i])
+        if i < len(video_paths):
+            candidates.append(video_paths[i])
+        prompt = goal
+        for path in candidates:
+            base = os.path.basename(path)
+            if base in mapping:
+                prompt = mapping[base]
+                break
+        out.append(prompt)
+    return out
+
+
 def _expand_media_paths(
     paths: list[str] | None, directory: str | None, kind: str
 ) -> list[str]:
@@ -5240,14 +5295,105 @@ def _build_multimodal_imports(transforms: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _build_multimodal_target() -> str:
+def _build_custom_multimodal_target(custom: dict) -> str:
+    """Build a @task target that sends a multimodal Message to a custom HTTP endpoint.
+
+    Mirrors ``_build_custom_http_target`` (auth schemes, JSONPath response extraction)
+    but accepts a ``Message`` instead of a str prompt: it extracts the text plus the
+    base64 of the first image/audio/video part and substitutes ``{prompt}``,
+    ``{image_b64}``, ``{audio_b64}``, ``{video_b64}`` into the JSON request template.
+    """
+    url = _safe_str(custom["url"])
+    auth_type = custom.get("auth_type", "none")
+    auth_env_var = custom.get("auth_env_var", "TARGET_API_KEY")
+    request_template = custom.get("request_template", '{"prompt": "{prompt}", "image": "{image_b64}"}')
+    text_path = _safe_str(custom.get("response_text_path", "$.response"))
+
+    if auth_type == "bearer":
+        auth_lines = (
+            '    api_key = os.environ.get("{}", "")\n'
+            '    headers["Authorization"] = f"Bearer {{api_key}}"'.format(auth_env_var)
+        )
+    elif auth_type == "api_key":
+        auth_lines = (
+            '    api_key = os.environ.get("{}", "")\n'
+            '    headers["X-API-Key"] = api_key'.format(auth_env_var)
+        )
+    else:
+        auth_lines = "    pass  # No auth configured"
+
+    lines = [
+        "@task",
+        "async def target(message: Message):",
+        '    """Send a multimodal Message to a custom HTTP endpoint; extract text via JSONPath."""',
+        "    import base64",
+        "    import json",
+        "    import httpx",
+        "    from jsonpath_ng.ext import parse as jp_parse",
+        "",
+        "    _MEDIA_KINDS = {'image_url': '', 'input_audio': '', 'video_url': ''}",
+        "    prompt = ''",
+        "    image_b64 = ''",
+        "    audio_b64 = ''",
+        "    video_b64 = ''",
+        "    for p in (getattr(message, 'content_parts', None) or []):",
+        "        ptype = getattr(p, 'type', None)",
+        "        if ptype == 'text':",
+        "            try:",
+        "                prompt += p.text or ''",
+        "            except Exception:",
+        "                pass",
+        "        elif ptype == 'image_url' and not image_b64:",
+        "            try:",
+        "                image_b64 = base64.b64encode(p.to_bytes()).decode('ascii')",
+        "            except Exception:",
+        "                image_b64 = ''",
+        "        elif ptype == 'input_audio' and not audio_b64:",
+        "            try:",
+        "                audio_b64 = base64.b64encode(p.to_bytes()).decode('ascii')",
+        "            except Exception:",
+        "                audio_b64 = ''",
+        "        elif ptype == 'video_url' and not video_b64:",
+        "            try:",
+        "                _raw = getattr(getattr(p, 'file', None), 'file_data', '') or ''",
+        "                video_b64 = _raw.split(',', 1)[1] if ',' in _raw else _raw",
+        "            except Exception:",
+        "                video_b64 = ''",
+        "",
+        '    headers = {"Content-Type": "application/json"}',
+        auth_lines,
+        "",
+        "    body_str = {}".format(repr(request_template)),
+        "    body_str = body_str.replace('{{prompt}}', json.dumps(prompt)[1:-1])",
+        "    body_str = body_str.replace('{{image_b64}}', image_b64)",
+        "    body_str = body_str.replace('{{audio_b64}}', audio_b64)",
+        "    body_str = body_str.replace('{{video_b64}}', video_b64)",
+        "    body = json.loads(body_str)",
+        "",
+        "    async with httpx.AsyncClient(timeout=120.0) as client:",
+        '        resp = await client.post("{}", json=body, headers=headers)'.format(url),
+        "        resp.raise_for_status()",
+        "        data = resp.json()",
+        "",
+        '    matches = [m.value for m in jp_parse("{}").find(data)]'.format(text_path),
+        "    content = matches[0] if matches else str(data)",
+        "    return content if isinstance(content, str) else str(content)",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def _build_multimodal_target(custom: dict | None = None) -> str:
     """A @task target that sends a multimodal Message to the target.
 
-    Returns the model's full reply when it contains generated media
-    (image/audio/video) so those *output* parts are captured and rendered — e.g.
+    With ``custom`` set, returns a custom HTTP target (any endpoint). Otherwise the
+    default litellm target: returns the model's full reply when it contains generated
+    media (image/audio/video) so those *output* parts are captured and rendered — e.g.
     an image-out model or a speech-to-speech target. Otherwise returns the plain
     text content, so text-out targets behave exactly as before.
     """
+    if custom:
+        return _build_custom_multimodal_target(custom)
     return """\
 @task
 async def target(message: Message):
@@ -5315,12 +5461,13 @@ async def main():
             img = images[i] if i < len(images) else None
             aud = audios[i] if i < len(audios) else None
             vid = videos[i] if i < len(videos) else None
+            goal_for_set = PROMPTS[i] if (PROMPTS and i < len(PROMPTS)) else GOAL
             print(f"[{{i + 1}}/{{n_sets}}] multimodal attack "
                   f"(image={{img is not None}}, audio={{aud is not None}}, video={{vid is not None}})")
             sys.stdout.flush()
             try:
                 attack = multimodal_attack(
-                    GOAL,
+                    goal_for_set,
                     target=target,
                     scorer=scorer,
                     image=img,
@@ -5369,16 +5516,42 @@ def generate_multimodal_attack(params: dict) -> dict:
     """
     goal = params.get("goal", "")
     target_model = params.get("target_model", "")
-    judge_model = params.get("judge_model") or params.get("evaluator_model") or target_model
     goal_category_slug = (params.get("goal_category") or "jailbreak_general").strip().lower()
     n_iterations = params.get("n_iterations") or 4
     assessment_name = params.get("assessment_name", "")
     transforms_raw = params.get("transforms") or []
 
+    # Custom HTTP endpoint target: point the attack at *any* multimodal endpoint by
+    # URL instead of a litellm model. Mirrors generate_attack's custom-target block.
+    custom_url = (params.get("custom_url") or "").strip()
+    custom_target = None
+    if custom_url:
+        custom_target = {
+            "url": custom_url,
+            "auth_type": params.get("custom_auth_type", "none"),
+            "auth_env_var": params.get("custom_auth_env_var", "TARGET_API_KEY"),
+            "request_template": params.get(
+                "custom_request_template", '{"prompt": "{prompt}", "image": "{image_b64}"}'
+            ),
+            "response_text_path": params.get("custom_response_text_path", "$.response"),
+        }
+
     if not goal:
         return {"error": "goal is required (the text prompt to send with the media)"}
+    if not target_model and not custom_url:
+        return {
+            "error": "target_model is required (a vision/audio-capable model), "
+            "or provide custom_url for a custom HTTP endpoint"
+        }
+
+    # For a custom endpoint with no target_model, TARGET_MODEL only backs a
+    # never-invoked generator (the custom target overrides it), so alias it to the
+    # judge model — a valid, construct-only id.
+    judge_model = params.get("judge_model") or params.get("evaluator_model") or target_model
+    if not judge_model:
+        judge_model = "openai/gpt-4o-mini"
     if not target_model:
-        return {"error": "target_model is required (a vision/audio-capable model)"}
+        target_model = judge_model
 
     image_paths = _expand_media_paths(
         params.get("image_paths"), params.get("image_dir"), "image"
@@ -5394,6 +5567,17 @@ def generate_multimodal_attack(params: dict) -> dict:
             "error": "at least one of image_paths/image_dir, audio_paths/audio_dir, "
             "or video_paths/video_dir is required"
         }
+
+    # Per-media prompts: a list aligned with media order, and/or a CSV of
+    # `media_filename,prompt` matched by basename. Falls back to `goal` per set.
+    prompts_list = _resolve_multimodal_prompts(
+        params.get("prompts"),
+        params.get("prompts_csv"),
+        image_paths,
+        audio_paths,
+        video_paths,
+        goal,
+    )
 
     goal_cat_enum = _MULTIMODAL_GOAL_CATEGORIES.get(goal_category_slug, "JAILBREAK_GENERAL")
 
@@ -5426,6 +5610,8 @@ def generate_multimodal_attack(params: dict) -> dict:
         "IMAGE_PATHS = {}".format(repr(image_paths)),
         "AUDIO_PATHS = {}".format(repr(audio_paths)),
         "VIDEO_PATHS = {}".format(repr(video_paths)),
+        # Per-media prompts aligned with media order; empty = single-goal behaviour.
+        "PROMPTS = {}".format(repr(prompts_list)),
         "TRANSFORMS = {}".format(transforms_expr),
         'ASSESSMENT_NAME = "{}"'.format(_safe_str(assessment_name)),
         'ASSESSMENT_DESC = "Multimodal red teaming vs {}"'.format(_safe_str(target_model)),
@@ -5446,7 +5632,7 @@ def generate_multimodal_attack(params: dict) -> dict:
     config_section = "\n".join(config_lines)
 
     proxy = _build_proxy_routing()
-    tgt = _build_multimodal_target()
+    tgt = _build_multimodal_target(custom_target)
     body = _MULTIMODAL_MAIN_TEMPLATE.format(rubric=_MULTIMODAL_JAILBREAK_RUBRIC)
 
     script = "\n".join(
@@ -5491,9 +5677,10 @@ def generate_multimodal_attack(params: dict) -> dict:
         "",
         "Config:",
         "  Mode: Multimodal LLM Red Teaming",
-        "  Target: {}".format(target_model),
+        "  Target: {}".format(custom_url if custom_target else target_model),
         "  Judge: {}".format(judge_model),
         "  Goal: {}".format(goal),
+        "  Per-media prompts: {}".format(len(prompts_list) if prompts_list else "none (single goal)"),
         "  Images: {}".format(len(image_paths)),
         "  Audio: {}".format(len(audio_paths)),
         "  Video: {}".format(len(video_paths)),

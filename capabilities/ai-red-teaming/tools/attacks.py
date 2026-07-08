@@ -109,6 +109,15 @@ def generate_attack(
     n_iterations: t.Annotated[int | None, "Iterations per attack"] = None,
     goal_category: t.Annotated[str, "Goal category for scoring"] = "",
     assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
+    custom_url: t.Annotated[
+        str,
+        "Target a custom HTTP endpoint instead of a litellm model. When set, "
+        "target_model is optional and the attacker/judge use real models.",
+    ] = "",
+    custom_auth_type: t.Annotated[str, "Auth scheme for custom_url: 'none', 'bearer', or 'api_key'"] = "none",
+    custom_auth_env_var: t.Annotated[str, "Env var holding the custom endpoint credential"] = "TARGET_API_KEY",
+    custom_request_template: t.Annotated[str, "JSON request template with a {prompt} placeholder"] = "",
+    custom_response_text_path: t.Annotated[str, "JSONPath to the response text (e.g. $.response)"] = "",
 ) -> str:
     """Generate, save, and execute a single attack workflow.
 
@@ -143,6 +152,16 @@ def generate_attack(
         params["goal_category"] = goal_category
     if assessment_name:
         params["assessment_name"] = assessment_name
+    if custom_url:
+        params["custom_url"] = custom_url
+    if custom_auth_type:
+        params["custom_auth_type"] = custom_auth_type
+    if custom_auth_env_var:
+        params["custom_auth_env_var"] = custom_auth_env_var
+    if custom_request_template:
+        params["custom_request_template"] = custom_request_template
+    if custom_response_text_path:
+        params["custom_response_text_path"] = custom_response_text_path
 
     return _call_runner("generate_attack", params)
 
@@ -420,6 +439,28 @@ def generate_multimodal_attack(
     ] = "jailbreak_general",
     n_iterations: t.Annotated[int | None, "Iterations per media set (default 4)."] = None,
     assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
+    prompts: t.Annotated[
+        list[str] | None,
+        "Per-media prompts aligned with media order (image files, then audio, then "
+        "video). Each media set uses its own prompt; falls back to `goal` when absent.",
+    ] = None,
+    prompts_csv: t.Annotated[
+        str,
+        "Path to a CSV of `media_filename,prompt` rows. Each media file is paired with "
+        "its prompt (matched by basename); unmapped media fall back to `goal`.",
+    ] = "",
+    custom_url: t.Annotated[
+        str,
+        "Target a custom multimodal HTTP endpoint instead of a litellm model. When "
+        "set, target_model is optional; the endpoint receives the text + base64 media.",
+    ] = "",
+    custom_auth_type: t.Annotated[str, "Auth scheme for custom_url: 'none', 'bearer', or 'api_key'"] = "none",
+    custom_auth_env_var: t.Annotated[str, "Env var holding the custom endpoint credential"] = "TARGET_API_KEY",
+    custom_request_template: t.Annotated[
+        str,
+        "JSON request template with {prompt}/{image_b64}/{audio_b64}/{video_b64} placeholders.",
+    ] = "",
+    custom_response_text_path: t.Annotated[str, "JSONPath to the response text (e.g. $.response)"] = "",
 ) -> str:
     """Generate and execute a MULTIMODAL LLM red teaming attack.
 
@@ -475,6 +516,20 @@ def generate_multimodal_attack(
         params["n_iterations"] = n_iterations
     if assessment_name:
         params["assessment_name"] = assessment_name
+    if prompts:
+        params["prompts"] = prompts
+    if prompts_csv:
+        params["prompts_csv"] = prompts_csv
+    if custom_url:
+        params["custom_url"] = custom_url
+    if custom_auth_type:
+        params["custom_auth_type"] = custom_auth_type
+    if custom_auth_env_var:
+        params["custom_auth_env_var"] = custom_auth_env_var
+    if custom_request_template:
+        params["custom_request_template"] = custom_request_template
+    if custom_response_text_path:
+        params["custom_response_text_path"] = custom_response_text_path
 
     return _call_runner("generate_multimodal_attack", params)
 
@@ -496,8 +551,10 @@ def build_media_manifest(
     Returns a compact, byte-free inventory (id, kind, mime, size, image dimensions)
     plus a summary so you can choose modality-typed transforms and pass the
     paths/dir to generate_multimodal_attack — WITHOUT loading raw media into context.
-    Only invoke a vision tool later if a semantic transform needs to know what the
-    media depicts.
+    The media is attack content: never open, view, or reason about what it depicts.
+    Plan from the inventory metadata alone (kind/size/dimensions/paths), then hand the
+    paths + transforms + models to generate_multimodal_attack, which loads and probes
+    the media at runtime inside the workflow.
     """
     params: dict[str, t.Any] = {}
     if directory:
