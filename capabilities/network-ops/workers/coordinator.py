@@ -151,7 +151,7 @@ async def _run_pipeline(
 
     # --- Stage 3: AD Enumeration ---
     await _publish_progress(client, run_id, "enumeration_started")
-    enumeration_report, _ = await _run_agent_turn(
+    enumeration_report, enumeration_tool_calls = await _run_agent_turn(
         client,
         run_id=run_id,
         target=target,
@@ -208,7 +208,7 @@ async def _run_pipeline(
     # --- Stage 6: Report Synthesis ---
     await _publish_progress(client, run_id, "report_synthesis_started")
 
-    all_tool_calls = exploit_tool_calls + harvest_tool_calls
+    all_tool_calls = enumeration_tool_calls + exploit_tool_calls + harvest_tool_calls
     findings = _extract_findings(all_tool_calls)
 
     synthesis_report, _ = await _run_agent_turn(
