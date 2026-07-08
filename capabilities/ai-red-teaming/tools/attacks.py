@@ -462,6 +462,23 @@ def generate_multimodal_attack(
         "JSON request template with {prompt}/{image_b64}/{audio_b64}/{video_b64} placeholders.",
     ] = "",
     custom_response_text_path: t.Annotated[str, "JSONPath to the response text (e.g. $.response)"] = "",
+    custom_transport: t.Annotated[
+        str,
+        "Target transport: 'http' (default) or 'streaming' for a realtime speech-to-speech "
+        "target. With 'streaming', set custom_protocol (no custom_url needed).",
+    ] = "http",
+    custom_protocol: t.Annotated[
+        str,
+        "Streaming protocol when custom_transport='streaming'. Supported: 'nova_sonic' "
+        "(Amazon Nova Sonic S2S over Bedrock). The input audio is spoken to the model and "
+        "its spoken reply (audio + transcript) is scored.",
+    ] = "",
+    custom_region: t.Annotated[str, "AWS region for a streaming target (default us-east-1)."] = "",
+    custom_voice: t.Annotated[str, "Voice id for a Nova Sonic streaming target (default matthew)."] = "",
+    custom_system_prompt: t.Annotated[str, "System prompt for a streaming S2S target."] = "",
+    custom_model_id: t.Annotated[
+        str, "Model id for a streaming target (default amazon.nova-sonic-v1:0)."
+    ] = "",
     score_media_output: t.Annotated[
         bool,
         "Score the target's GENERATED media (image-out / speech-to-speech), not just its "
@@ -546,6 +563,18 @@ def generate_multimodal_attack(
         params["custom_request_template"] = custom_request_template
     if custom_response_text_path:
         params["custom_response_text_path"] = custom_response_text_path
+    if custom_transport and custom_transport != "http":
+        params["custom_transport"] = custom_transport
+    if custom_protocol:
+        params["custom_protocol"] = custom_protocol
+    if custom_region:
+        params["custom_region"] = custom_region
+    if custom_voice:
+        params["custom_voice"] = custom_voice
+    if custom_system_prompt:
+        params["custom_system_prompt"] = custom_system_prompt
+    if custom_model_id:
+        params["custom_model_id"] = custom_model_id
     if score_media_output:
         params["score_media_output"] = True
     if media_output_modalities:

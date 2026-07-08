@@ -458,12 +458,24 @@ planning; the tool loads and probes the media at runtime inside the workflow.
 | custom_auth_env_var | No | Env var holding the endpoint credential (default `TARGET_API_KEY`). |
 | custom_request_template | No | JSON template with `{prompt}` / `{image_b64}` / `{audio_b64}` / `{video_b64}` placeholders. |
 | custom_response_text_path | No | JSONPath to the response text (e.g. `$.response`). |
+| custom_transport | No | `http` (default) or `streaming` for a realtime speech-to-speech target. |
+| custom_protocol | No | Streaming protocol when `custom_transport=streaming`. Supported: `nova_sonic` (Amazon Nova Sonic S2S). |
+| custom_region / custom_voice / custom_system_prompt / custom_model_id | No | Nova Sonic options (defaults: `us-east-1`, `matthew`, a generic assistant prompt, `amazon.nova-sonic-v1:0`). |
 | score_media_output | No | Score the target's GENERATED media (image-out / speech-to-speech), not just text. |
 | media_output_modalities | No | Output modalities to score (`image`/`audio`/`video`); defaults to all when `score_media_output`. |
 | media_output_rubric | No | Rubric for scoring generated media (defaults to the jailbreak rubric). |
 
 One attack runs per media file; folders fan out to one attack per file. Findings render each
 message part (input image/audio + the model's response) in the platform's finding detail.
+
+**Speech-to-speech target (Nova Sonic).** When the user wants to red-team a realtime voice /
+speech-to-speech model, use `custom_transport="streaming"` + `custom_protocol="nova_sonic"` with
+`audio_paths`/`audio_dir` (the spoken attack). The SDK drives the Amazon Nova Sonic bidirectional
+stream and returns the model's spoken reply (audio + transcript), which is scored. Requires AWS
+credentials in the environment (env vars / role / platform secrets) and Bedrock access to Nova
+Sonic in `custom_region` — no API key. Optional: `custom_voice`, `custom_system_prompt`,
+`custom_model_id`. Note: Nova Sonic is well-aligned and typically returns a spoken refusal (a
+`refusal` finding) for harmful requests.
 
 **Custom HTTP target.** When the user points at their own multimodal endpoint (a URL) and hands
 you docs or a link, READ the docs, infer the request/response shape + auth, and build a
