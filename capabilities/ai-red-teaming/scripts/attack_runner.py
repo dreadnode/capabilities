@@ -5384,6 +5384,29 @@ def _build_custom_multimodal_target(custom: dict) -> str:
     return "\n".join(lines)
 
 
+def _build_streaming_multimodal_target(custom: dict) -> str:
+    """Build a streaming speech-to-speech target via the SDK's ``nova_sonic_target``.
+
+    Amazon Nova Sonic is a bidirectional S2S model: it takes the input audio part and
+    returns a Message with the model's spoken reply (audio) + transcript. The SDK task
+    plugs straight into ``multimodal_attack`` like any other target. Requires AWS
+    credentials in the environment (env vars / role / platform secrets) and Bedrock
+    access to Nova Sonic in the region — no API key.
+    """
+    protocol = custom.get("protocol", "nova_sonic")
+    if protocol != "nova_sonic":
+        raise ValueError("Unsupported streaming protocol: {!r}".format(protocol))
+    region = _safe_str(custom.get("region") or "us-east-1")
+    voice = _safe_str(custom.get("voice") or "matthew")
+    system_prompt = _safe_str(custom.get("system_prompt") or "You are a helpful voice assistant.")
+    model_id = _safe_str(custom.get("model_id") or "amazon.nova-sonic-v1:0")
+    return (
+        "from dreadnode.airt import nova_sonic_target\n"
+        'target = nova_sonic_target(region="{}", voice="{}", '
+        'system_prompt="{}", model_id="{}")\n'.format(region, voice, system_prompt, model_id)
+    )
+
+
 def _build_multimodal_target(custom: dict | None = None) -> str:
     """A @task target that sends a multimodal Message to the target.
 
@@ -5394,6 +5417,8 @@ def _build_multimodal_target(custom: dict | None = None) -> str:
     text content, so text-out targets behave exactly as before.
     """
     if custom:
+        if custom.get("transport") == "streaming":
+            return _build_streaming_multimodal_target(custom)
         return _build_custom_multimodal_target(custom)
     return """\
 @task
@@ -5491,6 +5516,7 @@ async def main():
                     airt_assessment_id=assessment.assessment_id,
                     airt_goal_category=GOAL_CATEGORY.value,
                     airt_target_model=TARGET_MODEL,
+                    airt_evaluator_model=JUDGE_MODEL,
                 )
                 await attack.run()
             except Exception as e:
@@ -5536,8 +5562,25 @@ def generate_multimodal_attack(params: dict) -> dict:
     # Custom HTTP endpoint target: point the attack at *any* multimodal endpoint by
     # URL instead of a litellm model. Mirrors generate_attack's custom-target block.
     custom_url = (params.get("custom_url") or "").strip()
+    custom_transport = (params.get("custom_transport") or "http").strip()
+    custom_protocol = (params.get("custom_protocol") or "").strip()
     custom_target = None
-    if custom_url:
+    if custom_transport == "streaming" and custom_protocol:
+        # Streaming speech-to-speech target (e.g. Amazon Nova Sonic). No HTTP URL —
+        # the SDK adapter drives the bidirectional stream; auth is the cloud's own.
+        model_id = params.get("custom_model_id") or "amazon.nova-sonic-v1:0"
+        custom_target = {
+            "transport": "streaming",
+            "protocol": custom_protocol,
+            "region": params.get("custom_region") or "us-east-1",
+            "voice": params.get("custom_voice") or "matthew",
+            "system_prompt": params.get("custom_system_prompt")
+            or "You are a helpful voice assistant.",
+            "model_id": model_id,
+        }
+        if not target_model:
+            target_model = model_id  # display/provenance only; the adapter is the target
+    elif custom_url:
         custom_target = {
             "url": custom_url,
             "auth_type": params.get("custom_auth_type", "none"),
@@ -5550,10 +5593,11 @@ def generate_multimodal_attack(params: dict) -> dict:
 
     if not goal:
         return {"error": "goal is required (the text prompt to send with the media)"}
-    if not target_model and not custom_url:
+    if not target_model and not custom_target:
         return {
             "error": "target_model is required (a vision/audio-capable model), "
-            "or provide custom_url for a custom HTTP endpoint"
+            "or provide custom_url for a custom HTTP endpoint, or "
+            "custom_transport='streaming' + custom_protocol='nova_sonic' for a speech-to-speech target"
         }
 
     # For a custom endpoint with no target_model, TARGET_MODEL only backs a
