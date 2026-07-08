@@ -549,6 +549,65 @@ class TestGeneratedWorkflowAssessmentMethods:
         )
 
 
+class TestCustomHttpTarget:
+    """Custom HTTP endpoint targets for standard attacks (any URL, not a model)."""
+
+    def _script(self, tmp_path, monkeypatch, params: dict) -> str:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        monkeypatch.setattr(runner, "METADATA_FILE", tmp_path / ".workflow_metadata.json")
+        result = runner.generate_attack({**params, "generate_only": True})
+        assert "error" not in result, result
+        return Path(result["filepath"]).read_text()
+
+    def test_custom_url_generates_compiling_http_target(self, tmp_path, monkeypatch) -> None:
+        script = self._script(
+            tmp_path,
+            monkeypatch,
+            {
+                "attack_type": "tap",
+                "goal": "probe the endpoint",
+                "custom_url": "https://api.example.com/chat",
+                "custom_auth_type": "bearer",
+                "custom_auth_env_var": "MY_API_KEY",
+                "custom_request_template": '{"input": "{prompt}"}',
+                "custom_response_text_path": "$.output.text",
+                "attacker_model": "groq",
+            },
+        )
+        compile(script, "workflow.py", "exec")
+        assert "async def target(prompt: str) -> str:" in script
+        assert "https://api.example.com/chat" in script
+        assert "import httpx" in script
+        assert "jsonpath_ng" in script
+        assert "Bearer" in script
+        assert "MY_API_KEY" in script
+        # The default litellm target must NOT be emitted for a custom endpoint.
+        assert "generator = TARGET_GENERATOR" not in script
+
+    def test_custom_url_requires_attacker_or_evaluator(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        monkeypatch.setattr(runner, "METADATA_FILE", tmp_path / ".workflow_metadata.json")
+        result = runner.generate_attack(
+            {
+                "attack_type": "tap",
+                "goal": "g",
+                "custom_url": "https://x.test",
+                "generate_only": True,
+            }
+        )
+        assert "error" in result
+        assert "attacker_model" in result["error"]
+
+    def test_target_model_still_required_without_custom_url(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        monkeypatch.setattr(runner, "METADATA_FILE", tmp_path / ".workflow_metadata.json")
+        result = runner.generate_attack(
+            {"attack_type": "tap", "goal": "g", "generate_only": True}
+        )
+        assert "error" in result
+        assert "target_model" in result["error"]
+
+
 class TestGenerateMultimodalAttack:
     """Multimodal LLM red teaming script generation (text + image/audio/video)."""
 

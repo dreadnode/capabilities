@@ -3125,8 +3125,71 @@ def _build_config_section(config: dict) -> str:
     return "\n".join(lines)
 
 
-def _build_target() -> str:
-    """Build the @task target function with retry logic for LLM timeouts."""
+def _build_custom_http_target(custom: dict) -> str:
+    """Build a @task target that calls an arbitrary HTTP endpoint and returns text.
+
+    Lets a user point an attack at *any* text endpoint by supplying a URL, an
+    optional auth scheme, a JSON request template (``{prompt}`` is substituted),
+    and a JSONPath to the response text. Mirrors the agentic HTTP-target pattern
+    but returns a plain string, so it drops into the standard (non-agentic)
+    attack pipeline unchanged.
+    """
+    url = _safe_str(custom["url"])
+    auth_type = custom.get("auth_type", "none")
+    auth_env_var = custom.get("auth_env_var", "TARGET_API_KEY")
+    request_template = custom.get("request_template", '{"prompt": "{prompt}"}')
+    text_path = _safe_str(custom.get("response_text_path", "$.response"))
+
+    if auth_type == "bearer":
+        auth_lines = (
+            '    api_key = os.environ.get("{}", "")\n'
+            '    headers["Authorization"] = f"Bearer {{api_key}}"'.format(auth_env_var)
+        )
+    elif auth_type == "api_key":
+        auth_lines = (
+            '    api_key = os.environ.get("{}", "")\n'
+            '    headers["X-API-Key"] = api_key'.format(auth_env_var)
+        )
+    else:
+        auth_lines = "    pass  # No auth configured"
+
+    lines = [
+        "@task",
+        "async def target(prompt: str) -> str:",
+        '    """Call a custom HTTP endpoint and extract the text response via JSONPath."""',
+        "    import json",
+        "    import httpx",
+        "    from jsonpath_ng.ext import parse as jp_parse",
+        "",
+        '    headers = {"Content-Type": "application/json"}',
+        auth_lines,
+        "",
+        "    body_str = {}.replace('{{prompt}}', prompt.replace('\"', '\\\\\"'))".format(
+            repr(request_template)
+        ),
+        "    body = json.loads(body_str)",
+        "",
+        "    async with httpx.AsyncClient(timeout=120.0) as client:",
+        '        resp = await client.post("{}", json=body, headers=headers)'.format(url),
+        "        resp.raise_for_status()",
+        "        data = resp.json()",
+        "",
+        '    matches = [m.value for m in jp_parse("{}").find(data)]'.format(text_path),
+        "    content = matches[0] if matches else str(data)",
+        "    return content if isinstance(content, str) else str(content)",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def _build_target(custom: dict | None = None) -> str:
+    """Build the @task target function.
+
+    With ``custom`` set, returns a custom HTTP target (any endpoint). Otherwise
+    the default litellm target (with retry logic for LLM timeouts).
+    """
+    if custom:
+        return _build_custom_http_target(custom)
     return """\
 @task
 async def target(prompt: str) -> str:
@@ -3364,7 +3427,7 @@ def _generate_transform_study(config: dict) -> str:
     analytics_writer = _build_analytics_writer()
     cfg = _build_config_section(config)
     proxy = _build_proxy_routing()
-    tgt = _build_target()
+    tgt = _build_target(config.get("custom_target"))
 
     # Build studies list
     study_lines = ['    ("baseline", None, []),']
@@ -3413,7 +3476,7 @@ def _generate_single(config: dict) -> str:
     analytics_writer = _build_analytics_writer()
     cfg = _build_config_section(config)
     proxy = _build_proxy_routing()
-    tgt = _build_target()
+    tgt = _build_target(config.get("custom_target"))
 
     # Build transforms expression
     transforms_expr = None
@@ -3450,7 +3513,7 @@ def _generate_campaign(config: dict) -> str:
     analytics_writer = _build_analytics_writer()
     cfg = _build_config_section(config)
     proxy = _build_proxy_routing()
-    tgt = _build_target()
+    tgt = _build_target(config.get("custom_target"))
 
     transforms_expr = None
     transform_names: list[str] = []
@@ -3685,7 +3748,7 @@ def _generate_category_attack(config: dict) -> str:
     cfg_lines.append("sys.stdout.flush()")
     cfg = "\n".join(cfg_lines)
 
-    tgt = _build_target()
+    tgt = _build_target(config.get("custom_target"))
 
     # Load goals from CSV and filter/sample at tool time
     all_goals = _load_goals_csv()
@@ -3981,15 +4044,40 @@ def generate_attack(params: dict) -> dict:
     goal_category = params.get("goal_category")
     assessment_name = params.get("assessment_name")
 
+    # Custom HTTP endpoint target: point the attack at *any* text endpoint by URL
+    # instead of a litellm model. The attacker/judge still use real models.
+    custom_url = (params.get("custom_url") or "").strip()
+    custom_target = None
+    if custom_url:
+        custom_target = {
+            "url": custom_url,
+            "auth_type": params.get("custom_auth_type", "none"),
+            "auth_env_var": params.get("custom_auth_env_var", "TARGET_API_KEY"),
+            "request_template": params.get("custom_request_template", '{"prompt": "{prompt}"}'),
+            "response_text_path": params.get("custom_response_text_path", "$.response"),
+        }
+
     if not attack_type:
         return {"error": "attack_type is required"}
     if not goal:
         return {"error": "goal is required"}
-    if not target_model:
-        return {"error": "target_model is required"}
+    if not target_model and not custom_url:
+        return {
+            "error": "target_model is required (or provide custom_url for a custom HTTP endpoint)"
+        }
+    if custom_url and not (attacker_model or evaluator_model):
+        return {
+            "error": "attacker_model (or evaluator_model) is required with custom_url — "
+            "it drives the attacker/judge models"
+        }
 
-    # Resolve models
-    resolved_target = _resolve_model(target_model)
+    # Resolve models. For a custom endpoint with no target_model, the TARGET_MODEL
+    # constant only backs a never-invoked generator, so alias it to the attacker/
+    # judge model (a valid, construct-only id).
+    if target_model:
+        resolved_target = _resolve_model(target_model)
+    else:
+        resolved_target = _resolve_model(attacker_model or evaluator_model)
     resolved_attacker = _resolve_model(attacker_model) if attacker_model else resolved_target
     resolved_evaluator = _resolve_model(evaluator_model) if evaluator_model else resolved_attacker
     resolved_transform_model = _resolve_model(transform_model) if transform_model else resolved_attacker
@@ -4048,6 +4136,7 @@ def generate_attack(params: dict) -> dict:
         "scorers_resolved": scorers_resolved,
         "assessment_name": assessment_name,
         "filename": filename,
+        "custom_target": custom_target,
     }
 
     # Determine mode and generate script
@@ -4112,7 +4201,9 @@ def generate_attack(params: dict) -> dict:
         "Config:",
         "  Mode: {}".format(mode_desc),
         "  Attack(s): {}".format(attack_list),
-        "  Target: {}".format(resolved_target),
+        "  Target: {}".format(
+            "custom HTTP: {}".format(custom_url) if custom_url else resolved_target
+        ),
         "  Attacker: {}".format(resolved_attacker),
         "  Evaluator: {}".format(resolved_evaluator),
         "  Goal: {}".format(goal),
