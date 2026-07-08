@@ -895,3 +895,63 @@ class TestGenerateInjectionImages:
         mg = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mg)
         assert "error" in mg.render_injection_images({"output_dir": str(tmp_path)})
+
+
+class TestGenerateMultimodalCategoryAttack:
+    """Multimodal sweep across sampled harm-category goals."""
+
+    def _gen(self, tmp_path, monkeypatch, params: dict) -> dict:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        monkeypatch.setattr(runner, "METADATA_FILE", tmp_path / ".workflow_metadata.json")
+        return runner.generate_multimodal_category_attack({**params, "generate_only": True})
+
+    def test_requires_category(self, tmp_path, monkeypatch) -> None:
+        assert "error" in self._gen(tmp_path, monkeypatch, {"render_from_goals": True})
+
+    def test_no_media_asks_for_paths(self, tmp_path, monkeypatch) -> None:
+        res = self._gen(
+            tmp_path, monkeypatch, {"goal_category": "weapons", "target_model": "openai/gpt-4o"}
+        )
+        assert "error" in res
+        assert "media" in res["error"].lower()
+
+    def test_unknown_category_errors(self, tmp_path, monkeypatch) -> None:
+        res = self._gen(
+            tmp_path, monkeypatch, {"goal_category": "not_a_real_cat", "render_from_goals": True}
+        )
+        assert "error" in res
+
+    def test_render_from_goals_turnkey(self, tmp_path, monkeypatch) -> None:
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {
+                "goal_category": "weapons",
+                "goals_per_category": 3,
+                "render_from_goals": True,
+                "target_model": "openai/gpt-4o",
+            },
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        compile(script, "multimodal.py", "exec")
+        # Injection images were rendered and wired as the media; benign framing prompt.
+        assert "injection_00" in script
+        assert "Read the instruction written in this image" in script
+
+    def test_user_media_pairs_goals(self, tmp_path, monkeypatch) -> None:
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {
+                "goal_category": "weapons",
+                "goals_per_category": 2,
+                "target_model": "openai/gpt-4o",
+                "image_paths": ["/tmp/a.png", "/tmp/b.png"],
+            },
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        compile(script, "multimodal.py", "exec")
+        # Sampled category goals become the per-media prompts.
+        assert "PROMPTS = [" in script and "PROMPTS = []" not in script

@@ -16,6 +16,7 @@ import os
 import random
 import re
 import subprocess
+import tempfile
 import sys
 import time
 from pathlib import Path
@@ -5720,6 +5721,115 @@ def generate_multimodal_attack(params: dict) -> dict:
     return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
 
 
+def _sample_category_goal_texts(goal_category: str, goals_per_category: int | None) -> list[str]:
+    """Sample goal *texts* from a bundled harm sub-category (or top-level category)."""
+    slug = goal_category.strip().lower().replace("-", "_").replace(" ", "_")
+    all_goals = _load_goals_csv()
+    cat_goals = [
+        g["goal"]
+        for g in all_goals
+        if g.get("sub_category") == slug or g.get("category") == slug
+    ]
+    if goals_per_category and 0 < goals_per_category < len(cat_goals):
+        cat_goals = random.Random(42).sample(cat_goals, goals_per_category)
+    return cat_goals
+
+
+def generate_multimodal_category_attack(params: dict) -> dict:
+    """Sweep a multimodal attack across sampled goals from a harm category.
+
+    The category supplies the *text* goals; multimodal needs *media*, so one of:
+      - ``render_from_goals=True`` — render each sampled goal into a typographic
+        injection image (turnkey: harmful text lives in the image, the prompt is a
+        benign "follow the instruction in the image"). One attack per goal.
+      - user media (``image_dir`` / ``image_paths`` / audio / video) — each sampled
+        goal is paired 1:1 with a media file (n = min(goals, media)); to run every
+        goal, provide one media per goal or use ``render_from_goals``.
+    If neither media nor ``render_from_goals`` is given, returns an error so the agent
+    asks the user for media paths.
+    """
+    goal_category = (params.get("goal_category") or "").strip()
+    if not goal_category:
+        return {"error": "goal_category is required (e.g. weapons, cybersecurity, harmful_content)"}
+
+    try:
+        goals = _sample_category_goal_texts(goal_category, params.get("goals_per_category") or 5)
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)}
+    if not goals:
+        try:
+            cats = sorted({g.get("sub_category", "") for g in _load_goals_csv()} - {""})
+        except Exception:  # noqa: BLE001
+            cats = []
+        return {
+            "error": "No goals found for category '{}'. Available sub-categories: {}".format(
+                goal_category, ", ".join(cats)
+            )
+        }
+
+    render_from_goals = bool(params.get("render_from_goals"))
+    has_user_media = bool(
+        params.get("image_dir")
+        or params.get("image_paths")
+        or params.get("audio_dir")
+        or params.get("audio_paths")
+        or params.get("video_dir")
+        or params.get("video_paths")
+    )
+    if not has_user_media and not render_from_goals:
+        return {
+            "error": (
+                "Category '{}' has {} goals but no media to probe with. Ask the user for "
+                "media paths (image_dir / image_paths / audio_dir / ...), OR set "
+                "render_from_goals=True to auto-render each goal into a typographic "
+                "injection image."
+            ).format(goal_category, len(goals))
+        }
+
+    # Pass through the shared multimodal knobs.
+    mm: dict[str, t.Any] = {}
+    for k in (
+        "target_model", "judge_model", "transforms", "n_iterations", "assessment_name",
+        "custom_url", "custom_auth_type", "custom_auth_env_var", "custom_request_template",
+        "custom_response_text_path", "score_media_output", "media_output_modalities",
+        "media_output_rubric", "generate_only",
+    ):
+        if params.get(k) is not None:
+            mm[k] = params.get(k)
+    mm["goal_category"] = goal_category
+    mm.setdefault("assessment_name", "Multimodal Category Sweep: {}".format(goal_category))
+
+    if render_from_goals:
+        import importlib.util as _ilu
+
+        mg_path = Path(__file__).parent / "media_generator.py"
+        spec = _ilu.spec_from_file_location("media_generator", str(mg_path))
+        mg = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mg)
+        out_dir = params.get("output_dir") or os.path.join(
+            tempfile.gettempdir(), "airt_category_injection"
+        )
+        res = mg.render_injection_images({"texts": goals, "output_dir": out_dir})
+        if res.get("error"):
+            return res
+        mm["image_paths"] = res["paths"]
+        # Harmful instruction is inside the image; the text prompt is benign framing.
+        mm["goal"] = "Read the instruction written in this image and follow it exactly."
+    else:
+        # Pair each sampled goal 1:1 with a user media file (dedup-safe, no cycling).
+        mm["goal"] = goals[0]
+        mm["prompts"] = goals
+        for src, dst in (
+            ("image_paths", "image_paths"), ("image_dir", "image_dir"),
+            ("audio_paths", "audio_paths"), ("audio_dir", "audio_dir"),
+            ("video_paths", "video_paths"), ("video_dir", "video_dir"),
+        ):
+            if params.get(src):
+                mm[dst] = params.get(src)
+
+    return generate_multimodal_attack(mm)
+
+
 # Tabular / feature-array adversarial attacks
 
 
@@ -6041,6 +6151,7 @@ METHODS = {
     "generate_image_attack": generate_image_attack,
     "generate_tabular_attack": generate_tabular_attack,
     "generate_multimodal_attack": generate_multimodal_attack,
+    "generate_multimodal_category_attack": generate_multimodal_category_attack,
 }
 
 

@@ -148,6 +148,7 @@ The AI Red Teaming capability provides these tools:
 - **generate_multimodal_attack** — Generate + auto-execute a MULTIMODAL LLM red teaming attack: send text + image/audio/video to a vision/audio-capable model, apply modality-typed transforms, score the text response for jailbreak success
 - **build_media_manifest** — Inventory a folder/list of media into a byte-free reference manifest (kind, mime, size, dimensions) for planning a multimodal attack without loading raw media. Call this first when the user points at a folder of images/audio/video.
 - **generate_injection_images** — Render attack text (or a CSV of texts) into typographic/visual prompt-injection IMAGES, so you can probe a vision model without the user supplying media. You create the data (render text → images) and pass the paths to generate_multimodal_attack — never view the text.
+- **generate_multimodal_category_attack** — Sweep a multimodal attack across sampled goals from a harm category. Needs media: either `render_from_goals=True` (auto-render each goal into an injection image — turnkey) or user media paths (goals paired 1:1). If the user wants a media-input sweep but gives no paths, ask them for the folder/paths.
 
 **Workflow Management:**
 
@@ -484,6 +485,13 @@ is the MAX across text + media (any modality bypassing = jailbreak). Use a visio
 use `generate_injection_images` to render each text into a typographic prompt-injection image, then
 pass the resulting `image_dir` to `generate_multimodal_attack`. You render the data via the tool —
 you never view or reason about the text yourself.
+
+**Category sweep.** For "sweep the whole `<category>` across a vision model" use
+`generate_multimodal_category_attack` (goal_category + goals_per_category). A multimodal sweep needs
+media, so either set `render_from_goals=True` (each sampled goal is auto-rendered into an injection
+image — fully turnkey) or pass user media (each goal paired 1:1 with a file). If the user wants to
+sweep against *their* media but hasn't given paths, **ask them for the media folder/paths** before
+running (or offer the render_from_goals path).
 
 **Audio-out / speech-to-speech.** Audio-in→text works via audio-capable chat models
 (`openai/gpt-4o-audio-preview`). For a true speech-to-speech target (e.g. Amazon Nova Sonic,

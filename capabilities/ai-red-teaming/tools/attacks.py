@@ -557,6 +557,77 @@ def generate_multimodal_attack(
 
 
 @safe_tool
+def generate_multimodal_category_attack(
+    goal_category: t.Annotated[
+        str,
+        "Harm sub-category to sweep (e.g. weapons, cybersecurity, harmful_content). "
+        "Goals are sampled from the bundled dataset.",
+    ],
+    goals_per_category: t.Annotated[int, "How many goals to sample from the category (default 5)."] = 5,
+    render_from_goals: t.Annotated[
+        bool,
+        "Auto-render each sampled goal into a typographic injection image (turnkey — no "
+        "user media needed). One attack per goal. Use when the user has no media.",
+    ] = False,
+    target_model: t.Annotated[str, "Vision/audio/video-capable target model."] = "",
+    image_dir: t.Annotated[str, "User media: directory of images to pair with the goals."] = "",
+    image_paths: t.Annotated[list[str] | None, "User media: explicit image paths."] = None,
+    audio_dir: t.Annotated[str, "User media: directory of audio files."] = "",
+    audio_paths: t.Annotated[list[str] | None, "User media: explicit audio paths."] = None,
+    video_dir: t.Annotated[str, "User media: directory of video files."] = "",
+    video_paths: t.Annotated[list[str] | None, "User media: explicit video paths."] = None,
+    transforms: t.Annotated[list[str] | None, "Modality-typed transforms to apply."] = None,
+    judge_model: t.Annotated[str, "Model used to score jailbreak success."] = "",
+    n_iterations: t.Annotated[int | None, "Iterations per media set."] = None,
+    score_media_output: t.Annotated[bool, "Also score the target's generated media output."] = False,
+    assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
+) -> str:
+    """Sweep a MULTIMODAL attack across sampled goals from a harm category.
+
+    A multimodal category sweep needs media. Provide ONE of:
+      - `render_from_goals=True` — turnkey: each sampled goal is rendered into a
+        typographic prompt-injection image (harmful text in the image, benign framing
+        prompt). No user media required.
+      - user media (`image_dir`/`image_paths`/audio/video) — each sampled goal is paired
+        1:1 with a media file; provide one media per goal you want to test.
+
+    If the user wants a media-input sweep but gives no paths, ASK them for the media
+    folder/paths (or offer render_from_goals). You never view the goals or media.
+    """
+    if not goal_category:
+        return "Error: goal_category is required (e.g. weapons, cybersecurity, harmful_content)"
+    params: dict[str, t.Any] = {"goal_category": goal_category, "goals_per_category": goals_per_category}
+    if render_from_goals:
+        params["render_from_goals"] = True
+    if target_model:
+        params["target_model"] = target_model
+    if image_dir:
+        params["image_dir"] = image_dir
+    if image_paths:
+        params["image_paths"] = image_paths
+    if audio_dir:
+        params["audio_dir"] = audio_dir
+    if audio_paths:
+        params["audio_paths"] = audio_paths
+    if video_dir:
+        params["video_dir"] = video_dir
+    if video_paths:
+        params["video_paths"] = video_paths
+    if transforms:
+        params["transforms"] = transforms
+    if judge_model:
+        params["judge_model"] = judge_model
+    if n_iterations is not None:
+        params["n_iterations"] = n_iterations
+    if score_media_output:
+        params["score_media_output"] = True
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+
+    return _call_runner("generate_multimodal_category_attack", params)
+
+
+@safe_tool
 def build_media_manifest(
     directory: t.Annotated[
         str,
