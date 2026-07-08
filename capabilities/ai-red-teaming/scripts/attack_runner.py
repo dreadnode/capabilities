@@ -5787,7 +5787,7 @@ def generate_multimodal_category_attack(params: dict) -> dict:
         }
 
     # Pass through the shared multimodal knobs.
-    mm: dict[str, t.Any] = {}
+    mm: dict = {}
     for k in (
         "target_model", "judge_model", "transforms", "n_iterations", "assessment_name",
         "custom_url", "custom_auth_type", "custom_auth_env_var", "custom_request_template",
