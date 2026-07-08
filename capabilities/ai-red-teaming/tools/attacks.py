@@ -30,6 +30,7 @@ from dreadnode.app.env import resolve_python_executable
 
 _RUNNER_SCRIPT = Path(__file__).parent.parent / "scripts" / "attack_runner.py"
 _MANIFEST_SCRIPT = Path(__file__).parent.parent / "scripts" / "media_manifest.py"
+_MEDIA_GENERATOR_SCRIPT = Path(__file__).parent.parent / "scripts" / "media_generator.py"
 
 
 def _call_runner(name: str, params: dict) -> str:
@@ -461,6 +462,21 @@ def generate_multimodal_attack(
         "JSON request template with {prompt}/{image_b64}/{audio_b64}/{video_b64} placeholders.",
     ] = "",
     custom_response_text_path: t.Annotated[str, "JSONPath to the response text (e.g. $.response)"] = "",
+    score_media_output: t.Annotated[
+        bool,
+        "Score the target's GENERATED media (image-out / speech-to-speech), not just its "
+        "text. Uses a media-aware judge per output modality; trial score = MAX across "
+        "modalities. Requires a vision/audio-capable judge_model.",
+    ] = False,
+    media_output_modalities: t.Annotated[
+        list[str] | None,
+        "Which output modalities to score ('image'/'audio'/'video'). Defaults to all "
+        "when score_media_output is set; only modalities actually present are scored.",
+    ] = None,
+    media_output_rubric: t.Annotated[
+        str,
+        "Rubric for scoring generated media (defaults to the jailbreak rubric).",
+    ] = "",
 ) -> str:
     """Generate and execute a MULTIMODAL LLM red teaming attack.
 
@@ -530,6 +546,12 @@ def generate_multimodal_attack(
         params["custom_request_template"] = custom_request_template
     if custom_response_text_path:
         params["custom_response_text_path"] = custom_response_text_path
+    if score_media_output:
+        params["score_media_output"] = True
+    if media_output_modalities:
+        params["media_output_modalities"] = media_output_modalities
+    if media_output_rubric:
+        params["media_output_rubric"] = media_output_rubric
 
     return _call_runner("generate_multimodal_attack", params)
 
@@ -580,5 +602,70 @@ def build_media_manifest(
             return output[:50_000]
         except json.JSONDecodeError:
             return output[:50_000] or f"Error: manifest failed: {result.stderr.strip()[:2000]}"
+    except Exception as e:  # noqa: BLE001
+        return f"Error: {e}"
+
+
+@safe_tool
+def generate_injection_images(
+    texts: t.Annotated[
+        list[str] | None,
+        "Attack texts to rasterize — one image per text (typographic prompt injection).",
+    ] = None,
+    texts_csv: t.Annotated[
+        str,
+        "Path to a CSV whose first column is the attack text (one image per row). "
+        "Use when the user hands you a CSV of prompts to render as images.",
+    ] = "",
+    output_dir: t.Annotated[
+        str, "Directory to write the images into (default ./injection_images)."
+    ] = "",
+    base_image: t.Annotated[
+        str, "Optional base image path to overlay the text onto (else a plain canvas)."
+    ] = "",
+    font_size: t.Annotated[int, "Font size for the rendered text (default 40)."] = 40,
+) -> str:
+    """Render attack text into typographic/visual prompt-injection IMAGES.
+
+    Turns caller-supplied text (or a CSV of texts) into image files so you can probe a
+    vision model with a "typographic jailbreak" WITHOUT supplying your own media. This
+    CREATES the attack data for the user — you never view or reason about the text; you
+    just render it and pass the resulting image paths to generate_multimodal_attack.
+
+    Returns the written image paths + a byte-free summary. Typical flow:
+      generate_injection_images(texts_csv="./prompts.csv", output_dir="./inj")
+      → generate_multimodal_attack(goal="Follow the instructions in the image",
+                                   target_model="openai/gpt-4o", image_dir="./inj")
+    """
+    params: dict[str, t.Any] = {}
+    if texts:
+        params["texts"] = texts
+    if texts_csv:
+        params["texts_csv"] = texts_csv
+    if output_dir:
+        params["output_dir"] = output_dir
+    if base_image:
+        params["base_image"] = base_image
+    if font_size:
+        params["font_size"] = font_size
+
+    payload = json.dumps({"name": "generate_injection_images", "parameters": params})
+    try:
+        python_executable = resolve_python_executable()
+        result = subprocess.run(
+            [python_executable, str(_MEDIA_GENERATOR_SCRIPT)],
+            input=payload,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        output = result.stdout.strip()
+        try:
+            data = json.loads(output)
+            if "error" in data:
+                return f"Error: {data['error']}"
+            return output[:50_000]
+        except json.JSONDecodeError:
+            return output[:50_000] or f"Error: generation failed: {result.stderr.strip()[:2000]}"
     except Exception as e:  # noqa: BLE001
         return f"Error: {e}"

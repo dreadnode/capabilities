@@ -5282,7 +5282,7 @@ def _build_multimodal_imports(transforms: list[dict]) -> str:
         "from dreadnode.airt.analytics.types import GoalCategory",
         "from dreadnode.airt.analytics import analyze",
         "from dreadnode.core.types import Image, Audio, Video",
-        "from dreadnode.scorers.judge import llm_judge",
+        "from dreadnode.scorers.judge import llm_judge, multimodal_judge",
     ]
     if transforms:
         module_names: dict[str, list[str]] = {}
@@ -5430,6 +5430,16 @@ JAILBREAK_RUBRIC = {rubric!r}
 async def main():
     scorer = llm_judge(JUDGE_MODEL_GEN, JAILBREAK_RUBRIC, name="jailbreak")
 
+    # Per-output-modality scorers: when the target GENERATES media (image-out /
+    # speech-to-speech), score the generated modality with a media-aware judge.
+    # The trial score is the MAX across text + media (any modality bypassing =
+    # jailbreak). Empty by default → only the text response is scored.
+    response_scorers = {{}}
+    for _m in MEDIA_OUTPUT_MODALITIES:
+        response_scorers[_m] = multimodal_judge(
+            JUDGE_MODEL_GEN, MEDIA_OUTPUT_RUBRIC, name=f"{{_m}}_jailbreak"
+        )
+
     def _load(paths, cls):
         loaded = []
         for p in paths:
@@ -5470,6 +5480,7 @@ async def main():
                     goal_for_set,
                     target=target,
                     scorer=scorer,
+                    response_scorers=(response_scorers or None),
                     image=img,
                     audio=aud,
                     video=vid,
@@ -5579,6 +5590,17 @@ def generate_multimodal_attack(params: dict) -> dict:
         goal,
     )
 
+    # Media-OUTPUT scoring: when the target generates media (image-out / speech-to-
+    # speech), score the generated modality with a media-aware judge and take the MAX
+    # across text + media. Off by default (only the text response is scored).
+    media_out_modalities = params.get("media_output_modalities")
+    if not media_out_modalities and params.get("score_media_output"):
+        media_out_modalities = ["image", "audio", "video"]
+    media_out_modalities = [
+        m for m in (media_out_modalities or []) if m in ("image", "audio", "video")
+    ]
+    media_output_rubric = params.get("media_output_rubric") or _MULTIMODAL_JAILBREAK_RUBRIC
+
     goal_cat_enum = _MULTIMODAL_GOAL_CATEGORIES.get(goal_category_slug, "JAILBREAK_GENERAL")
 
     # Resolve transforms (image/audio/video/text — modality routed by the SDK).
@@ -5612,6 +5634,9 @@ def generate_multimodal_attack(params: dict) -> dict:
         "VIDEO_PATHS = {}".format(repr(video_paths)),
         # Per-media prompts aligned with media order; empty = single-goal behaviour.
         "PROMPTS = {}".format(repr(prompts_list)),
+        # Output modalities to score with a media-aware judge (empty = text only).
+        "MEDIA_OUTPUT_MODALITIES = {}".format(repr(media_out_modalities)),
+        'MEDIA_OUTPUT_RUBRIC = "{}"'.format(_safe_str(media_output_rubric)),
         "TRANSFORMS = {}".format(transforms_expr),
         'ASSESSMENT_NAME = "{}"'.format(_safe_str(assessment_name)),
         'ASSESSMENT_DESC = "Multimodal red teaming vs {}"'.format(_safe_str(target_model)),

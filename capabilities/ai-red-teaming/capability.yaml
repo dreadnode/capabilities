@@ -1,6 +1,6 @@
 schema: 1
 name: ai-red-teaming
-version: "1.6.5"
+version: "1.6.6"
 description: >
   Probe the security and safety of AI applications, agents, and foundation models.
   Orchestrates adversarial attack workflows to discover vulnerabilities in LLMs,
