@@ -83,10 +83,36 @@ Reference for common AD attack chains. Each pattern lists prerequisites, tool se
 | Step | Tool | Action |
 |---|---|---|
 | 1. Identify delegation hosts | SharpView `get_domain_computer` Unconstrained | Find unconstrained delegation computers |
-| 2. Setup relay listener | Krbrelayx `krbrelayx_relay` | Listen for incoming Kerberos auth |
-| 3. Coerce authentication | Krbrelayx `krbrelayx_printer_bug` | Trigger SpoolService on DC |
+| 2. Setup relay listener | `krbrelayx_relay` | Listen for incoming Kerberos auth |
+| 3. Coerce authentication | See coercion method selection below | Force DC to authenticate to relay |
 | 4. Capture TGT | Krbrelayx captures delegated ticket | Obtain DC machine account TGT |
 | 5. Use TGT for DCSync | Impacket with Kerberos auth | DCSync with captured DC ticket |
+
+### NTLM Relay (via Coercion)
+
+**Prerequisites:** Ability to coerce authentication, relay target that accepts NTLM (SMB signing disabled, LDAP signing not required, or AD CS HTTP endpoint).
+
+| Step | Tool | Action |
+|---|---|---|
+| 1. Start relay listener | `impacket_ntlmrelayx` | Listen and relay to target (SMB/LDAP/AD CS) |
+| 2. Coerce authentication | See coercion method selection below | Force target to authenticate to relay |
+| 3. Relay captures and forwards | ntlmrelayx relays auth | Escalation depends on relay target |
+
+**Relay targets by impact:**
+- **LDAP/LDAPS:** configure RBCD, add shadow credentials, grant DCSync rights, create computer accounts
+- **AD CS (ESC8):** request certificate as coerced machine, authenticate with cert for NT hash
+- **SMB:** dump SAM hashes, execute commands if signing disabled
+
+### Coercion Method Selection
+
+Try methods in order based on what's available on the target. Use netexec `spooler` and `webdav` modules during enumeration to check which services are enabled.
+
+| Method | Tool | Protocol | When to Use |
+|---|---|---|---|
+| PetitPotam | `coerce_petitpotam` | MS-EFSRPC | **Try first.** Most reliable. Works unauthenticated on unpatched systems. |
+| Print Spooler | `krbrelayx_printer_bug` | MS-RPRN | When spooler is enabled (check via netexec `spooler` module). |
+| DFSCoerce | `coerce_dfscoerce` | MS-DFSNM | When EFS and spooler are both hardened. |
+| ShadowCoerce | `coerce_shadowcoerce` | MS-FSRVP | Targets file servers with VSS. Limited auth options (no Kerberos). |
 
 ### Credential Spraying
 
@@ -147,6 +173,7 @@ When a credential is recovered, test it systematically:
 | Credential verification | netexec SMB | netexec LDAP/WinRM for protocol-specific checks |
 | ACL manipulation | BloodyAD | Impacket for DACL-specific operations |
 | Certificate ops | Certipy | — |
+| Auth coercion | `coerce_petitpotam` | `krbrelayx_printer_bug` → `coerce_dfscoerce` → `coerce_shadowcoerce` (try in order based on target services) |
 | Delegation abuse | Impacket (S4U) | Krbrelayx for unconstrained delegation relay |
 | Credential dump | Impacket secretsdump | — |
 | Remote execution | `impacket_wmiexec` | `impacket_smbexec` → `impacket_atexec` → `impacket_dcomexec` → `impacket_psexec` (escalating detection) |

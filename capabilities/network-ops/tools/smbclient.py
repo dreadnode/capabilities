@@ -1,4 +1,6 @@
 import asyncio
+import os
+import tempfile
 
 from dreadnode.agents.tools import Toolset, tool_method
 from dreadnode.tools.execute import execute
@@ -117,3 +119,53 @@ class SmbClient(Toolset):
                 smb_command,
             ]
         )
+
+    @tool_method(catch=True)
+    async def smb_upload_file(
+        self,
+        target: str,
+        share_name: str,
+        remote_path: str,
+        content: str,
+        username: str,
+        password: str,
+    ) -> str:
+        """
+        Upload a file to an SMB share.
+
+        Writes ``content`` to a temporary local file, then uploads it to the
+        specified path on the remote share via smbclient ``put``.
+
+        Args:
+            target: The target IP address or hostname.
+            share_name: The name of the SMB share (e.g., 'C$', 'SYSVOL').
+            remote_path: Destination path within the share (e.g., 'temp\\payload.txt').
+            content: The file content to upload.
+            username: The username for authentication.
+            password: The password for authentication.
+
+        Returns:
+            The smbclient output confirming the upload.
+        """
+        share_path = f"//{target}/{share_name}"
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".tmp", delete=False) as tmp:
+            tmp.write(content)
+            local_path = tmp.name
+
+        smb_command = f"put {local_path} {remote_path}"
+        logger.info(f"Uploading to {share_path}\\{remote_path}")
+
+        try:
+            return await execute(
+                [
+                    "smbclient",
+                    share_path,
+                    "-U",
+                    f"{username}%{password}",
+                    "-c",
+                    smb_command,
+                ]
+            )
+        finally:
+            os.unlink(local_path)
