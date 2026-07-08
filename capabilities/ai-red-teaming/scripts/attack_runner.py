@@ -5493,12 +5493,35 @@ async def main():
     sys.stdout.flush()
 
     async with assessment.trace():
-        for i in range(n_sets):
-            img = images[i] if i < len(images) else None
-            aud = audios[i] if i < len(audios) else None
-            vid = videos[i] if i < len(videos) else None
-            goal_for_set = PROMPTS[i] if (PROMPTS and i < len(PROMPTS)) else GOAL
-            print(f"[{{i + 1}}/{{n_sets}}] multimodal attack "
+        # Build the (prompt, image, audio, video) sets to run. Default is 1:1 by
+        # media index (each media set uses prompt[index] or GOAL). When PROMPT_MATRIX
+        # is set, run EVERY prompt against EVERY media set — a full cross product of
+        # len(PROMPT_MATRIX) x n_sets trials (e.g. 4 prompts x 5 images = 20). Any
+        # configured TRANSFORMS are applied to every set either way.
+        def _media_at(media_idx):
+            return (
+                images[media_idx] if media_idx < len(images) else None,
+                audios[media_idx] if media_idx < len(audios) else None,
+                videos[media_idx] if media_idx < len(videos) else None,
+            )
+
+        media_sets = []
+        if PROMPT_MATRIX:
+            for matrix_prompt in PROMPT_MATRIX:
+                for media_idx in range(n_sets):
+                    media_sets.append((matrix_prompt, *_media_at(media_idx)))
+        else:
+            for media_idx in range(n_sets):
+                set_prompt = PROMPTS[media_idx] if (PROMPTS and media_idx < len(PROMPTS)) else GOAL
+                media_sets.append((set_prompt, *_media_at(media_idx)))
+
+        total_sets = len(media_sets)
+        print(f"Running {{total_sets}} multimodal set(s)"
+              + (f" (matrix: {{len(PROMPT_MATRIX)}} prompts x {{n_sets}} media)" if PROMPT_MATRIX else ""))
+        sys.stdout.flush()
+
+        for set_number, (goal_for_set, img, aud, vid) in enumerate(media_sets, start=1):
+            print(f"[{{set_number}}/{{total_sets}}] multimodal attack "
                   f"(image={{img is not None}}, audio={{aud is not None}}, video={{vid is not None}})")
             sys.stdout.flush()
             try:
@@ -5635,6 +5658,12 @@ def generate_multimodal_attack(params: dict) -> dict:
         goal,
     )
 
+    # Cross product: run EVERY prompt in the matrix against EVERY media set. With N
+    # matrix prompts and M media, this yields N*M trials (e.g. 4 prompts x 5 images
+    # = 20). Empty = the default 1:1-by-index behaviour above.
+    prompt_matrix = params.get("prompt_matrix") or []
+    prompt_matrix = [str(p) for p in prompt_matrix if str(p).strip()]
+
     # Media-OUTPUT scoring: when the target generates media (image-out / speech-to-
     # speech), score the generated modality with a media-aware judge and take the MAX
     # across text + media. Off by default (only the text response is scored).
@@ -5679,6 +5708,8 @@ def generate_multimodal_attack(params: dict) -> dict:
         "VIDEO_PATHS = {}".format(repr(video_paths)),
         # Per-media prompts aligned with media order; empty = single-goal behaviour.
         "PROMPTS = {}".format(repr(prompts_list)),
+        # Cross-product prompts: each is run against every media set (N x M trials).
+        "PROMPT_MATRIX = {}".format(repr(prompt_matrix)),
         # Output modalities to score with a media-aware judge (empty = text only).
         "MEDIA_OUTPUT_MODALITIES = {}".format(repr(media_out_modalities)),
         'MEDIA_OUTPUT_RUBRIC = "{}"'.format(_safe_str(media_output_rubric)),
