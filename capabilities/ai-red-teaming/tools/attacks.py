@@ -450,6 +450,13 @@ def generate_multimodal_attack(
         "Path to a CSV of `media_filename,prompt` rows. Each media file is paired with "
         "its prompt (matched by basename); unmapped media fall back to `goal`.",
     ] = "",
+    prompt_matrix: t.Annotated[
+        list[str] | None,
+        "Cross-product text prompts: run EVERY prompt against EVERY media item. With N "
+        "prompts here and M media files, this produces N*M trials (e.g. 4 prompts x 5 "
+        "images = 20). Any transforms are applied to every combination. Distinct from "
+        "`prompts`/`prompts_csv`, which pair one prompt per media (1:1).",
+    ] = None,
     custom_url: t.Annotated[
         str,
         "Target a custom multimodal HTTP endpoint instead of a litellm model. When "
@@ -553,6 +560,8 @@ def generate_multimodal_attack(
         params["prompts"] = prompts
     if prompts_csv:
         params["prompts_csv"] = prompts_csv
+    if prompt_matrix:
+        params["prompt_matrix"] = prompt_matrix
     if custom_url:
         params["custom_url"] = custom_url
     if custom_auth_type:
