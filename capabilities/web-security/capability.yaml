@@ -107,6 +107,7 @@ dependencies:
     - "fastmcp>=2.0"
     - "httpx>=0.28"
     - "caido-sdk-client"
+    - "cryptography>=41.0"
   scripts:
     - scripts/install_tools.sh
 
