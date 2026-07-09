@@ -7,6 +7,11 @@ description: "Caido proxy integration for HTTP history search, request replay, f
 
 MCP integration with Caido proxy. Results load into context -- keep queries focused.
 
+> If `python3 -c "import caido_sdk_client"` succeeds in the current runtime,
+> prefer the **`caido-sdk`** skill instead — direct SDK calls avoid per-tool MCP
+> round-trips and are more efficient. Use this MCP path when the SDK is not
+> importable (its usual state outside the MCP's own env) or Caido is unreachable.
+
 ## HTTPQL Quick Reference
 
 ```
