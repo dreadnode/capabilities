@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.1.5"
+version: "1.1.6"
 description: >
   Web application penetration testing with 60+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
@@ -10,7 +10,8 @@ description: >
   rebinding, AWS exploitation with Pacu, phone verification,
   vulnerability verification, IP rotation helpers (Flareprox, fireprox),
   archive extraction vulnerability crafting with archivealchemist,
-  and EXIF metadata manipulation via exiftool.
+  EXIF metadata manipulation via exiftool, and AgentMail email inboxes
+  for agent-owned signup, recovery, and verification flows.
 
 produces:
   values: [finding, asset]
@@ -150,6 +151,8 @@ keywords:
   - dns-rebinding
   - dom-security
   - phone-verification
+  - email
+  - agentmail
   - aem
   - adobe-experience-manager
   - sling
