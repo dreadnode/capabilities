@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import os
 import shutil
 import tempfile
@@ -200,4 +201,5 @@ class SmbClient(Toolset):
             )
         finally:
             if local_path is not None:
-                os.unlink(local_path)
+                with contextlib.suppress(FileNotFoundError):
+                    os.unlink(local_path)

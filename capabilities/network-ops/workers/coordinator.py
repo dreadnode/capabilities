@@ -20,7 +20,7 @@ AD exploitation pipeline:
         ▼
     report synthesis
 
-The existing ``netops-operator`` remains available for single-agent runs.
+The existing ``network-ops-agent`` remains available for single-agent runs.
 This worker is an additive path for long-horizon engagements where each
 phase should be handled by a specialized agent.
 """
@@ -672,9 +672,9 @@ def _compact_tool_call_summary(tool_calls: list[dict[str, t.Any]]) -> str:
 def _worker_stage_guard() -> str:
     return (
         "You are running inside the worker-coordinated network operations "
-        "pipeline. Do not call run_netops_pipeline from this stage; use "
-        "direct scanning, enumeration, exploitation, and reporting tools "
-        "as needed for your stage."
+        "pipeline. Do not call run_netops_pipeline from this stage. "
+        "Use only the tools appropriate for your stage as described in "
+        "your agent instructions."
     )
 
 
