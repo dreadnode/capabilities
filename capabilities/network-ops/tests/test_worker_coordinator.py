@@ -32,14 +32,18 @@ def _load_coordinator():
     )
     sys.modules["dreadnode.capabilities.worker"] = runtime
 
-    loguru = types.ModuleType("loguru")
+    if "loguru" not in sys.modules:
+        try:
+            import loguru as _real_loguru  # noqa: F401
+        except ImportError:
+            _loguru = types.ModuleType("loguru")
 
-    class _StubLogger:
-        def exception(self, *args, **kwargs):
-            pass
+            class _StubLogger:
+                def exception(self, *args, **kwargs):
+                    pass
 
-    loguru.logger = _StubLogger()
-    sys.modules.setdefault("loguru", loguru)
+            _loguru.logger = _StubLogger()
+            sys.modules["loguru"] = _loguru
 
     path = Path(__file__).resolve().parents[1] / "workers" / "coordinator.py"
     spec = importlib.util.spec_from_file_location("netops_worker_coordinator", path)
