@@ -1,8 +1,41 @@
 import asyncio
+import contextlib
+import os
+import shutil
+import tempfile
 
 from dreadnode.agents.tools import Toolset, tool_method
 from dreadnode.tools.execute import execute
 from loguru import logger
+
+
+def _require_smbclient() -> str:
+    """Return the smbclient binary path, raising a clear error if missing."""
+    path = shutil.which("smbclient")
+    if path is None:
+        raise FileNotFoundError(
+            "smbclient is not installed or not on PATH. "
+            "Install via: apt install smbclient"
+        )
+    return path
+
+
+_SMBCLIENT_UNSAFE_CHARS = set(';!"\n\r')
+
+
+def _sanitize_smb_path(path: str) -> str:
+    """Quote a path for smbclient ``-c`` commands, rejecting unsafe characters.
+
+    smbclient's command language treats ``;`` as a command separator and
+    ``!`` as a shell escape.  These cannot be safely quoted, so we reject
+    them outright.
+    """
+    bad = _SMBCLIENT_UNSAFE_CHARS & set(path)
+    if bad:
+        raise ValueError(
+            f"SMB path contains unsafe characters {bad!r}: {path!r}"
+        )
+    return f'"{path}"'
 
 
 class SmbClient(Toolset):
@@ -33,7 +66,7 @@ class SmbClient(Toolset):
             The text output of the recursive file listing.
         """
         share_path = f"//{target}/{share_name}"
-        smb_command = f"recurse ON; ls {path}"
+        smb_command = f"recurse ON; ls {_sanitize_smb_path(path)}"
 
         logger.info(f"Recursively listing files in {share_path}\\{path}")
 
@@ -43,7 +76,7 @@ class SmbClient(Toolset):
         # partial output.
         timeout = 120
         proc = await asyncio.create_subprocess_exec(
-            "smbclient",
+            _require_smbclient(),
             share_path,
             "-U",
             f"{username}%{password}",
@@ -104,12 +137,12 @@ class SmbClient(Toolset):
             The content of the downloaded file as a string.
         """
         share_path = f"//{target}/{share_name}"
-        smb_command = f"get {remote_path} /dev/stdout"
+        smb_command = f"get {_sanitize_smb_path(remote_path)} /dev/stdout"
 
         logger.info(f"Downloading file {remote_path} from {share_path}")
         return await execute(
             [
-                "smbclient",
+                _require_smbclient(),
                 share_path,
                 "-U",
                 f"{username}%{password}",
@@ -117,3 +150,56 @@ class SmbClient(Toolset):
                 smb_command,
             ]
         )
+
+    @tool_method(catch=True)
+    async def smb_upload_file(
+        self,
+        target: str,
+        share_name: str,
+        remote_path: str,
+        content: str,
+        username: str,
+        password: str,
+    ) -> str:
+        """
+        Upload a file to an SMB share.
+
+        Writes ``content`` to a temporary local file, then uploads it to the
+        specified path on the remote share via smbclient ``put``.
+
+        Args:
+            target: The target IP address or hostname.
+            share_name: The name of the SMB share (e.g., 'C$', 'SYSVOL').
+            remote_path: Destination path within the share (e.g., 'temp\\payload.txt').
+            content: The file content to upload.
+            username: The username for authentication.
+            password: The password for authentication.
+
+        Returns:
+            The smbclient output confirming the upload.
+        """
+        share_path = f"//{target}/{share_name}"
+
+        local_path: str | None = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".tmp", delete=False) as tmp:
+                tmp.write(content)
+                local_path = tmp.name
+
+            smb_command = f"put {_sanitize_smb_path(local_path)} {_sanitize_smb_path(remote_path)}"
+            logger.info(f"Uploading to {share_path}\\{remote_path}")
+
+            return await execute(
+                [
+                    _require_smbclient(),
+                    share_path,
+                    "-U",
+                    f"{username}%{password}",
+                    "-c",
+                    smb_command,
+                ]
+            )
+        finally:
+            if local_path is not None:
+                with contextlib.suppress(FileNotFoundError):
+                    os.unlink(local_path)
