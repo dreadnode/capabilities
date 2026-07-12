@@ -166,7 +166,7 @@ class Coercion(Toolset):
             args.extend(["-d", domain])
         if hashes:
             args.extend(["-hashes", hashes])
-        if no_pass:
+        if no_pass or (not password and not hashes):
             args.append("-no-pass")
         if kerberos:
             args.append("-k")
@@ -280,7 +280,7 @@ class Coercion(Toolset):
             args.extend(["-d", domain])
         if hashes:
             args.extend(["-hashes", hashes])
-        if no_pass:
+        if no_pass or (not password and not hashes):
             args.append("-no-pass")
         if kerberos:
             args.append("-k")
