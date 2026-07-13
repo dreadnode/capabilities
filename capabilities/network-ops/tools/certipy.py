@@ -93,7 +93,7 @@ class Certipy(Toolset):
         cmd = [self.certipy_cmd, action]
 
         if username:
-            if domain and "@" not in username:
+            if domain and "@" not in username and "\\" not in username:
                 cmd.extend(["-u", f"{username}@{domain}"])
             else:
                 cmd.extend(["-u", username])
