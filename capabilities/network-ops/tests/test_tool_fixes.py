@@ -4,7 +4,6 @@ relay orchestration helpers."""
 
 from __future__ import annotations
 
-import asyncio
 import importlib.util
 import sys
 import types
@@ -54,6 +53,7 @@ def _install_stubs():
     def tool_method(**kwargs):
         def decorator(func):
             return func
+
         return decorator
 
     sys.modules["dreadnode.agents.tools"].Toolset = Toolset
@@ -222,9 +222,7 @@ class TestCertipyDomainHandling:
         c = self._make_certipy()
         with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = "output"
-            await c.certipy(
-                action="find", args=[], target="10.0.0.1"
-            )
+            await c.certipy(action="find", args=[], target="10.0.0.1")
             cmd = mock_exec.call_args[0][0]
             assert "-u" not in cmd
 
@@ -370,7 +368,13 @@ class TestBuildCoercionCommand:
         imp = self._make_impacket()
         with patch.dict(
             impacket_mod._COERCION_SCRIPTS,
-            {"petitpotam": (tmp_path, "PetitPotam.py", "https://github.com/topotam/PetitPotam")},
+            {
+                "petitpotam": (
+                    tmp_path,
+                    "PetitPotam.py",
+                    "https://github.com/topotam/PetitPotam",
+                )
+            },
         ):
             cmd = imp._build_coercion_command(
                 "petitpotam",
@@ -399,7 +403,13 @@ class TestBuildCoercionCommand:
         imp = self._make_impacket()
         with patch.dict(
             impacket_mod._COERCION_SCRIPTS,
-            {"shadowcoerce": (tmp_path, "shadowcoerce.py", "https://github.com/ShutdownRepo/ShadowCoerce")},
+            {
+                "shadowcoerce": (
+                    tmp_path,
+                    "shadowcoerce.py",
+                    "https://github.com/ShutdownRepo/ShadowCoerce",
+                )
+            },
         ):
             cmd = imp._build_coercion_command(
                 "shadowcoerce",
@@ -419,11 +429,15 @@ class TestBuildCoercionCommand:
         imp = self._make_impacket()
         with patch.dict(
             impacket_mod._COERCION_SCRIPTS,
-            {"petitpotam": (tmp_path, "PetitPotam.py", "https://github.com/topotam/PetitPotam")},
+            {
+                "petitpotam": (
+                    tmp_path,
+                    "PetitPotam.py",
+                    "https://github.com/topotam/PetitPotam",
+                )
+            },
         ):
-            cmd = imp._build_coercion_command(
-                "petitpotam", "10.0.0.1", "10.0.0.2"
-            )
+            cmd = imp._build_coercion_command("petitpotam", "10.0.0.1", "10.0.0.2")
 
         assert "-no-pass" in cmd
 
@@ -457,14 +471,15 @@ def _make_mock_process(lines: list[bytes], returncode: int | None = None):
 
 
 class TestWaitForRelayReady:
-
     @pytest.mark.asyncio
     async def test_detects_servers_started(self):
-        proc = _make_mock_process([
-            b"Impacket v0.13.1\n",
-            b"[*] Setting up SMB Server\n",
-            b"[*] Servers started, waiting for connections\n",
-        ])
+        proc = _make_mock_process(
+            [
+                b"Impacket v0.13.1\n",
+                b"[*] Setting up SMB Server\n",
+                b"[*] Servers started, waiting for connections\n",
+            ]
+        )
         output: list[str] = []
         result = await impacket_mod._wait_for_relay_ready(proc, output, timeout=5)
         assert result is True
@@ -472,35 +487,40 @@ class TestWaitForRelayReady:
 
     @pytest.mark.asyncio
     async def test_returns_false_on_early_exit(self):
-        proc = _make_mock_process([
-            b"Error: something went wrong\n",
-            b"",  # EOF
-        ])
+        proc = _make_mock_process(
+            [
+                b"Error: something went wrong\n",
+                b"",  # EOF
+            ]
+        )
         output: list[str] = []
         result = await impacket_mod._wait_for_relay_ready(proc, output, timeout=5)
         assert result is False
 
     @pytest.mark.asyncio
     async def test_returns_false_on_bind_error(self):
-        proc = _make_mock_process([
-            b"Impacket v0.13.1\n",
-            b"Error: Address already in use (bind failed)\n",
-        ])
+        proc = _make_mock_process(
+            [
+                b"Impacket v0.13.1\n",
+                b"Error: Address already in use (bind failed)\n",
+            ]
+        )
         output: list[str] = []
         result = await impacket_mod._wait_for_relay_ready(proc, output, timeout=5)
         assert result is False
 
 
 class TestWaitForRelayResult:
-
     @pytest.mark.asyncio
     async def test_detects_certificate_success(self):
-        proc = _make_mock_process([
-            b"[*] SMBD-Thread-4: Received connection from 10.0.0.5\n",
-            b"[*] Authenticating against http://ca/certsrv\n",
-            b"[*] Got certificate!\n",
-            b"[*] Certificate: MIIFxz...\n",
-        ])
+        proc = _make_mock_process(
+            [
+                b"[*] SMBD-Thread-4: Received connection from 10.0.0.5\n",
+                b"[*] Authenticating against http://ca/certsrv\n",
+                b"[*] Got certificate!\n",
+                b"[*] Certificate: MIIFxz...\n",
+            ]
+        )
         output: list[str] = []
         result = await impacket_mod._wait_for_relay_result(proc, output, timeout=5)
         assert result is True
@@ -509,10 +529,12 @@ class TestWaitForRelayResult:
     @pytest.mark.asyncio
     async def test_returns_false_on_timeout(self):
         # No success patterns, just connection noise
-        proc = _make_mock_process([
-            b"[*] SMBD-Thread-4: Connection from 10.0.0.5\n",
-            b"",  # EOF
-        ])
+        proc = _make_mock_process(
+            [
+                b"[*] SMBD-Thread-4: Connection from 10.0.0.5\n",
+                b"",  # EOF
+            ]
+        )
         output: list[str] = []
         result = await impacket_mod._wait_for_relay_result(proc, output, timeout=2)
         assert result is False
@@ -524,7 +546,6 @@ class TestWaitForRelayResult:
 
 
 class TestKillRelay:
-
     @pytest.mark.asyncio
     async def test_noop_if_already_exited(self):
         proc = MagicMock()
@@ -543,8 +564,10 @@ class TestKillRelay:
 
         proc.wait = mock_wait
 
-        with patch("os.getpgid", return_value=99999) as mock_getpgid, \
-             patch("os.killpg") as mock_killpg:
+        with (
+            patch("os.getpgid", return_value=99999) as mock_getpgid,
+            patch("os.killpg") as mock_killpg,
+        ):
             await impacket_mod._kill_relay(proc)
             mock_getpgid.assert_called_once_with(99999)
             mock_killpg.assert_called()

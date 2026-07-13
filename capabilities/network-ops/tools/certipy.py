@@ -39,7 +39,9 @@ class Certipy(Toolset):
                 "Install with: pip install certipy-ad"
             )
         else:
-            logger.info(f"Certipy toolset initialized, using command: {self.certipy_cmd}")
+            logger.info(
+                f"Certipy toolset initialized, using command: {self.certipy_cmd}"
+            )
         return self
 
     @override
@@ -104,7 +106,9 @@ class Certipy(Toolset):
         cmd.extend(["-dc-ip", target])
         cmd.extend(args)
 
-        logger.info(f"Running '{self.certipy_cmd} {action}' with args: {' '.join(args)}")
+        logger.info(
+            f"Running '{self.certipy_cmd} {action}' with args: {' '.join(args)}"
+        )
         return await execute(cmd, timeout=self.timeout, input=input)
 
     # Specialized methods
@@ -333,7 +337,9 @@ class Certipy(Toolset):
             args: List of arguments for the command.
             input: Optional input string to pass to the command's stdin.
         """
-        return await execute([self.certipy_cmd, "auth", *args], timeout=self.timeout, input=input)
+        return await execute(
+            [self.certipy_cmd, "auth", *args], timeout=self.timeout, input=input
+        )
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_ca(self, args: list[str], input: str | None = None) -> str:
@@ -416,7 +422,9 @@ class Certipy(Toolset):
             args: List of arguments for the command.
             input: Optional input string to pass to the command's stdin.
         """
-        return await execute([self.certipy_cmd, "ca", *args], timeout=self.timeout, input=input)
+        return await execute(
+            [self.certipy_cmd, "ca", *args], timeout=self.timeout, input=input
+        )
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_cert(self, args: list[str], input: str | None = "y") -> str:
@@ -448,7 +456,9 @@ class Certipy(Toolset):
             args: List of arguments for the command.
             input: Optional input string to pass to the command's stdin.
         """
-        return await execute([self.certipy_cmd, "cert", *args], timeout=self.timeout, input=input)
+        return await execute(
+            [self.certipy_cmd, "cert", *args], timeout=self.timeout, input=input
+        )
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_find(
@@ -611,7 +621,9 @@ class Certipy(Toolset):
         Args:
             args: List of arguments for the command.
         """
-        return await execute([self.certipy_cmd, "req", *args], timeout=self.timeout, input=input)
+        return await execute(
+            [self.certipy_cmd, "req", *args], timeout=self.timeout, input=input
+        )
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_template(self, args: list[str], input: str | None = None) -> str:
