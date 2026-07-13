@@ -363,3 +363,33 @@ class WebEndpoint(BaseModel):
             "'openapi_spec_url', 'rate_limited'."
         ),
     )
+
+
+# ---------------------------------------------------------------------------
+# Forward-reference finalization
+# ---------------------------------------------------------------------------
+#
+# This module uses ``from __future__ import annotations`` (PEP 563), so every
+# field annotation is stored as a string and resolved lazily on first schema
+# build. The Dreadnode capability loader and OCI packager import this file by
+# path (``importlib.util.spec_from_file_location`` + ``exec_module``) WITHOUT
+# registering it in ``sys.modules``. In that state, Pydantic's deferred
+# forward-reference resolution cannot locate this module's namespace, so the
+# first ``model_json_schema()`` call — which the ``report_item`` tool build and
+# the package builder both make — raises ``PydanticUserError: ... is not fully
+# defined``. That failure is swallowed upstream, silently dropping the typed
+# ``report_item`` tool and every structured output type this capability
+# declares in ``produces``.
+#
+# Rebuilding each model here, at module scope, resolves every forward reference
+# against this module's globals while they are still in scope — independent of
+# how the module was imported. The loop covers all models defined above and any
+# added later, so new types are finalized automatically with no extra wiring.
+for _model in list(globals().values()):
+    if (
+        isinstance(_model, type)
+        and issubclass(_model, BaseModel)
+        and _model is not BaseModel
+    ):
+        _model.model_rebuild()
+del _model
