@@ -526,15 +526,20 @@ hand-written SDK `@task` target; recommend the SDK path and score its audio repl
 
 Map the user's intent (or the SOTA technique) to concrete transforms:
 
+Over 130 modality-typed image/audio/video transforms are available (see the multimodal
+docs for the full reference); the highest-value mappings:
+
 | Technique (SOTA) | What it does | Transforms |
 |------------------|--------------|-----------|
-| Typographic / image-as-instruction (FigStep, MM-SafetyBench) | Render the payload as pixels to bypass text filters | `add_text_overlay('…')`, `overlay_emoji` |
-| Visual prompt injection | Hide instructions in a benign image | `add_text_overlay`, `image_steganography` |
-| Cross-modal steganography | Embed instructions in pixels/bits | `image_steganography` |
-| Adversarial perturbation (HADES, image hijacks) | Perturb pixels to redirect attention | `add_gaussian_noise`, `add_laplace_noise`, `shift_pixel_values` |
-| Robustness / evasion under distortion | Test safety under common corruptions | `blur`, `jpeg_compression`, `pixelate`, `rotate`, `grayscale` |
-| Audio jailbreak / vishing (AdvWave, AudioJailbreak) | Perturb or distort the spoken prompt | `add_white_noise`, `pitch_shift`, `time_stretch`, `change_speed` |
-| Video frame injection / subliminal | Inject an attack frame into video | `video_frame_inject`, `subliminal_frame` |
+| Typographic / image-as-instruction (FigStep, MM-SafetyBench) | Render the payload as pixels to bypass text filters | `figstep_image('…')`, `typographic_prompt('…')`, `add_text_overlay('…')`, `meme_format('…')` |
+| Visual prompt injection | Hide instructions in a benign image | `add_text_overlay`, `adversarial_patch('…')`, `overlay_stripes` |
+| Cross-modal steganography | Embed instructions in pixels/bits | `image_steganography`, `audio_steganography`, `video_frame_inject` |
+| Adversarial perturbation (HADES, image hijacks) | Perturb pixels to redirect attention | `add_gaussian_noise`, `high_frequency_perturbation`, `chromatic_aberration`, `elastic_deform` |
+| Robustness / evasion under distortion (ImageNet-C) | Test safety under common corruptions | `blur`, `jpeg_compression`, `pixelate`, `defocus_blur`, `glass_blur`, `zoom_blur`, `fog`, `snow`, `spatter`, `motion_blur` |
+| Audio jailbreak / inaudible commands (DolphinAttack, AdvWave, AudioJailbreak) | Perturb, hide, or distort the spoken prompt | `ultrasonic_shift`, `spectral_inversion`, `audio_steganography`, `time_masking`, `frequency_masking`, `pitch_shift`, `add_babble_noise` |
+| Audio robustness / channel simulation | Test safety over degraded audio channels | `downsample_telephone`, `ogg_codec_roundtrip`, `air_absorption`, `add_reverb`, `sample_dropout`, `bit_crush` |
+| Video frame injection / subliminal | Inject or distribute an attack across frames | `video_frame_inject`, `subliminal_frame`, `keyframe_replace('…')`, `scene_cut_inject('…')`, `per_frame_text_scroll('…')`, `strobe` |
+| Temporal / sparse-sampling video attacks | Exploit frame sampling and temporal ordering | `temporal_shuffle`, `frame_dropout`, `frame_rate_down`, `ghost_overlay('…')`, `motion_smear` |
 
 Text transforms (see Transform Catalog) also apply — they transform the prompt while media
 transforms transform the media; the SDK routes each by its modality. Benchmarks to anchor

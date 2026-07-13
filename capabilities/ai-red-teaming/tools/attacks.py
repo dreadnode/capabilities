@@ -426,9 +426,13 @@ def generate_multimodal_attack(
         list[str] | None,
         "Modality-typed transforms applied per attack. Image: add_gaussian_noise, "
         "add_text_overlay('PWNED'), image_steganography, blur, rotate, jpeg_compression, "
-        "overlay_emoji. Audio: add_white_noise, pitch_shift, time_stretch, change_speed. "
-        "Video: video_frame_inject, subliminal_frame. Text transforms also work (applied "
-        "to the prompt). The SDK routes each by modality.",
+        "overlay_emoji, solarize, posterize, invert_colors, adversarial_patch('IGNORE'), "
+        "shuffle_pixels, color_jitter. Audio: add_white_noise, pitch_shift, time_stretch, "
+        "change_speed, add_reverb, add_echo, apply_band_pass_filter, ultrasonic_shift, "
+        "spectral_inversion, bit_crush, add_tone, audio_steganography('PWNED'). Video: "
+        "video_frame_inject, subliminal_frame, frame_brightness_flicker, temporal_shuffle, "
+        "frame_dropout, keyframe_replace('INJECT'), per_frame_text_scroll('secret'). Text "
+        "transforms also work (applied to the prompt). The SDK routes each by modality.",
     ] = None,
     judge_model: t.Annotated[
         str,

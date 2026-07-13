@@ -5124,37 +5124,48 @@ _MULTIMODAL_GOAL_CATEGORIES = {
 # Modality-typed transforms for multimodal red teaming. The SDK routes each by
 # its `modality` attribute (image/audio/video), so image transforms only touch
 # the image, audio only the audio, etc. Text transforms fall back to the main
-# registry via _resolve_multimodal_transform().
+# registry via _resolve_multimodal_transform(). Names mirror the SDK factories in
+# dreadnode.transforms.{image,audio,video}; see the multimodal docs for the full
+# reference. Transforms needing non-string args (interpolate_images, overlay_image,
+# frames_from_image_transform) are SDK-only and intentionally not exposed here.
+_IMAGE_TRANSFORMS: list[str] = [
+    "add_gaussian_noise", "add_laplace_noise", "add_uniform_noise", "shift_pixel_values",
+    "add_text_overlay", "image_steganography", "blur", "adjust_brightness", "adjust_contrast",
+    "adjust_saturation", "rotate", "horizontal_flip", "vertical_flip", "jpeg_compression",
+    "pixelate", "grayscale", "overlay_emoji", "crop", "pad", "color_jitter", "shuffle_pixels",
+    "solarize", "posterize", "invert_colors", "adversarial_patch", "sharpen",
+    "salt_pepper_noise", "motion_blur", "cutout", "channel_shuffle", "hue_shift",
+    "chromatic_aberration", "perspective_warp", "elastic_deform", "halftone_dither",
+    "histogram_equalize", "autocontrast", "downscale", "high_frequency_perturbation", "sepia",
+    "change_aspect_ratio", "skew", "meme_format", "opacity_blend", "overlay_stripes",
+    "pad_square", "shot_noise", "speckle_noise", "defocus_blur", "glass_blur", "zoom_blur",
+    "fog", "snow", "spatter", "apply_pil_filter", "figstep_image", "typographic_prompt",
+]
+_AUDIO_TRANSFORMS: list[str] = [
+    "add_white_noise", "add_pink_noise", "change_volume", "normalize_volume", "change_speed",
+    "time_stretch", "pitch_shift", "apply_low_pass_filter", "apply_high_pass_filter",
+    "apply_band_pass_filter", "add_reverb", "add_echo", "apply_dynamic_range_compression",
+    "add_clipping", "trim_silence", "add_fade", "ultrasonic_shift", "spectral_inversion",
+    "bit_crush", "add_tone", "audio_steganography", "add_brown_noise", "add_babble_noise",
+    "add_clicks", "time_masking", "frequency_masking", "reverse_audio", "tremolo", "vibrato",
+    "wow_flutter", "granular_shuffle", "sample_dropout", "pre_emphasis", "notch_filter",
+    "peaking_equalizer", "soft_clip", "ring_modulation", "downsample_telephone", "loop_audio",
+    "polarity_inversion", "time_shift", "gain_transition", "air_absorption",
+    "low_shelf_filter", "high_shelf_filter", "band_stop_filter", "seven_band_parametric_eq",
+    "aliasing", "limiter", "add_short_noises", "repeat_part", "ogg_codec_roundtrip",
+]
+_VIDEO_TRANSFORMS: list[str] = [
+    "video_frame_inject", "video_metadata_inject", "subliminal_frame",
+    "frame_brightness_flicker", "temporal_shuffle", "frame_dropout", "keyframe_replace",
+    "per_frame_text_scroll", "frame_reverse", "freeze_frame", "loop_frames", "frame_rate_up",
+    "frame_rate_down", "scene_cut_inject", "strobe", "replace_with_color_frames",
+    "ghost_overlay", "letterbox_caption", "rolling_temporal_jitter", "motion_smear",
+    "frame_interpolate_blend", "temporal_noise",
+]
 _MULTIMODAL_TRANSFORM_DEFS: dict[str, dict] = {
-    # Image (dreadnode.transforms.image)
-    "add_gaussian_noise": {"module": "dreadnode.transforms.image", "name": "add_gaussian_noise"},
-    "add_laplace_noise": {"module": "dreadnode.transforms.image", "name": "add_laplace_noise"},
-    "add_uniform_noise": {"module": "dreadnode.transforms.image", "name": "add_uniform_noise"},
-    "shift_pixel_values": {"module": "dreadnode.transforms.image", "name": "shift_pixel_values"},
-    "add_text_overlay": {"module": "dreadnode.transforms.image", "name": "add_text_overlay"},
-    "image_steganography": {"module": "dreadnode.transforms.image", "name": "image_steganography"},
-    "blur": {"module": "dreadnode.transforms.image", "name": "blur"},
-    "adjust_brightness": {"module": "dreadnode.transforms.image", "name": "adjust_brightness"},
-    "adjust_contrast": {"module": "dreadnode.transforms.image", "name": "adjust_contrast"},
-    "rotate": {"module": "dreadnode.transforms.image", "name": "rotate"},
-    "horizontal_flip": {"module": "dreadnode.transforms.image", "name": "horizontal_flip"},
-    "vertical_flip": {"module": "dreadnode.transforms.image", "name": "vertical_flip"},
-    "jpeg_compression": {"module": "dreadnode.transforms.image", "name": "jpeg_compression"},
-    "pixelate": {"module": "dreadnode.transforms.image", "name": "pixelate"},
-    "grayscale": {"module": "dreadnode.transforms.image", "name": "grayscale"},
-    "overlay_emoji": {"module": "dreadnode.transforms.image", "name": "overlay_emoji"},
-    # Audio (dreadnode.transforms.audio)
-    "add_white_noise": {"module": "dreadnode.transforms.audio", "name": "add_white_noise"},
-    "add_pink_noise": {"module": "dreadnode.transforms.audio", "name": "add_pink_noise"},
-    "change_volume": {"module": "dreadnode.transforms.audio", "name": "change_volume"},
-    "change_speed": {"module": "dreadnode.transforms.audio", "name": "change_speed"},
-    "time_stretch": {"module": "dreadnode.transforms.audio", "name": "time_stretch"},
-    "pitch_shift": {"module": "dreadnode.transforms.audio", "name": "pitch_shift"},
-    "apply_low_pass_filter": {"module": "dreadnode.transforms.audio", "name": "apply_low_pass_filter"},
-    # Video (dreadnode.transforms.video)
-    "video_frame_inject": {"module": "dreadnode.transforms.video", "name": "video_frame_inject"},
-    "video_metadata_inject": {"module": "dreadnode.transforms.video", "name": "video_metadata_inject"},
-    "subliminal_frame": {"module": "dreadnode.transforms.video", "name": "subliminal_frame"},
+    **{n: {"module": "dreadnode.transforms.image", "name": n} for n in _IMAGE_TRANSFORMS},
+    **{n: {"module": "dreadnode.transforms.audio", "name": n} for n in _AUDIO_TRANSFORMS},
+    **{n: {"module": "dreadnode.transforms.video", "name": n} for n in _VIDEO_TRANSFORMS},
 }
 
 
