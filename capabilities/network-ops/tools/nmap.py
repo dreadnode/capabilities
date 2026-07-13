@@ -55,6 +55,7 @@ class Nmap(Toolset):
             ports: Optional ports to scan (X,Y or X-Y format).
         """
         args = ["-sV", "-sC", "-T4", "--open", "-Pn"]
-        if ports:
-            args.extend(["-p", ports.strip().strip("\"'")])
+        cleaned_ports = ports.strip().strip("\"'") if ports else ""
+        if cleaned_ports:
+            args.extend(["-p", cleaned_ports])
         return await self.nmap(targets, args)

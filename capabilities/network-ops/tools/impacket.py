@@ -229,10 +229,14 @@ async def _wait_for_relay_result(
 
         lower = decoded.lower()
         if any(pattern in lower for pattern in _RELAY_SUCCESS_PATTERNS):
-            # Drain follow-up output (cert data, hash values)
+            # Drain follow-up output (cert data, hash values) for up to 5s total
+            drain_deadline = loop.time() + 5
             try:
-                while True:
-                    extra = await asyncio.wait_for(proc.stdout.readline(), timeout=5)
+                while loop.time() < drain_deadline:
+                    drain_remaining = drain_deadline - loop.time()
+                    extra = await asyncio.wait_for(
+                        proc.stdout.readline(), timeout=drain_remaining
+                    )
                     if not extra:
                         break
                     output_buffer.append(extra.decode(errors="replace"))
