@@ -90,8 +90,11 @@ class Certipy(Toolset):
         """
         cmd = [self.certipy_cmd, action]
 
-        if username and domain:
-            cmd.extend(["-u", f"{username}@{domain}"])
+        if username:
+            if domain and "@" not in username:
+                cmd.extend(["-u", f"{username}@{domain}"])
+            else:
+                cmd.extend(["-u", username])
 
         if password:
             cmd.extend(["-p", password])
@@ -448,16 +451,22 @@ class Certipy(Toolset):
         return await execute([self.certipy_cmd, "cert", *args], timeout=self.timeout, input=input)
 
     @tool_method(catch=True, variants=["generic", "all"])
-    async def certipy_find(self, args: list[str], input: str | None = None) -> str:
+    async def certipy_find(
+        self,
+        target: str,
+        args: list[str] | None = None,
+        username: str | None = None,
+        domain: str | None = None,
+        password: str | None = None,
+        nt_hash: str | None = None,
+        input: str | None = None,
+    ) -> str:
         r"""
         Execute a certipy-ad find command.
 
         <documentation>
         Discover and analyze Active Directory Certificate Services (AD CS) components. This command identifies vulnerable certificate templates, security misconfigurations, and potential certificate-
         based privilege escalation paths.
-
-        options:
-        -h, --help            show this help message and exit
 
         output options:
         -text                 Output result as formatted text file
@@ -470,18 +479,9 @@ class Certipy(Toolset):
         -enabled              Show only enabled certificate templates
         -dc-only              Collects data only from the domain controller. Will not try to retrieve CA security/configuration or check for Web Enrollment
         -vulnerable           Show only vulnerable certificate templates based on nested group memberships
-        -oids                 Show OIDs (Issuance Policies) and their properties
         -hide-admins          Don't show administrator permissions for -text, -stdout, -json, and -csv
 
-        identity options:
-        -sid object sid       SID of the user provided in the command line. Useful for cross domain authentication
-        -dn distinguished name
-                                Distinguished name of the user provided in the command line. Useful for cross domain authentication
-
         connection options:
-        -dc-ip ip address     IP address of the domain controller. If omitted, it will use the domain part (FQDN) specified in the target parameter
-        -dc-host hostname     Hostname of the domain controller. Required for Kerberos authentication during certain operations. If omitted, the domain part (FQDN) specified in the account parameter
-                                will be used
         -target-ip ip address
                                 IP address of the target machine. If omitted, it will use whatever was specified as target. Useful when target is the NetBIOS name and cannot be resolved
         -target dns/ip address
@@ -490,18 +490,6 @@ class Certipy(Toolset):
         -dns-tcp              Use TCP instead of UDP for DNS queries
         -timeout seconds      Timeout for connections in seconds (default: 10)
 
-        authentication options:
-        -u, -username username@domain
-                                Username to authenticate with
-        -p, -password password
-                                Password for authentication
-        -hashes [lmhash:]nthash
-                                NTLM hash
-        -k                    Use Kerberos authentication. Grabs credentials from ccache file (KRB5CCNAME) based on target parameters. If valid credentials cannot be found, it will use the ones
-                                specified in the command line
-        -aes hex key          AES key to use for Kerberos Authentication (128 or 256 bits)
-        -no-pass              Don't ask for password (useful for -k)
-
         ldap options:
         -ldap-scheme ldap scheme
                                 LDAP connection scheme to use (default: ldaps)
@@ -509,15 +497,27 @@ class Certipy(Toolset):
         -no-ldap-channel-binding
                                 Don't use LDAP channel binding for LDAP communication (LDAPS only)
         -no-ldap-signing      Don't use LDAP signing for LDAP communication (LDAP only)
-        -ldap-simple-auth     Use SIMPLE LDAP authentication instead of NTLM
-        -ldap-user-dn dn      Distinguished Name of target account for LDAP authentication
         </documentation>
 
         Args:
-            args: List of arguments for the command.
+            target: The IP address of the Domain Controller.
+            args: Additional arguments for the find command (e.g., ["-vulnerable", "-stdout"]).
+            username: The username for authentication.
+            domain: The domain name (combined with username as user@domain).
+            password: The password for authentication.
+            nt_hash: The NTLM hash for authentication.
             input: Optional input string to pass to the command.
         """
-        return await execute([self.certipy_cmd, "find", *args], timeout=self.timeout, input=input)
+        return await self.certipy(
+            action="find",
+            args=args or [],
+            target=target,
+            username=username,
+            domain=domain,
+            password=password,
+            nt_hash=nt_hash,
+            input=input,
+        )
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_req(self, args: list[str], input: str | None = "y") -> str:

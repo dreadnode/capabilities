@@ -92,10 +92,13 @@ Reference for common AD attack chains. Each pattern lists prerequisites, tool se
 
 **Prerequisites:** Ability to coerce authentication, relay target that accepts NTLM (SMB signing disabled, LDAP signing not required, or AD CS HTTP endpoint).
 
+**Preferred:** Use `impacket_ntlmrelay_attack` — a single tool call that starts the relay, fires coercion, monitors for success, and returns combined output. This avoids the sequencing problem where ntlmrelayx must be running before coercion fires.
+
 | Step | Tool | Action |
 |---|---|---|
-| 1. Start relay listener | `impacket_ntlmrelayx` | Listen and relay to target (SMB/LDAP/AD CS) |
-| 2. Coerce authentication | See coercion method selection below | Force target to authenticate to relay |
+| Combined (preferred) | `impacket_ntlmrelay_attack` | Start relay + fire coercion + capture result in one call |
+| 1. Start relay listener (manual) | `impacket_ntlmrelayx` | Listen and relay to target (SMB/LDAP/AD CS) |
+| 2. Coerce authentication (manual) | See coercion method selection below | Force target to authenticate to relay |
 | 3. Relay captures and forwards | ntlmrelayx relays auth | Escalation depends on relay target |
 
 **Relay targets by impact:**
