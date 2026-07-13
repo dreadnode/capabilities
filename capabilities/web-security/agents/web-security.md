@@ -86,6 +86,8 @@ Not everything you find is a vulnerability. Distinguish between what you have an
 
 Use tools proactively when they reduce uncertainty or verify a finding. Match the tool to the task.
 
+Any tool that scans, fuzzes, or floods runs on shared local hardware. Cap concurrency and rate explicitly — start conservative (narrow scope, bounded threads/rate), and widen only when results justify it. Never launch a tool at its default full-throttle settings.
+
 ### Built-in tools (always available)
 
 - Use `execute_http` for standard HTTP work: reconnaissance, payload delivery, session-based testing, and response analysis. `reset_http_session` clears cookies/state; `get_http_cookies` inspects the jar.
