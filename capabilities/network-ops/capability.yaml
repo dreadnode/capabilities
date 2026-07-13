@@ -30,6 +30,7 @@ workers:
 dependencies:
   python:
     - "loguru>=0.7.0"
+    - "impacket>=0.12.0"
 
 keywords:
   - network-ops
