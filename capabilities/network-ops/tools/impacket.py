@@ -165,7 +165,7 @@ async def _wait_for_relay_ready(
     Returns True if the relay is ready, False on early exit or timeout.
     """
     assert proc.stdout is not None
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
 
     while loop.time() < deadline:
@@ -207,7 +207,7 @@ async def _wait_for_relay_result(
     data (certificate values, hashes, etc.) before returning.
     """
     assert proc.stdout is not None
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
 
     while loop.time() < deadline:
@@ -659,12 +659,12 @@ class Impacket(Toolset):
         args: list[str] = []
         if username:
             args.extend(["-u", username])
-        if password:
+        if hashes:
+            args.extend(["-hashes", hashes])
+        elif password:
             args.extend(["-p", password])
         if domain:
             args.extend(["-d", domain])
-        if hashes:
-            args.extend(["-hashes", hashes])
 
         # Auto -no-pass when no creds provided (prevents interactive prompt)
         if not password and not hashes:
@@ -2439,28 +2439,37 @@ class Impacket(Toolset):
         coerce_result = ""
 
         try:
+            # Readiness gets at most half the total budget, capped at 30s
+            ready_timeout = min(relay_timeout // 2, 30)
+
             # Wait for relay to bind its listeners
-            ready = await _wait_for_relay_ready(relay_proc, relay_output, timeout=30)
+            ready = await _wait_for_relay_ready(
+                relay_proc, relay_output, timeout=ready_timeout
+            )
             if not ready:
                 captured = "".join(relay_output)
                 raise RuntimeError(
-                    f"ntlmrelayx failed to start within 30s.\n\nOutput:\n{captured}"
+                    f"ntlmrelayx failed to start within {ready_timeout}s.\n\n"
+                    f"Output:\n{captured}"
                 )
 
             # Fire coercion — the target authenticates back to our relay
             logger.info(
                 f"Relay ready. Running {coerce_method} coercion against {coerce_target}"
             )
+            coerce_timeout = min(30, relay_timeout - ready_timeout)
             try:
-                coerce_result = await execute(coerce_cmd, timeout=30, env=env)
+                coerce_result = await execute(
+                    coerce_cmd, timeout=coerce_timeout, env=env
+                )
             except (RuntimeError, TimeoutError) as exc:
                 coerce_result = f"[coercion error] {exc}"
                 logger.warning(f"Coercion failed: {exc}")
                 # Don't abort — relay may still capture auth from retries
                 # or other sources
 
-            # Monitor relay for success
-            remaining = max(relay_timeout - 30, 10)
+            # Monitor relay for success with whatever time remains
+            remaining = max(relay_timeout - ready_timeout - coerce_timeout, 1)
             success = await _wait_for_relay_result(
                 relay_proc, relay_output, timeout=remaining
             )

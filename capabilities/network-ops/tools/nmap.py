@@ -56,5 +56,5 @@ class Nmap(Toolset):
         """
         args = ["-sV", "-sC", "-T4", "--open", "-Pn"]
         if ports:
-            args.extend(["-p", ports.strip("\"'")])
+            args.extend(["-p", ports.strip().strip("\"'")])
         return await self.nmap(targets, args)

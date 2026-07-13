@@ -25,7 +25,9 @@ def _install_stubs():
         return
     _STUBS_INSTALLED = True
 
-    # dreadnode stubs
+    # dreadnode stubs — only create and populate modules that don't exist yet
+    # to avoid clobbering a real dreadnode installation in the test env.
+    _stub_modules: list[str] = []
     for mod_name in [
         "dreadnode",
         "dreadnode.agents",
@@ -37,6 +39,7 @@ def _install_stubs():
     ]:
         if mod_name not in sys.modules:
             sys.modules[mod_name] = types.ModuleType(mod_name)
+            _stub_modules.append(mod_name)
 
     # Config stub
     class Config:
@@ -44,7 +47,8 @@ def _install_stubs():
             self.default = kwargs.get("default")
             self.default_factory = kwargs.get("default_factory")
 
-    sys.modules["dreadnode"].Config = Config
+    if "dreadnode" in _stub_modules:
+        sys.modules["dreadnode"].Config = Config  # type: ignore[attr-defined]
 
     # Toolset stub
     class Toolset:
@@ -56,14 +60,16 @@ def _install_stubs():
 
         return decorator
 
-    sys.modules["dreadnode.agents.tools"].Toolset = Toolset
-    sys.modules["dreadnode.agents.tools"].tool_method = tool_method
+    if "dreadnode.agents.tools" in _stub_modules:
+        sys.modules["dreadnode.agents.tools"].Toolset = Toolset  # type: ignore[attr-defined]
+        sys.modules["dreadnode.agents.tools"].tool_method = tool_method  # type: ignore[attr-defined]
 
     # execute stub
     async def execute(cmd, **kwargs):
         return f"executed: {' '.join(cmd)}"
 
-    sys.modules["dreadnode.tools.execute"].execute = execute
+    if "dreadnode.tools.execute" in _stub_modules:
+        sys.modules["dreadnode.tools.execute"].execute = execute  # type: ignore[attr-defined]
 
     # loguru stub
     if "loguru" not in sys.modules:
