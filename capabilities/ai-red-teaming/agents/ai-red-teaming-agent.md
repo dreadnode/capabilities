@@ -526,7 +526,7 @@ hand-written SDK `@task` target; recommend the SDK path and score its audio repl
 
 Map the user's intent (or the SOTA technique) to concrete transforms:
 
-Over 130 modality-typed image/audio/video transforms are available (see the multimodal
+Over 160 modality-typed image/audio/video transforms are available (see the multimodal
 docs for the full reference); the highest-value mappings:
 
 | Technique (SOTA) | What it does | Transforms |

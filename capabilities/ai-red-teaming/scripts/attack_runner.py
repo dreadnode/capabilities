@@ -5140,6 +5140,10 @@ _IMAGE_TRANSFORMS: list[str] = [
     "change_aspect_ratio", "skew", "meme_format", "opacity_blend", "overlay_stripes",
     "pad_square", "shot_noise", "speckle_noise", "defocus_blur", "glass_blur", "zoom_blur",
     "fog", "snow", "spatter", "apply_pil_filter", "figstep_image", "typographic_prompt",
+    "median_blur", "gamma_correction", "color_quantize", "ordered_dither", "vignette",
+    "rgb_shift", "channel_dropout", "hsv_shift", "coarse_dropout", "pixel_dropout",
+    "morphology", "optical_distortion", "grid_distortion", "rain", "random_shadow",
+    "iso_noise", "ringing_overshoot", "fancy_pca", "webp_compression", "affine",
 ]
 _AUDIO_TRANSFORMS: list[str] = [
     "add_white_noise", "add_pink_noise", "change_volume", "normalize_volume", "change_speed",
@@ -5152,7 +5156,9 @@ _AUDIO_TRANSFORMS: list[str] = [
     "peaking_equalizer", "soft_clip", "ring_modulation", "downsample_telephone", "loop_audio",
     "polarity_inversion", "time_shift", "gain_transition", "air_absorption",
     "low_shelf_filter", "high_shelf_filter", "band_stop_filter", "seven_band_parametric_eq",
-    "aliasing", "limiter", "add_short_noises", "repeat_part", "ogg_codec_roundtrip",
+    "aliasing", "limiter", "add_short_noises", "repeat_part", "ogg_codec_roundtrip", "chorus",
+    "flanger", "harmonic_distortion", "dc_offset", "adjust_duration", "apply_impulse_response",
+    "dtmf_tone", "reverse_segments", "loudness_normalize",
 ]
 _VIDEO_TRANSFORMS: list[str] = [
     "video_frame_inject", "video_metadata_inject", "subliminal_frame",
@@ -5160,7 +5166,8 @@ _VIDEO_TRANSFORMS: list[str] = [
     "per_frame_text_scroll", "frame_reverse", "freeze_frame", "loop_frames", "frame_rate_up",
     "frame_rate_down", "scene_cut_inject", "strobe", "replace_with_color_frames",
     "ghost_overlay", "letterbox_caption", "rolling_temporal_jitter", "motion_smear",
-    "frame_interpolate_blend", "temporal_noise",
+    "frame_interpolate_blend", "temporal_noise", "frame_jitter", "color_flicker", "stutter",
+    "reverse_frame_segments", "speed_ramp", "pip_inject",
 ]
 _MULTIMODAL_TRANSFORM_DEFS: dict[str, dict] = {
     **{n: {"module": "dreadnode.transforms.image", "name": n} for n in _IMAGE_TRANSFORMS},
