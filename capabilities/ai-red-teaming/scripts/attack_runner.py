@@ -5140,6 +5140,7 @@ _IMAGE_TRANSFORMS: list[str] = [
     "change_aspect_ratio", "skew", "meme_format", "opacity_blend", "overlay_stripes",
     "pad_square", "shot_noise", "speckle_noise", "defocus_blur", "glass_blur", "zoom_blur",
     "fog", "snow", "spatter", "apply_pil_filter", "figstep_image", "typographic_prompt",
+    "invisible_text",
     "median_blur", "gamma_correction", "color_quantize", "ordered_dither", "vignette",
     "rgb_shift", "channel_dropout", "hsv_shift", "coarse_dropout", "pixel_dropout",
     "morphology", "optical_distortion", "grid_distortion", "rain", "random_shadow",
