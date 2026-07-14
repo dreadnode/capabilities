@@ -35,6 +35,8 @@ dependencies:
     - scripts/install_coercion_tools.sh
 
 checks:
+  - name: impacket
+    command: "python3 -c 'import impacket' 2>/dev/null"
   - name: nmap
     command: "command -v nmap >/dev/null 2>&1"
   - name: petitpotam
