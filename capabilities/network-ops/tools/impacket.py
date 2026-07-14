@@ -76,7 +76,15 @@ def _ensure_impacket_installed() -> None:
         for extra_args in ([], ["--break-system-packages"]):
             try:
                 subprocess.check_call(
-                    [sys.executable, "-m", "pip", "install", "--quiet", "impacket>=0.12.0", *extra_args],
+                    [
+                        sys.executable,
+                        "-m",
+                        "pip",
+                        "install",
+                        "--quiet",
+                        "impacket>=0.12.0",
+                        *extra_args,
+                    ],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
