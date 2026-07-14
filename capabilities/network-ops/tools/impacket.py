@@ -66,7 +66,12 @@ def _ensure_impacket_installed() -> None:
     The runtime may not process ``dependencies.python`` from
     ``capability.yaml``, so we do a best-effort pip install at import
     time as a fallback.
+
+    Set ``DREADNODE_SKIP_AUTO_INSTALL=1`` to disable (useful in tests/CI).
     """
+    if os.environ.get("DREADNODE_SKIP_AUTO_INSTALL", "").strip() in ("1", "true", "yes"):
+        return
+
     try:
         import impacket as _  # noqa: F401
     except ImportError:
@@ -75,7 +80,7 @@ def _ensure_impacket_installed() -> None:
         logger.warning("impacket not importable — attempting pip install")
         for extra_args in ([], ["--break-system-packages"]):
             try:
-                subprocess.check_call(
+                subprocess.run(
                     [
                         sys.executable,
                         "-m",
@@ -87,10 +92,12 @@ def _ensure_impacket_installed() -> None:
                     ],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    check=True,
+                    timeout=120,
                 )
                 logger.info("impacket installed successfully")
                 return
-            except subprocess.CalledProcessError:
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
                 continue
         logger.error("Failed to install impacket — impacket tools will not work")
 
