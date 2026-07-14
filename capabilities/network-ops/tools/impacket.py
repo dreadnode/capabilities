@@ -61,45 +61,62 @@ def _extract_real_path_from_wrapper(wrapper_path: Path) -> Path | None:
 
 
 def _ensure_impacket_installed() -> None:
-    """Install impacket into the running Python if it's not importable.
+    """Ensure impacket is importable by subprocesses using sys.executable.
 
-    The runtime may not process ``dependencies.python`` from
-    ``capability.yaml``, so we do a best-effort pip install at import
-    time as a fallback.
+    The in-process ``import impacket`` may succeed (via inherited
+    PYTHONPATH or global site-packages) while subprocesses spawned with
+    ``sys.executable`` fail because they run in an isolated venv.  We
+    check the *subprocess* environment specifically, since that's what
+    ``_build_script_command`` uses to run impacket scripts.
 
     Set ``DREADNODE_SKIP_AUTO_INSTALL=1`` to disable (useful in tests/CI).
     """
+    import subprocess
+
     if os.environ.get("DREADNODE_SKIP_AUTO_INSTALL", "").strip() in ("1", "true", "yes"):
         return
 
+    # Check if sys.executable can import impacket as a subprocess —
+    # this matches how _build_script_command actually runs scripts.
     try:
-        import impacket as _  # noqa: F401
-    except ImportError:
-        import subprocess
+        subprocess.run(
+            [sys.executable, "-c", "import impacket"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+            timeout=10,
+        )
+        return  # sys.executable can import impacket — nothing to do
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+        pass
 
-        logger.warning("impacket not importable — attempting pip install")
-        for extra_args in ([], ["--break-system-packages"]):
-            try:
-                subprocess.run(
-                    [
-                        sys.executable,
-                        "-m",
-                        "pip",
-                        "install",
-                        "--quiet",
-                        "impacket>=0.12.0",
-                        *extra_args,
-                    ],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    check=True,
-                    timeout=120,
-                )
-                logger.info("impacket installed successfully")
-                return
-            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
-                continue
-        logger.error("Failed to install impacket — impacket tools will not work")
+    logger.warning(
+        f"impacket not importable by {sys.executable} — attempting pip install"
+    )
+    for extra_args in ([], ["--break-system-packages"]):
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "--quiet",
+                    "impacket>=0.12.0",
+                    *extra_args,
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=True,
+                timeout=120,
+            )
+            logger.info("impacket installed successfully")
+            return
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+            continue
+    logger.error(
+        f"Failed to install impacket into {sys.executable} — impacket tools will not work"
+    )
 
 
 _ensure_impacket_installed()
