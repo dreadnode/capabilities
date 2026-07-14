@@ -31,6 +31,18 @@ dependencies:
   python:
     - "loguru>=0.7.0"
     - "impacket>=0.12.0"
+  scripts:
+    - scripts/install_coercion_tools.sh
+
+checks:
+  - name: nmap
+    command: "command -v nmap >/dev/null 2>&1"
+  - name: petitpotam
+    command: "test -f /opt/PetitPotam/PetitPotam.py"
+  - name: dfscoerce
+    command: "test -f /opt/DFSCoerce/dfscoerce.py"
+  - name: shadowcoerce
+    command: "test -f /opt/ShadowCoerce/shadowcoerce.py"
 
 keywords:
   - network-ops
