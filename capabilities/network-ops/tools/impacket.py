@@ -112,13 +112,34 @@ def _get_impacket_script_path() -> Path:
     Returns a directory containing real Python impacket scripts (not
     shell wrappers) so they can be invoked via sys.executable.
 
-    Tries multiple common locations:
-    1. Global PATH: resolve the found script's directory, following
+    Tries multiple common locations, preferring site-packages (which
+    matches sys.executable) over PATH (which may contain pip entry
+    point wrappers installed for a different Python version):
+    1. pip-installed: site-packages/impacket/examples/ (same Python as sys.executable)
+    2. apt-installed: /usr/share/doc/python3-impacket/examples/
+    3. Global PATH: resolve the found script's directory, following
        shell wrappers to the real scripts if needed
-    2. pip-installed: site-packages/impacket/examples/
-    3. apt-installed: /usr/share/doc/python3-impacket/examples/
     """
-    # Check if scripts are on PATH (pipx / manual install)
+    # Prefer site-packages — these scripts are guaranteed to work with
+    # sys.executable since they live in the same Python installation.
+    # PATH entries (e.g. ~/.local/bin/) are pip entry point wrappers
+    # that may be installed for a different Python version.
+    try:
+        import impacket
+
+        impacket_pkg_path = Path(impacket.__file__).parent
+        examples_path = impacket_pkg_path / "examples"
+        if examples_path.exists() and (examples_path / "secretsdump.py").exists():
+            return examples_path
+    except ImportError:
+        pass
+
+    # Fall back to apt installation path
+    apt_path = Path("/usr/share/doc/python3-impacket/examples/")
+    if apt_path.exists() and (apt_path / "secretsdump.py").exists():
+        return apt_path
+
+    # Last resort: check PATH (pipx / manual install)
     found = shutil.which("secretsdump.py")
     if found is not None:
         found_path = Path(found).resolve()
@@ -137,23 +158,6 @@ def _get_impacket_script_path() -> Path:
         logger.warning(
             f"Impacket script at {found_path} is a shell wrapper, skipping PATH discovery"
         )
-
-    # Try to find impacket in site-packages (pip install)
-    try:
-        import impacket
-
-        impacket_pkg_path = Path(impacket.__file__).parent
-        examples_path = impacket_pkg_path / "examples"
-        # Check that actual script files exist, not just the directory
-        if examples_path.exists() and (examples_path / "secretsdump.py").exists():
-            return examples_path
-    except ImportError:
-        pass
-
-    # Fall back to apt installation path
-    apt_path = Path("/usr/share/doc/python3-impacket/examples/")
-    if apt_path.exists() and (apt_path / "secretsdump.py").exists():
-        return apt_path
 
     # Default fallback
     return Path("/usr/share/doc/python3-impacket/examples/")
