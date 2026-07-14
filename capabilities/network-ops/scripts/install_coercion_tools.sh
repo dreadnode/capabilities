@@ -8,8 +8,8 @@ set -euo pipefail
 # runtime Python can't import impacket, install it explicitly.
 if ! python3 -c "import impacket" 2>/dev/null; then
     echo "[+] Installing impacket into runtime Python"
-    pip install --quiet "impacket>=0.12.0" 2>/dev/null \
-        || pip install --quiet --break-system-packages "impacket>=0.12.0"
+    python3 -m pip install --quiet "impacket>=0.12.0" 2>/dev/null \
+        || python3 -m pip install --quiet --break-system-packages "impacket>=0.12.0"
 else
     echo "[*] impacket already importable, skipping"
 fi
