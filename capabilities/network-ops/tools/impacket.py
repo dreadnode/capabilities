@@ -60,6 +60,51 @@ def _extract_real_path_from_wrapper(wrapper_path: Path) -> Path | None:
     return None
 
 
+def _ensure_impacket_installed() -> None:
+    """Install impacket into the running Python if it's not importable.
+
+    The runtime may not process ``dependencies.python`` from
+    ``capability.yaml``, so we do a best-effort pip install at import
+    time as a fallback.
+
+    Set ``DREADNODE_SKIP_AUTO_INSTALL=1`` to disable (useful in tests/CI).
+    """
+    if os.environ.get("DREADNODE_SKIP_AUTO_INSTALL", "").strip() in ("1", "true", "yes"):
+        return
+
+    try:
+        import impacket as _  # noqa: F401
+    except ImportError:
+        import subprocess
+
+        logger.warning("impacket not importable — attempting pip install")
+        for extra_args in ([], ["--break-system-packages"]):
+            try:
+                subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "pip",
+                        "install",
+                        "--quiet",
+                        "impacket>=0.12.0",
+                        *extra_args,
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=True,
+                    timeout=120,
+                )
+                logger.info("impacket installed successfully")
+                return
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+                continue
+        logger.error("Failed to install impacket — impacket tools will not work")
+
+
+_ensure_impacket_installed()
+
+
 def _get_impacket_script_path() -> Path:
     """
     Auto-discover the impacket scripts directory.
