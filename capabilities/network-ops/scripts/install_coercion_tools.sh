@@ -18,7 +18,7 @@ fi
 WORDLIST_DIR="/usr/share/wordlists"
 mkdir -p "$WORDLIST_DIR"
 
-# rockyou — the standard first-pass wordlist (14M passwords)
+# rockyou — the standard wordlist for cracking (14M passwords)
 if [ -f "$WORDLIST_DIR/rockyou.txt" ]; then
     echo "[*] rockyou.txt already exists, skipping"
 elif [ -f "$WORDLIST_DIR/rockyou.txt.gz" ]; then
@@ -30,22 +30,26 @@ else
         -o "$WORDLIST_DIR/rockyou.txt"
 fi
 
-# SecLists common passwords (top 1M, good for spraying/fast cracks)
-if [ -f "$WORDLIST_DIR/10-million-password-list-top-1000000.txt" ]; then
-    echo "[*] SecLists top-1M already exists, skipping"
+# Top 10k most common passwords — fast first-pass for spraying
+if [ -f "$WORDLIST_DIR/10k-most-common.txt" ]; then
+    echo "[*] 10k-most-common.txt already exists, skipping"
 else
-    echo "[+] Downloading SecLists top-1M password list"
-    curl -fsSL "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-1000000.txt" \
-        -o "$WORDLIST_DIR/10-million-password-list-top-1000000.txt"
+    echo "[+] Downloading SecLists 10k most common passwords"
+    curl -fsSL "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt" \
+        -o "$WORDLIST_DIR/10k-most-common.txt"
 fi
 
-# SecLists common usernames (for user enumeration / spraying)
-if [ -f "$WORDLIST_DIR/xato-net-10-million-usernames.txt" ]; then
-    echo "[*] SecLists usernames already exists, skipping"
-else
-    echo "[+] Downloading SecLists username list"
-    curl -fsSL "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Usernames/xato-net-10-million-usernames.txt" \
-        -o "$WORDLIST_DIR/xato-net-10-million-usernames.txt"
+# OneRuleToRuleThemAll — hashcat rules that multiply wordlist effectiveness
+# Combines rules from Hob0Rules, KoreLogic, NSA, and hashcat generated rules
+RULES_DIR="/usr/share/hashcat/rules"
+if [ -d "$RULES_DIR" ] || mkdir -p "$RULES_DIR" 2>/dev/null; then
+    if [ -f "$RULES_DIR/OneRuleToRuleThemAll.rule" ]; then
+        echo "[*] OneRuleToRuleThemAll.rule already exists, skipping"
+    else
+        echo "[+] Downloading OneRuleToRuleThemAll hashcat rules"
+        curl -fsSL "https://raw.githubusercontent.com/NotSoSecure/password_cracking_rules/master/OneRuleToRuleThemAll.rule" \
+            -o "$RULES_DIR/OneRuleToRuleThemAll.rule"
+    fi
 fi
 
 # -- Coercion scripts -------------------------------------------------------
