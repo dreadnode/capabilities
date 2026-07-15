@@ -23,6 +23,7 @@ if [ -s "$WORDLIST_DIR/rockyou.txt" ]; then
     echo "[*] rockyou.txt already exists, skipping"
 elif [ -f "$WORDLIST_DIR/rockyou.txt.gz" ]; then
     echo "[+] Decompressing rockyou.txt.gz"
+    rm -f "$WORDLIST_DIR/rockyou.txt"
     gunzip -k "$WORDLIST_DIR/rockyou.txt.gz"
 else
     echo "[+] Downloading rockyou.txt"
