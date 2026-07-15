@@ -1,6 +1,6 @@
 schema: 1
 name: network-ops
-version: "2.1.4"
+version: "2.1.5"
 description: >
   Network operations and Active Directory exploitation. Multi-agent
   pipeline for autonomous red teaming with Nmap scanning, Netexec
@@ -35,8 +35,6 @@ dependencies:
     - scripts/install_coercion_tools.sh
 
 checks:
-  - name: impacket
-    command: "python3 -c 'import impacket' 2>/dev/null"
   - name: nmap
     command: "command -v nmap >/dev/null 2>&1"
   - name: petitpotam
