@@ -4747,11 +4747,11 @@ def _build_image_target(target_config: dict) -> str:
         auth_code = '    _api_key = os.environ.get("{}", "")\n    headers["X-API-Key"] = _api_key'.format(auth_env_var)
     elif auth_type == "aws_sigv4":
         auth_code = (
-            "    # AWS SigV4 auth — uses boto3 session\n"
-            "    import boto3\n"
+            "    # AWS SigV4 auth — uses the botocore credential chain\n"
+            "    import botocore.session\n"
             "    from botocore.auth import SigV4Auth\n"
             "    from botocore.awsrequest import AWSRequest\n"
-            "    _session = boto3.Session()\n"
+            "    _session = botocore.session.get_session()\n"
             "    _credentials = _session.get_credentials().get_frozen_credentials()"
         )
     else:
@@ -5262,14 +5262,18 @@ def _resolve_multimodal_prompts(
 def _expand_media_paths(
     paths: list[str] | None, directory: str | None, kind: str
 ) -> list[str]:
-    """Resolve explicit paths + a directory glob into a sorted list of media files."""
+    """Resolve explicit paths + a directory glob into a sorted list of media files.
+
+    Paths are resolved to absolute so they stay valid when the generated workflow
+    runs from a different working directory than the tool that produced them.
+    """
     resolved: list[str] = []
     for p in paths or []:
         if p:
-            resolved.append(str(p))
+            resolved.append(str(Path(p).expanduser().resolve()))
     if directory:
         exts = _MULTIMODAL_MEDIA_EXTS.get(kind, set())
-        d = Path(directory).expanduser()
+        d = Path(directory).expanduser().resolve()
         if d.is_dir():
             for f in sorted(d.rglob("*")):
                 if f.is_file() and f.suffix.lower() in exts:
@@ -5315,6 +5319,30 @@ def _build_multimodal_imports(transforms: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _sigv4_sign_block(auth_type: str, url: str, region: str, service: str) -> str:
+    """Generated code that SigV4-signs the assembled request body for AWS endpoints.
+
+    Returns an empty string for non-SigV4 auth. For ``aws_sigv4`` (e.g. Amazon
+    SageMaker ``/invocations``), signs the exact ``_content`` bytes with the
+    botocore credential chain and replaces ``headers`` with the signed set.
+    Uses ``botocore`` directly (always present) rather than ``boto3`` so signing
+    works even in minimal runtimes where ``boto3`` isn't installed.
+    """
+    if auth_type != "aws_sigv4":
+        return ""
+    return (
+        "    import botocore.session\n"
+        "    from botocore.auth import SigV4Auth\n"
+        "    from botocore.awsrequest import AWSRequest\n"
+        "    _creds = botocore.session.get_session().get_credentials()\n"
+        "    if _creds is None:\n"
+        '        raise RuntimeError("aws_sigv4 target requires AWS credentials (env vars, profile, or role)")\n'
+        '    _req = AWSRequest(method="POST", url="{url}", data=_content, headers=dict(headers))\n'
+        '    SigV4Auth(_creds.get_frozen_credentials(), "{service}", "{region}").add_auth(_req)\n'
+        "    headers = dict(_req.headers)"
+    ).format(url=url, service=service, region=region)
+
+
 def _build_custom_multimodal_target(custom: dict) -> str:
     """Build a @task target that sends a multimodal Message to a custom HTTP endpoint.
 
@@ -5328,6 +5356,8 @@ def _build_custom_multimodal_target(custom: dict) -> str:
     auth_env_var = custom.get("auth_env_var", "TARGET_API_KEY")
     request_template = custom.get("request_template", '{"prompt": "{prompt}", "image": "{image_b64}"}')
     text_path = _safe_str(custom.get("response_text_path", "$.response"))
+    region = _safe_str(custom.get("region") or "us-east-1")
+    service = _safe_str(custom.get("service") or "sagemaker")
 
     if auth_type == "bearer":
         auth_lines = (
@@ -5340,7 +5370,8 @@ def _build_custom_multimodal_target(custom: dict) -> str:
             '    headers["X-API-Key"] = api_key'.format(auth_env_var)
         )
     else:
-        auth_lines = "    pass  # No auth configured"
+        # none / aws_sigv4 — SigV4 signs the assembled body below, not here.
+        auth_lines = "    pass  # No header auth (SigV4 signs the request below if configured)"
 
     lines = [
         "@task",
@@ -5384,14 +5415,16 @@ def _build_custom_multimodal_target(custom: dict) -> str:
         auth_lines,
         "",
         "    body_str = {}".format(repr(request_template)),
-        "    body_str = body_str.replace('{{prompt}}', json.dumps(prompt)[1:-1])",
-        "    body_str = body_str.replace('{{image_b64}}', image_b64)",
-        "    body_str = body_str.replace('{{audio_b64}}', audio_b64)",
-        "    body_str = body_str.replace('{{video_b64}}', video_b64)",
+        "    body_str = body_str.replace('{prompt}', json.dumps(prompt)[1:-1])",
+        "    body_str = body_str.replace('{image_b64}', image_b64)",
+        "    body_str = body_str.replace('{audio_b64}', audio_b64)",
+        "    body_str = body_str.replace('{video_b64}', video_b64)",
         "    body = json.loads(body_str)",
         "",
+        "    _content = json.dumps(body).encode()",
+        _sigv4_sign_block(auth_type, url, region, service),
         "    async with httpx.AsyncClient(timeout=120.0) as client:",
-        '        resp = await client.post("{}", json=body, headers=headers)'.format(url),
+        '        resp = await client.post("{}", content=_content, headers=headers)'.format(url),
         "        resp.raise_for_status()",
         "        data = resp.json()",
         "",
@@ -5631,6 +5664,9 @@ def generate_multimodal_attack(params: dict) -> dict:
                 "custom_request_template", '{"prompt": "{prompt}", "image": "{image_b64}"}'
             ),
             "response_text_path": params.get("custom_response_text_path", "$.response"),
+            # For auth_type="aws_sigv4" (e.g. Amazon SageMaker /invocations).
+            "region": params.get("custom_region") or "us-east-1",
+            "service": params.get("custom_service") or "sagemaker",
         }
 
     if not goal:
@@ -5717,6 +5753,15 @@ def generate_multimodal_attack(params: dict) -> dict:
         'GOAL = "{}"'.format(_safe_str(goal)),
         "GOAL_CATEGORY = GoalCategory.{}".format(goal_cat_enum),
         'TARGET_MODEL = "{}"'.format(_safe_str(target_model)),
+        # Human-readable target for display/provenance: a custom endpoint's URL
+        # when one is configured, else the model id. TARGET_MODEL is only the
+        # never-invoked backing generator for custom targets, so printing it as
+        # "Target" is misleading.
+        'TARGET_LABEL = "{}"'.format(
+            _safe_str(custom_target.get("url") or target_model)
+            if custom_target
+            else _safe_str(target_model)
+        ),
         # ATTACKER_MODEL is unused for multimodal but the proxy-routing block
         # expects the symbol; alias it to the judge model.
         'ATTACKER_MODEL = "{}"'.format(_safe_str(judge_model)),
@@ -5734,13 +5779,17 @@ def generate_multimodal_attack(params: dict) -> dict:
         'MEDIA_OUTPUT_RUBRIC = "{}"'.format(_safe_str(media_output_rubric)),
         "TRANSFORMS = {}".format(transforms_expr),
         'ASSESSMENT_NAME = "{}"'.format(_safe_str(assessment_name)),
-        'ASSESSMENT_DESC = "Multimodal red teaming vs {}"'.format(_safe_str(target_model)),
+        'ASSESSMENT_DESC = "Multimodal red teaming vs {}"'.format(
+            _safe_str(custom_target.get("url") or target_model)
+            if custom_target
+            else _safe_str(target_model)
+        ),
         'WORKFLOW_RUN_ID = "{}"'.format(_safe_str(filename)),
         "",
         'print("=" * 60)',
         'print("MULTIMODAL RED TEAMING CONFIGURATION")',
         'print("=" * 60)',
-        'print(f"  Target:    {TARGET_MODEL}")',
+        'print(f"  Target:    {TARGET_LABEL}")',
         'print(f"  Judge:     {JUDGE_MODEL}")',
         'print(f"  Goal:      {GOAL}")',
         'print(f"  Images:    {len(IMAGE_PATHS)}  Audio: {len(AUDIO_PATHS)}  Video: {len(VIDEO_PATHS)}")',
