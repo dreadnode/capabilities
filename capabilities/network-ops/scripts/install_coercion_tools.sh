@@ -14,6 +14,40 @@ else
     echo "[*] impacket already importable, skipping"
 fi
 
+# -- Wordlists for password cracking -----------------------------------------
+WORDLIST_DIR="/usr/share/wordlists"
+mkdir -p "$WORDLIST_DIR"
+
+# rockyou — the standard first-pass wordlist (14M passwords)
+if [ -f "$WORDLIST_DIR/rockyou.txt" ]; then
+    echo "[*] rockyou.txt already exists, skipping"
+elif [ -f "$WORDLIST_DIR/rockyou.txt.gz" ]; then
+    echo "[+] Decompressing rockyou.txt.gz"
+    gunzip -k "$WORDLIST_DIR/rockyou.txt.gz"
+else
+    echo "[+] Downloading rockyou.txt"
+    curl -fsSL "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt" \
+        -o "$WORDLIST_DIR/rockyou.txt"
+fi
+
+# SecLists common passwords (top 1M, good for spraying/fast cracks)
+if [ -f "$WORDLIST_DIR/10-million-password-list-top-1000000.txt" ]; then
+    echo "[*] SecLists top-1M already exists, skipping"
+else
+    echo "[+] Downloading SecLists top-1M password list"
+    curl -fsSL "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-1000000.txt" \
+        -o "$WORDLIST_DIR/10-million-password-list-top-1000000.txt"
+fi
+
+# SecLists common usernames (for user enumeration / spraying)
+if [ -f "$WORDLIST_DIR/xato-net-10-million-usernames.txt" ]; then
+    echo "[*] SecLists usernames already exists, skipping"
+else
+    echo "[+] Downloading SecLists username list"
+    curl -fsSL "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Usernames/xato-net-10-million-usernames.txt" \
+        -o "$WORDLIST_DIR/xato-net-10-million-usernames.txt"
+fi
+
 # -- Coercion scripts -------------------------------------------------------
 REPOS=(
     "https://github.com/topotam/PetitPotam /opt/PetitPotam"
