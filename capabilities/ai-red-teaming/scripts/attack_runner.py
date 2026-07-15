@@ -5343,6 +5343,33 @@ def _sigv4_sign_block(auth_type: str, url: str, region: str, service: str) -> st
     ).format(url=url, service=service, region=region)
 
 
+def _multimodal_body_block(request_format: str, request_template: str, audio_content_type: str) -> str:
+    """Generated code that assembles the request body into ``_content`` (bytes).
+
+    ``json`` (default) substitutes the media placeholders into the JSON template.
+    ``audio_bytes`` posts the raw audio bytes with ``audio_content_type`` (for SageMaker
+    ASR/audio endpoints that take an audio file body rather than a JSON payload).
+    """
+    if request_format == "audio_bytes":
+        return "\n".join(
+            [
+                "    _content = audio_raw",
+                '    headers["Content-Type"] = "{}"'.format(audio_content_type),
+            ]
+        )
+    return "\n".join(
+        [
+            "    body_str = {}".format(repr(request_template)),
+            "    body_str = body_str.replace('{prompt}', json.dumps(prompt)[1:-1])",
+            "    body_str = body_str.replace('{image_b64}', image_b64)",
+            "    body_str = body_str.replace('{audio_b64}', audio_b64)",
+            "    body_str = body_str.replace('{video_b64}', video_b64)",
+            "    body = json.loads(body_str)",
+            "    _content = json.dumps(body).encode()",
+        ]
+    )
+
+
 def _build_custom_multimodal_target(custom: dict) -> str:
     """Build a @task target that sends a multimodal Message to a custom HTTP endpoint.
 
@@ -5358,6 +5385,11 @@ def _build_custom_multimodal_target(custom: dict) -> str:
     text_path = _safe_str(custom.get("response_text_path", "$.response"))
     region = _safe_str(custom.get("region") or "us-east-1")
     service = _safe_str(custom.get("service") or "sagemaker")
+    # "json" (default) renders the request_template; "audio_bytes" posts the first audio
+    # part's raw bytes with audio_content_type — for SageMaker ASR/audio endpoints (e.g.
+    # Whisper) that take an audio file body instead of a JSON payload.
+    request_format = _safe_str(custom.get("request_format") or "json")
+    audio_content_type = _safe_str(custom.get("audio_content_type") or "audio/wav")
 
     if auth_type == "bearer":
         auth_lines = (
@@ -5386,6 +5418,7 @@ def _build_custom_multimodal_target(custom: dict) -> str:
         "    prompt = ''",
         "    image_b64 = ''",
         "    audio_b64 = ''",
+        "    audio_raw = b''",
         "    video_b64 = ''",
         "    for p in (getattr(message, 'content_parts', None) or []):",
         "        ptype = getattr(p, 'type', None)",
@@ -5401,7 +5434,8 @@ def _build_custom_multimodal_target(custom: dict) -> str:
         "                image_b64 = ''",
         "        elif ptype == 'input_audio' and not audio_b64:",
         "            try:",
-        "                audio_b64 = base64.b64encode(p.to_bytes()).decode('ascii')",
+        "                audio_raw = p.to_bytes()",
+        "                audio_b64 = base64.b64encode(audio_raw).decode('ascii')",
         "            except Exception:",
         "                audio_b64 = ''",
         "        elif ptype == 'video_url' and not video_b64:",
@@ -5414,14 +5448,7 @@ def _build_custom_multimodal_target(custom: dict) -> str:
         '    headers = {"Content-Type": "application/json"}',
         auth_lines,
         "",
-        "    body_str = {}".format(repr(request_template)),
-        "    body_str = body_str.replace('{prompt}', json.dumps(prompt)[1:-1])",
-        "    body_str = body_str.replace('{image_b64}', image_b64)",
-        "    body_str = body_str.replace('{audio_b64}', audio_b64)",
-        "    body_str = body_str.replace('{video_b64}', video_b64)",
-        "    body = json.loads(body_str)",
-        "",
-        "    _content = json.dumps(body).encode()",
+        _multimodal_body_block(request_format, request_template, audio_content_type),
         _sigv4_sign_block(auth_type, url, region, service),
         "    async with httpx.AsyncClient(timeout=120.0) as client:",
         '        resp = await client.post("{}", content=_content, headers=headers)'.format(url),
@@ -5667,6 +5694,9 @@ def generate_multimodal_attack(params: dict) -> dict:
             # For auth_type="aws_sigv4" (e.g. Amazon SageMaker /invocations).
             "region": params.get("custom_region") or "us-east-1",
             "service": params.get("custom_service") or "sagemaker",
+            # "audio_bytes" posts raw audio to ASR/audio endpoints (e.g. Whisper).
+            "request_format": params.get("custom_request_format") or "json",
+            "audio_content_type": params.get("custom_audio_content_type") or "audio/wav",
         }
 
     if not goal:

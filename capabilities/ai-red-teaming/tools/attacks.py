@@ -495,6 +495,15 @@ def generate_multimodal_attack(
     custom_service: t.Annotated[
         str, "AWS service for an aws_sigv4 HTTP target (default 'sagemaker')."
     ] = "",
+    custom_request_format: t.Annotated[
+        str,
+        "Request body encoding for custom_url: 'json' (default, renders the request "
+        "template) or 'audio_bytes' (posts the raw audio file with custom_audio_content_type "
+        "— for SageMaker ASR/audio endpoints like Whisper that take an audio body, not JSON).",
+    ] = "",
+    custom_audio_content_type: t.Annotated[
+        str, "Content-Type for a custom_request_format='audio_bytes' target (default 'audio/wav')."
+    ] = "",
     custom_voice: t.Annotated[str, "Voice id for a Nova Sonic streaming target (default matthew)."] = "",
     custom_system_prompt: t.Annotated[str, "System prompt for a streaming S2S target."] = "",
     custom_model_id: t.Annotated[
@@ -594,6 +603,10 @@ def generate_multimodal_attack(
         params["custom_region"] = custom_region
     if custom_service:
         params["custom_service"] = custom_service
+    if custom_request_format:
+        params["custom_request_format"] = custom_request_format
+    if custom_audio_content_type:
+        params["custom_audio_content_type"] = custom_audio_content_type
     if custom_voice:
         params["custom_voice"] = custom_voice
     if custom_system_prompt:
