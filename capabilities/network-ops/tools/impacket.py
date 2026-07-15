@@ -91,20 +91,35 @@ def _ensure_impacket_installed() -> None:
         pass
 
     logger.warning(
-        f"impacket not importable by {sys.executable} — attempting pip install"
+        f"impacket not importable by {sys.executable} — attempting install"
     )
-    for extra_args in ([], ["--break-system-packages"]):
+
+    # Build install commands to try in order:
+    # 1. uv pip install --python (works in uv venvs that lack pip)
+    # 2. sys.executable -m pip install (works in standard venvs)
+    # 3. sys.executable -m pip install --break-system-packages (externally managed)
+    install_cmds: list[list[str]] = []
+
+    uv = shutil.which("uv")
+    if uv:
+        install_cmds.append(
+            [uv, "pip", "install", "--python", sys.executable, "impacket>=0.12.0"]
+        )
+
+    install_cmds.append(
+        [sys.executable, "-m", "pip", "install", "--quiet", "impacket>=0.12.0"]
+    )
+    install_cmds.append(
+        [
+            sys.executable, "-m", "pip", "install", "--quiet",
+            "--break-system-packages", "impacket>=0.12.0",
+        ]
+    )
+
+    for cmd in install_cmds:
         try:
             subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "--quiet",
-                    "impacket>=0.12.0",
-                    *extra_args,
-                ],
+                cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 check=True,
