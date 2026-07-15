@@ -152,27 +152,27 @@ def _get_impacket_script_path() -> Path:
     3. Global PATH: resolve the found script's directory, following
        shell wrappers to the real scripts if needed
     """
-    # Prefer site-packages — these scripts are guaranteed to work with
-    # sys.executable since they live in the same Python installation.
-    # PATH entries (e.g. ~/.local/bin/) are pip entry point wrappers
-    # that may be installed for a different Python version.
+    # Prefer site-packages if it contains actual CLI scripts.
+    # Use GetNPUsers.py as sentinel (not secretsdump.py) because
+    # secretsdump.py exists as an internal library module in
+    # site-packages/impacket/examples/ even when CLI scripts aren't there.
     try:
         import impacket
 
         impacket_pkg_path = Path(impacket.__file__).parent
         examples_path = impacket_pkg_path / "examples"
-        if examples_path.exists() and (examples_path / "secretsdump.py").exists():
+        if examples_path.exists() and (examples_path / "GetNPUsers.py").exists():
             return examples_path
     except ImportError:
         pass
 
     # Fall back to apt installation path
     apt_path = Path("/usr/share/doc/python3-impacket/examples/")
-    if apt_path.exists() and (apt_path / "secretsdump.py").exists():
+    if apt_path.exists() and (apt_path / "GetNPUsers.py").exists():
         return apt_path
 
     # Last resort: check PATH (pipx / manual install)
-    found = shutil.which("secretsdump.py")
+    found = shutil.which("GetNPUsers.py")
     if found is not None:
         found_path = Path(found).resolve()
         if _is_python_script(found_path):
