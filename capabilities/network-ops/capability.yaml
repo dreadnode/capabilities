@@ -44,7 +44,7 @@ checks:
   - name: shadowcoerce
     command: "test -f /opt/ShadowCoerce/shadowcoerce.py"
   - name: rockyou-wordlist
-    command: "test -f /usr/share/wordlists/rockyou.txt"
+    command: "test -s /usr/share/wordlists/rockyou.txt"
 
 keywords:
   - network-ops

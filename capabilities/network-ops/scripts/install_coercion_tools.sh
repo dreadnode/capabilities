@@ -26,7 +26,7 @@ elif [ -f "$WORDLIST_DIR/rockyou.txt.gz" ]; then
     gunzip -k "$WORDLIST_DIR/rockyou.txt.gz"
 else
     echo "[+] Downloading rockyou.txt"
-    curl -fsSL "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt" \
+    curl -fsSL --retry 3 "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt" \
         -o "$WORDLIST_DIR/rockyou.txt"
 fi
 
@@ -35,19 +35,19 @@ if [ -f "$WORDLIST_DIR/10k-most-common.txt" ]; then
     echo "[*] 10k-most-common.txt already exists, skipping"
 else
     echo "[+] Downloading SecLists 10k most common passwords"
-    curl -fsSL "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt" \
+    curl -fsSL --retry 3 "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt" \
         -o "$WORDLIST_DIR/10k-most-common.txt"
 fi
 
 # OneRuleToRuleThemAll — hashcat rules that multiply wordlist effectiveness
 # Combines rules from Hob0Rules, KoreLogic, NSA, and hashcat generated rules
 RULES_DIR="/usr/share/hashcat/rules"
-if [ -d "$RULES_DIR" ] || mkdir -p "$RULES_DIR" 2>/dev/null; then
+if [ -d "$RULES_DIR" ] || mkdir -p "$RULES_DIR"; then
     if [ -f "$RULES_DIR/OneRuleToRuleThemAll.rule" ]; then
         echo "[*] OneRuleToRuleThemAll.rule already exists, skipping"
     else
         echo "[+] Downloading OneRuleToRuleThemAll hashcat rules"
-        curl -fsSL "https://raw.githubusercontent.com/NotSoSecure/password_cracking_rules/master/OneRuleToRuleThemAll.rule" \
+        curl -fsSL --retry 3 "https://raw.githubusercontent.com/NotSoSecure/password_cracking_rules/master/OneRuleToRuleThemAll.rule" \
             -o "$RULES_DIR/OneRuleToRuleThemAll.rule"
     fi
 fi
