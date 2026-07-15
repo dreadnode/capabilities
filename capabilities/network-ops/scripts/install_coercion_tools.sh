@@ -19,23 +19,23 @@ WORDLIST_DIR="/usr/share/wordlists"
 mkdir -p "$WORDLIST_DIR"
 
 # rockyou — the standard wordlist for cracking (14M passwords)
-if [ -f "$WORDLIST_DIR/rockyou.txt" ]; then
+if [ -s "$WORDLIST_DIR/rockyou.txt" ]; then
     echo "[*] rockyou.txt already exists, skipping"
 elif [ -f "$WORDLIST_DIR/rockyou.txt.gz" ]; then
     echo "[+] Decompressing rockyou.txt.gz"
     gunzip -k "$WORDLIST_DIR/rockyou.txt.gz"
 else
     echo "[+] Downloading rockyou.txt"
-    curl -fsSL --retry 3 "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt" \
+    curl -fsSL --retry 3 --connect-timeout 10 "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt" \
         -o "$WORDLIST_DIR/rockyou.txt"
 fi
 
 # Top 10k most common passwords — fast first-pass for spraying
-if [ -f "$WORDLIST_DIR/10k-most-common.txt" ]; then
+if [ -s "$WORDLIST_DIR/10k-most-common.txt" ]; then
     echo "[*] 10k-most-common.txt already exists, skipping"
 else
     echo "[+] Downloading SecLists 10k most common passwords"
-    curl -fsSL --retry 3 "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt" \
+    curl -fsSL --retry 3 --connect-timeout 10 "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt" \
         -o "$WORDLIST_DIR/10k-most-common.txt"
 fi
 
@@ -43,11 +43,11 @@ fi
 # Combines rules from Hob0Rules, KoreLogic, NSA, and hashcat generated rules
 RULES_DIR="/usr/share/hashcat/rules"
 if [ -d "$RULES_DIR" ] || mkdir -p "$RULES_DIR"; then
-    if [ -f "$RULES_DIR/OneRuleToRuleThemAll.rule" ]; then
+    if [ -s "$RULES_DIR/OneRuleToRuleThemAll.rule" ]; then
         echo "[*] OneRuleToRuleThemAll.rule already exists, skipping"
     else
         echo "[+] Downloading OneRuleToRuleThemAll hashcat rules"
-        curl -fsSL --retry 3 "https://raw.githubusercontent.com/NotSoSecure/password_cracking_rules/master/OneRuleToRuleThemAll.rule" \
+        curl -fsSL --retry 3 --connect-timeout 10 "https://raw.githubusercontent.com/NotSoSecure/password_cracking_rules/master/OneRuleToRuleThemAll.rule" \
             -o "$RULES_DIR/OneRuleToRuleThemAll.rule"
     fi
 fi
