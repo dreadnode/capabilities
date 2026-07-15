@@ -466,7 +466,12 @@ def generate_multimodal_attack(
         "Target a custom multimodal HTTP endpoint instead of a litellm model. When "
         "set, target_model is optional; the endpoint receives the text + base64 media.",
     ] = "",
-    custom_auth_type: t.Annotated[str, "Auth scheme for custom_url: 'none', 'bearer', or 'api_key'"] = "none",
+    custom_auth_type: t.Annotated[
+        str,
+        "Auth scheme for custom_url: 'none', 'bearer', 'api_key', or 'aws_sigv4' "
+        "(SigV4-signed, e.g. an Amazon SageMaker /invocations endpoint — set "
+        "custom_region and custom_service).",
+    ] = "none",
     custom_auth_env_var: t.Annotated[str, "Env var holding the custom endpoint credential"] = "TARGET_API_KEY",
     custom_request_template: t.Annotated[
         str,
@@ -484,7 +489,21 @@ def generate_multimodal_attack(
         "(Amazon Nova Sonic S2S over Bedrock). The input audio is spoken to the model and "
         "its spoken reply (audio + transcript) is scored.",
     ] = "",
-    custom_region: t.Annotated[str, "AWS region for a streaming target (default us-east-1)."] = "",
+    custom_region: t.Annotated[
+        str, "AWS region for a streaming (Nova Sonic) or aws_sigv4 target (default us-east-1)."
+    ] = "",
+    custom_service: t.Annotated[
+        str, "AWS service for an aws_sigv4 HTTP target (default 'sagemaker')."
+    ] = "",
+    custom_request_format: t.Annotated[
+        str,
+        "Request body encoding for custom_url: 'json' (default, renders the request "
+        "template) or 'audio_bytes' (posts the raw audio file with custom_audio_content_type "
+        "— for SageMaker ASR/audio endpoints like Whisper that take an audio body, not JSON).",
+    ] = "",
+    custom_audio_content_type: t.Annotated[
+        str, "Content-Type for a custom_request_format='audio_bytes' target (default 'audio/wav')."
+    ] = "",
     custom_voice: t.Annotated[str, "Voice id for a Nova Sonic streaming target (default matthew)."] = "",
     custom_system_prompt: t.Annotated[str, "System prompt for a streaming S2S target."] = "",
     custom_model_id: t.Annotated[
@@ -582,6 +601,12 @@ def generate_multimodal_attack(
         params["custom_protocol"] = custom_protocol
     if custom_region:
         params["custom_region"] = custom_region
+    if custom_service:
+        params["custom_service"] = custom_service
+    if custom_request_format:
+        params["custom_request_format"] = custom_request_format
+    if custom_audio_content_type:
+        params["custom_audio_content_type"] = custom_audio_content_type
     if custom_voice:
         params["custom_voice"] = custom_voice
     if custom_system_prompt:
