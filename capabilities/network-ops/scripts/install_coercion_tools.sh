@@ -24,33 +24,41 @@ if [ -s "$WORDLIST_DIR/rockyou.txt" ]; then
 elif [ -f "$WORDLIST_DIR/rockyou.txt.gz" ]; then
     echo "[+] Decompressing rockyou.txt.gz"
     rm -f "$WORDLIST_DIR/rockyou.txt"
-    gunzip -k "$WORDLIST_DIR/rockyou.txt.gz"
+    gunzip -k "$WORDLIST_DIR/rockyou.txt.gz" \
+        || echo "[!] Failed to decompress rockyou.txt.gz (non-fatal)"
 else
     echo "[+] Downloading rockyou.txt"
     curl -fsSL --retry 3 --connect-timeout 10 "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt" \
-        -o "$WORDLIST_DIR/rockyou.txt"
+        -o "$WORDLIST_DIR/rockyou.txt" \
+        || echo "[!] Failed to download rockyou.txt (non-fatal)"
 fi
 
 # Top 10k most common passwords — fast first-pass for spraying
+# Non-fatal: wordlist download failures shouldn't block coercion script setup
 if [ -s "$WORDLIST_DIR/10k-most-common.txt" ]; then
     echo "[*] 10k-most-common.txt already exists, skipping"
 else
     echo "[+] Downloading SecLists 10k most common passwords"
     curl -fsSL --retry 3 --connect-timeout 10 "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt" \
-        -o "$WORDLIST_DIR/10k-most-common.txt"
+        -o "$WORDLIST_DIR/10k-most-common.txt" \
+        || echo "[!] Failed to download 10k-most-common.txt (non-fatal)"
 fi
 
 # OneRuleToRuleThemAll — hashcat rules that multiply wordlist effectiveness
 # Combines rules from Hob0Rules, KoreLogic, NSA, and hashcat generated rules
+# Non-fatal: rules dir may not be writable and that's OK
 RULES_DIR="/usr/share/hashcat/rules"
-if [ -d "$RULES_DIR" ] || mkdir -p "$RULES_DIR"; then
+if mkdir -p "$RULES_DIR" 2>/dev/null; then
     if [ -s "$RULES_DIR/OneRuleToRuleThemAll.rule" ]; then
         echo "[*] OneRuleToRuleThemAll.rule already exists, skipping"
     else
         echo "[+] Downloading OneRuleToRuleThemAll hashcat rules"
         curl -fsSL --retry 3 --connect-timeout 10 "https://raw.githubusercontent.com/NotSoSecure/password_cracking_rules/master/OneRuleToRuleThemAll.rule" \
-            -o "$RULES_DIR/OneRuleToRuleThemAll.rule"
+            -o "$RULES_DIR/OneRuleToRuleThemAll.rule" \
+            || echo "[!] Failed to download OneRuleToRuleThemAll.rule (non-fatal)"
     fi
+else
+    echo "[!] Cannot create $RULES_DIR (non-fatal, skipping hashcat rules)"
 fi
 
 # -- Coercion scripts -------------------------------------------------------
