@@ -48,7 +48,7 @@ fi
 # Combines rules from Hob0Rules, KoreLogic, NSA, and hashcat generated rules
 # Non-fatal: rules dir may not be writable and that's OK
 RULES_DIR="/usr/share/hashcat/rules"
-if mkdir -p "$RULES_DIR" 2>/dev/null; then
+if mkdir -p "$RULES_DIR" 2>&1; then
     if [ -s "$RULES_DIR/OneRuleToRuleThemAll.rule" ]; then
         echo "[*] OneRuleToRuleThemAll.rule already exists, skipping"
     else
