@@ -4018,7 +4018,6 @@ class Impacket(Toolset):
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
-        target_ip: str | None = None,
         session_id: int | None = None,
         codec: str | None = None,
         timeout: int | None = None,
@@ -4066,11 +4065,11 @@ class Impacket(Toolset):
 
         connection:
         -dc-ip ip address     IP Address of the domain controller.
-        -target-ip ip address IP Address of the target machine.
         </documentation>
 
         Args:
-            target: Target hostname or IP address (required).
+            target: Target hostname or IP address (required). Use the IP
+                directly if DNS resolution is unavailable.
             command: Command to execute on the remote host (required).
             domain: Domain name.
             username: Username for authentication.
@@ -4079,7 +4078,6 @@ class Impacket(Toolset):
             kerberos: Use Kerberos authentication.
             aes_key: AES key for Kerberos authentication.
             dc_ip: Domain controller IP address override.
-            target_ip: Target machine IP address override.
             session_id: Existing logon session ID to use (no output mode).
             codec: Output encoding codec.
             timeout: Command timeout in seconds.
@@ -4102,7 +4100,7 @@ class Impacket(Toolset):
                 hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
             )
         )
-        args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
+        args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
             self._build_script_command("atexec.py", args),
@@ -4124,7 +4122,6 @@ class Impacket(Toolset):
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
-        target_ip: str | None = None,
         share: str | None = None,
         dcom_object: str | None = None,
         shell_type: str | None = None,
@@ -4190,11 +4187,11 @@ class Impacket(Toolset):
 
         connection:
         -dc-ip ip address     IP Address of the domain controller.
-        -target-ip ip address IP Address of the target machine.
         </documentation>
 
         Args:
-            target: Target hostname or IP address (required).
+            target: Target hostname or IP address (required). Use the IP
+                directly if DNS resolution is unavailable.
             command: Command to execute. If empty, returns shell banner.
             domain: Domain name.
             username: Username for authentication.
@@ -4203,7 +4200,6 @@ class Impacket(Toolset):
             kerberos: Use Kerberos authentication.
             aes_key: AES key for Kerberos authentication.
             dc_ip: Domain controller IP address override.
-            target_ip: Target machine IP address override.
             share: Share where output is grabbed from (default ADMIN$).
             dcom_object: DCOM object — 'MMC20', 'ShellWindows', or 'ShellBrowserWindow'.
             shell_type: Command processor — 'cmd' or 'powershell'.
@@ -4237,7 +4233,7 @@ class Impacket(Toolset):
                 hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
             )
         )
-        args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
+        args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         # If no command given, send exit to prevent interactive shell hang
         effective_input = input if command else (input or "exit\n")
