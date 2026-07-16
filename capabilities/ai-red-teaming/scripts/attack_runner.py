@@ -5938,9 +5938,14 @@ async def main():
                     airt_target_model=TARGET_MODEL,
                     airt_evaluator_model=JUDGE_MODEL,
                 )
-                await attack.run()
+                # Run the attack THROUGH the assessment (not attack.run()) so the
+                # AttackResult is collected into assessment.attack_results and
+                # uploaded to the platform. Calling attack.run() directly leaves
+                # assessment.attack_results empty, which makes _write_local_analytics
+                # report "0 finished trials" even though the trials executed.
+                await assessment.run(attack)
             except Exception as e:
-                print(f"  ERROR in media set {{i}}: {{e}}")
+                print(f"  ERROR in media set {{set_number}}: {{e}}")
                 traceback.print_exc()
             # Flush spans between studies so each set's traces reach the platform.
             try:
