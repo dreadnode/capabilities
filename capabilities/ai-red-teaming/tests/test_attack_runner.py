@@ -1006,6 +1006,14 @@ class TestAtlasGeneration:
         assert "await atlas_attack(" in script
         assert 'SCENARIO_NAME = "finops"' in script
         assert "TOTAL_BUDGET = 8" in script
+        # Regression: the proxy-routing block calls get_generator(...), so the
+        # generated script MUST import it (compile() only checks syntax, not
+        # name resolution, so a missing import is a runtime NameError).
+        assert "get_generator(" in script
+        assert (
+            "from dreadnode.generators.generator import get_generator, GenerateParams"
+            in script
+        )
         # Default objective catalog is embedded with category coverage.
         assert "OBJECTIVES = " in script
         for cat in ("TW", "EA", "CB", "DE", "GH", "MP", "TB", "RP"):
