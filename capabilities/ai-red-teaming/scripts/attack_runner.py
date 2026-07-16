@@ -4701,6 +4701,7 @@ def _build_atlas_imports() -> str:
             "from pathlib import Path",
             "",
             "import dreadnode as dn",
+            "from dreadnode.generators.generator import get_generator, GenerateParams",
             "from dreadnode.airt.atlas import atlas_attack",
             "from dreadnode.airt.assessment import Assessment",
             "from dreadnode.airt.analytics import analyze",
