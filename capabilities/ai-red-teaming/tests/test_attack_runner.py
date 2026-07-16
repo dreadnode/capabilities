@@ -1039,6 +1039,33 @@ class TestAtlasGeneration:
         assert "Authorization" in script
 
 
+_AGENTIC_BASE = {
+    "attack_type": "goat",
+    "goal": "get the agent to misuse a privileged tool",
+    "agent_url": "http://localhost:8000/attack",
+    "agent_preset": "custom",
+    "attacker_model": "groq scout",
+    "n_iterations": 4,
+    "generate_only": True,
+}
+
+
+class TestAgenticGeneration:
+    def test_generated_script_compiles_and_imports_get_generator(self):
+        result = _generate_method("generate_agentic_attack", _AGENTIC_BASE)
+        assert "error" not in result, result.get("error")
+        script = Path(result["filepath"]).read_text()
+        compile(script, result["filepath"], "exec")
+        # Regression: the proxy-routing block calls get_generator(...), so the
+        # generated script MUST import it (compile() only checks syntax, so a
+        # missing import is a runtime NameError).
+        assert "get_generator(" in script
+        assert (
+            "from dreadnode.generators.generator import get_generator, GenerateParams"
+            in script
+        )
+
+
 class TestAtlasValidation:
     def test_missing_agent_url_errors(self):
         params = {k: v for k, v in _ATLAS_BASE.items() if k != "agent_url"}
