@@ -4324,6 +4324,8 @@ def _build_agentic_imports(attacks: list[dict], transforms: list[dict], has_scor
         "",
         "import dreadnode as dn",
         "from dreadnode import task",
+        # Required by the proxy-routing block (get_generator/GenerateParams).
+        "from dreadnode.generators.generator import get_generator, GenerateParams",
     ]
 
     attack_funcs = set()
