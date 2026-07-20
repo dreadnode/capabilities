@@ -6633,6 +6633,382 @@ except Exception:
     return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
 
 
+# Model-extraction & membership-inference attacks (traditional-ML privacy).
+# These query a classifier's predict API (PredictionTargetSpec) rather than perturbing
+# a single input, so they run the attack object directly (it carries airt_assessment_id)
+# inside a dn.run context — no Study/objective.
+_EXTRACTION_ATTACK_MAP = {
+    "equation_solving": "equation_solving_extraction",
+    "jacobian": "jacobian_extraction",
+    "copycat": "copycat_extraction",
+    "knockoff": "knockoff_extraction",
+}
+_MEMBERSHIP_ATTACK_MAP = {
+    "threshold": "threshold_membership",
+    "label_only": "label_only_membership",
+}
+
+
+def _build_prediction_imports(func_names: list[str]) -> str:
+    lines = [
+        "import asyncio",
+        "import os",
+        "import sys",
+        "import traceback",
+        "",
+        "import httpx",
+        "import dreadnode as dn",
+        "from dreadnode.airt import PredictionTargetSpec, TargetAuth",
+        "from dreadnode.airt import {}".format(", ".join(func_names)),
+        "from dreadnode.airt.assessment import Assessment",
+    ]
+    return "\n".join(lines)
+
+
+def generate_extraction_attack(params: dict) -> dict:
+    """Generate a workflow that steals a classifier via black-box queries.
+
+    Requires: api_url (predict endpoint) and a query pool (pool_url or query_pool).
+    """
+    attack_type = params.get("attack_type", "knockoff")
+    api_url = params.get("api_url", "")
+    api_key = params.get("api_key", "")
+    pool_url = params.get("pool_url", "")
+    query_pool = params.get("query_pool", [])
+    request_template = params.get("request_template", '{"features": {input}}')
+    probabilities_path = params.get("probabilities_path", "$.probabilities")
+    input_format = params.get("input_format", "json_array")
+    num_classes = int(params.get("num_classes", 2))
+    query_budget = int(params.get("query_budget", 1000))
+    modality = params.get("modality", "tabular")
+    goal = params.get("goal", "Steal model functionality via API queries")
+    goal_category = params.get("goal_category", "model_extraction")
+    assessment_name = params.get("assessment_name", "")
+
+    if not api_url:
+        return {"error": "api_url is required (target classifier predict endpoint)"}
+    if not pool_url and not query_pool:
+        return {"error": "pool_url or query_pool is required (extraction query inputs)"}
+
+    key = attack_type.strip().lower().replace("-", "_").replace(" ", "_")
+    func = _EXTRACTION_ATTACK_MAP.get(key)
+    if not func:
+        return {
+            "error": "Unknown extraction attack '{}'. Available: {}".format(
+                attack_type, ", ".join(sorted(_EXTRACTION_ATTACK_MAP))
+            )
+        }
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = "extraction_{}_{}.py".format(key, timestamp)
+    assessment_name = assessment_name or "Model Extraction ({})".format(key)
+    imports = _build_prediction_imports([func])
+    configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
+
+    script = '''{imports}
+
+{configure}
+
+{analytics_writer}
+
+API_URL = "{api_url}"
+API_KEY = "{api_key}"
+POOL_URL = "{pool_url}"
+QUERY_POOL = {query_pool}
+NUM_CLASSES = {num_classes}
+QUERY_BUDGET = {query_budget}
+
+if API_KEY:
+    os.environ["TARGET_API_KEY"] = API_KEY
+
+
+async def main():
+    async with httpx.AsyncClient(timeout=60) as _c:
+        pool = (await _c.get(POOL_URL)).json()["inputs"] if POOL_URL else QUERY_POOL
+    print("Query pool: {{}} inputs".format(len(pool)))
+    sys.stdout.flush()
+
+    auth = (
+        TargetAuth(type="api_key", header="x-api-key", env_var="TARGET_API_KEY")
+        if API_KEY
+        else TargetAuth()
+    )
+    spec = PredictionTargetSpec(
+        endpoint=API_URL,
+        auth=auth,
+        request_template={request_template!r},
+        probabilities_path={probabilities_path!r},
+        input_format={input_format!r},
+        num_classes=NUM_CLASSES,
+        name="ml_classifier",
+    )
+
+    assessment = Assessment(
+        name="{assessment_name}",
+        description="Model extraction: {func} on {{}}".format(API_URL),
+        workflow_run_id="{filename}",
+        target_config={{"url": API_URL, "type": "ml_classifier"}},
+        attacker_config={{"attack": "{func}"}},
+        attack_manifest=[{{"attack": "{func}", "domain": "model_extraction", "input_modality": "{modality}"}}],
+    )
+    await assessment.register()
+    try:
+        with dn.run("{assessment_name}"):
+            attack = {func}(
+                spec,
+                query_pool=pool,
+                query_budget=QUERY_BUDGET,
+                num_classes=NUM_CLASSES,
+                modality="{modality}",
+                measure_transfer=False,
+                airt_assessment_id=assessment.assessment_id,
+                airt_target_model="ml_classifier",
+            )
+            result = await attack.run()
+        print("--- RESULTS ---")
+        print("  Strategy:  {{}}".format(result.strategy))
+        print("  Fidelity:  {{:.4f}}".format(result.fidelity))
+        print("  Agreement: {{:.4f}}".format(result.agreement_rate))
+        print("  Queries:   {{}}".format(result.query_count))
+        print("--- end ---")
+        sys.stdout.flush()
+        await assessment.complete()
+    except Exception as e:
+        await assessment.fail(str(e))
+        raise
+
+    _write_local_analytics(assessment)
+    print("Assessment complete.")
+    sys.stdout.flush()
+
+
+asyncio.run(main())
+
+try:
+    dn.shutdown()
+except Exception:
+    pass
+'''.format(
+        imports=imports,
+        configure=configure,
+        analytics_writer=analytics_writer,
+        api_url=_safe_str(api_url),
+        api_key=_safe_str(api_key),
+        pool_url=_safe_str(pool_url),
+        query_pool=repr(query_pool),
+        num_classes=num_classes,
+        query_budget=query_budget,
+        request_template=request_template,
+        probabilities_path=probabilities_path,
+        input_format=input_format,
+        modality=_safe_str(modality),
+        func=func,
+        assessment_name=_safe_str(assessment_name),
+        filename=_safe_str(filename),
+    )
+
+    return _finalize_prediction_workflow(
+        script, filename, params, "Model Extraction: {} vs {}".format(func, api_url)
+    )
+
+
+def generate_membership_attack(params: dict) -> dict:
+    """Generate a workflow that infers training-set membership from a classifier.
+
+    Requires: api_url and member/non-member records (via *_url or inline).
+    """
+    attack_type = params.get("attack_type", "threshold")
+    api_url = params.get("api_url", "")
+    api_key = params.get("api_key", "")
+    members_url = params.get("members_url", "")
+    nonmembers_url = params.get("nonmembers_url", "")
+    members = params.get("members", [])
+    nonmembers = params.get("nonmembers", [])
+    request_template = params.get("request_template", '{"features": {input}}')
+    probabilities_path = params.get("probabilities_path", "$.probabilities")
+    input_format = params.get("input_format", "json_array")
+    num_classes = int(params.get("num_classes", 2))
+    signal = params.get("signal", "confidence")
+    modality = params.get("modality", "tabular")
+    goal_category = params.get("goal_category", "membership_inference")
+    assessment_name = params.get("assessment_name", "")
+
+    if not api_url:
+        return {"error": "api_url is required (target classifier predict endpoint)"}
+    if not (members_url or members) or not (nonmembers_url or nonmembers):
+        return {"error": "members/nonmembers (or *_url) are required for membership scoring"}
+
+    key = attack_type.strip().lower().replace("-", "_").replace(" ", "_")
+    func = _MEMBERSHIP_ATTACK_MAP.get(key)
+    if not func:
+        return {
+            "error": "Unknown membership attack '{}'. Available: {}".format(
+                attack_type, ", ".join(sorted(_MEMBERSHIP_ATTACK_MAP))
+            )
+        }
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = "membership_{}_{}.py".format(key, timestamp)
+    assessment_name = assessment_name or "Membership Inference ({})".format(key)
+    imports = _build_prediction_imports([func])
+    configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
+
+    script = '''{imports}
+
+{configure}
+
+{analytics_writer}
+
+API_URL = "{api_url}"
+API_KEY = "{api_key}"
+MEMBERS_URL = "{members_url}"
+NONMEMBERS_URL = "{nonmembers_url}"
+MEMBERS = {members}
+NONMEMBERS = {nonmembers}
+NUM_CLASSES = {num_classes}
+
+if API_KEY:
+    os.environ["TARGET_API_KEY"] = API_KEY
+
+
+async def main():
+    async with httpx.AsyncClient(timeout=60) as _c:
+        m = (await _c.get(MEMBERS_URL)).json() if MEMBERS_URL else {{"records": MEMBERS, "labels": None}}
+        nm = (await _c.get(NONMEMBERS_URL)).json() if NONMEMBERS_URL else {{"records": NONMEMBERS, "labels": None}}
+    print("Members: {{}}  Non-members: {{}}".format(len(m["records"]), len(nm["records"])))
+    sys.stdout.flush()
+
+    auth = (
+        TargetAuth(type="api_key", header="x-api-key", env_var="TARGET_API_KEY")
+        if API_KEY
+        else TargetAuth()
+    )
+    spec = PredictionTargetSpec(
+        endpoint=API_URL,
+        auth=auth,
+        request_template={request_template!r},
+        probabilities_path={probabilities_path!r},
+        input_format={input_format!r},
+        num_classes=NUM_CLASSES,
+        name="ml_classifier",
+    )
+
+    assessment = Assessment(
+        name="{assessment_name}",
+        description="Membership inference: {func} on {{}}".format(API_URL),
+        workflow_run_id="{filename}",
+        target_config={{"url": API_URL, "type": "ml_classifier"}},
+        attacker_config={{"attack": "{func}", "signal": "{signal}"}},
+        attack_manifest=[{{"attack": "{func}", "domain": "membership_inference", "input_modality": "{modality}"}}],
+    )
+    await assessment.register()
+    try:
+        with dn.run("{assessment_name}"):
+            attack = {func}(
+                spec,
+                members=m["records"],
+                nonmembers=nm["records"],
+                member_labels=m.get("labels"),
+                nonmember_labels=nm.get("labels"),
+                signal="{signal}",
+                modality="{modality}",
+                airt_assessment_id=assessment.assessment_id,
+                airt_target_model="ml_classifier",
+            )
+            result = await attack.run()
+        print("--- RESULTS ---")
+        print("  Method:      {{}}".format(result.method))
+        print("  AUC:         {{:.4f}}".format(result.auc))
+        print("  TPR@1%FPR:   {{:.4f}}".format(result.tpr_at_1pct_fpr))
+        print("  Advantage:   {{:.4f}}".format(result.advantage))
+        print("  Re-identified: {{}}".format(result.records_reidentified))
+        print("--- end ---")
+        sys.stdout.flush()
+        await assessment.complete()
+    except Exception as e:
+        await assessment.fail(str(e))
+        raise
+
+    _write_local_analytics(assessment)
+    print("Assessment complete.")
+    sys.stdout.flush()
+
+
+asyncio.run(main())
+
+try:
+    dn.shutdown()
+except Exception:
+    pass
+'''.format(
+        imports=imports,
+        configure=configure,
+        analytics_writer=analytics_writer,
+        api_url=_safe_str(api_url),
+        api_key=_safe_str(api_key),
+        members_url=_safe_str(members_url),
+        nonmembers_url=_safe_str(nonmembers_url),
+        members=repr(members),
+        nonmembers=repr(nonmembers),
+        num_classes=num_classes,
+        request_template=request_template,
+        probabilities_path=probabilities_path,
+        input_format=input_format,
+        signal=_safe_str(signal),
+        modality=_safe_str(modality),
+        func=func,
+        assessment_name=_safe_str(assessment_name),
+        filename=_safe_str(filename),
+    )
+
+    return _finalize_prediction_workflow(
+        script, filename, params, "Membership Inference: {} vs {}".format(func, api_url)
+    )
+
+
+def _finalize_prediction_workflow(script: str, filename: str, params: dict, description: str) -> dict:
+    """Syntax-check, persist, and (unless generate_only) execute a generated workflow."""
+    try:
+        compile(script, filename, "exec")
+    except SyntaxError as e:
+        return {
+            "error": "Generated script has syntax error: {} (line {}). This is a bug in the tool.".format(
+                e.msg, e.lineno
+            )
+        }
+
+    filepath, filename = _unique_workflow_path(filename)
+    filepath.write_text(script)
+
+    metadata = {}
+    if METADATA_FILE.exists():
+        try:
+            metadata = json.loads(METADATA_FILE.read_text())
+        except Exception:
+            pass
+    metadata[filename] = {
+        "description": description,
+        "saved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "size_bytes": len(script.encode()),
+    }
+    METADATA_FILE.write_text(json.dumps(metadata, indent=2))
+
+    result_lines = [
+        "{} workflow generated and saved.".format(description),
+        "",
+        "File: {}".format(filepath),
+        "Workflow filename: {}".format(filename),
+        "",
+        '>>> NEXT STEP: call execute_workflow(filename="{}") to run this attack <<<'.format(filename),
+    ]
+    if not params.get("generate_only"):
+        result_lines.append(_auto_execute_workflow(filename))
+
+    return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
+
+
 # stdin/stdout JSON dispatch
 
 METHODS = {
@@ -6644,6 +7020,8 @@ METHODS = {
     "generate_tabular_attack": generate_tabular_attack,
     "generate_multimodal_attack": generate_multimodal_attack,
     "generate_multimodal_category_attack": generate_multimodal_category_attack,
+    "generate_extraction_attack": generate_extraction_attack,
+    "generate_membership_attack": generate_membership_attack,
 }
 
 
