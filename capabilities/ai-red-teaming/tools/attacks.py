@@ -449,6 +449,112 @@ def generate_image_attack(
 
 
 @safe_tool
+def generate_extraction_attack(
+    attack_type: t.Annotated[
+        str,
+        "Model-extraction attack: equation_solving (exact for linear models), "
+        "jacobian, copycat (hard-label), or knockoff (soft-label, highest fidelity).",
+    ] = "knockoff",
+    api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
+    api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
+    pool_url: t.Annotated[
+        str, "GET endpoint returning {inputs: [...]} — the unlabeled query pool."
+    ] = "",
+    query_pool: t.Annotated[
+        list | None, "Inline query pool (used if pool_url is not given)."
+    ] = None,
+    request_template: t.Annotated[
+        str, "Request body with a single {input} placeholder."
+    ] = '{"features": {input}}',
+    probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
+    input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
+    num_classes: t.Annotated[int, "Number of classes."] = 2,
+    query_budget: t.Annotated[int, "Max target queries."] = 1000,
+    modality: t.Annotated[str, "tabular | image | text."] = "tabular",
+    assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
+) -> str:
+    """Steal a classifier's decision boundary via black-box queries.
+
+    Trains a surrogate on the target's predictions and reports fidelity/agreement.
+    Provide api_url and a query pool (pool_url or query_pool). Results appear in the
+    platform under AI Red Teaming with model-extraction metrics.
+    """
+    params: dict[str, t.Any] = {
+        "attack_type": attack_type,
+        "api_url": api_url,
+        "num_classes": num_classes,
+        "query_budget": query_budget,
+        "modality": modality,
+        "request_template": request_template,
+        "probabilities_path": probabilities_path,
+        "input_format": input_format,
+    }
+    if api_key:
+        params["api_key"] = api_key
+    if pool_url:
+        params["pool_url"] = pool_url
+    if query_pool:
+        params["query_pool"] = query_pool
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+    return _call_runner("generate_extraction_attack", params)
+
+
+@safe_tool
+def generate_membership_attack(
+    attack_type: t.Annotated[
+        str, "Membership-inference attack: threshold (confidence/loss) or label_only."
+    ] = "threshold",
+    api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
+    api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
+    members_url: t.Annotated[
+        str, "GET endpoint returning {records: [...], labels: [...]} for training members."
+    ] = "",
+    nonmembers_url: t.Annotated[str, "GET endpoint for held-out non-members."] = "",
+    members: t.Annotated[list | None, "Inline member records (if no members_url)."] = None,
+    nonmembers: t.Annotated[list | None, "Inline non-member records (if no nonmembers_url)."] = None,
+    request_template: t.Annotated[
+        str, "Request body with a single {input} placeholder."
+    ] = '{"features": {input}}',
+    probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
+    input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
+    num_classes: t.Annotated[int, "Number of classes."] = 2,
+    signal: t.Annotated[str, "Threshold signal: confidence | entropy | loss."] = "confidence",
+    modality: t.Annotated[str, "tabular | image | text."] = "tabular",
+    assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
+) -> str:
+    """Determine whether records were in the target's training set.
+
+    Reports AUC, TPR@1%FPR, advantage, and count re-identified. Provide api_url and
+    member/non-member records (via *_url or inline). Results appear in the platform
+    under AI Red Teaming with membership-inference metrics.
+    """
+    params: dict[str, t.Any] = {
+        "attack_type": attack_type,
+        "api_url": api_url,
+        "num_classes": num_classes,
+        "signal": signal,
+        "modality": modality,
+        "request_template": request_template,
+        "probabilities_path": probabilities_path,
+        "input_format": input_format,
+    }
+    if api_key:
+        params["api_key"] = api_key
+    if members_url:
+        params["members_url"] = members_url
+    if nonmembers_url:
+        params["nonmembers_url"] = nonmembers_url
+    if members:
+        params["members"] = members
+    if nonmembers:
+        params["nonmembers"] = nonmembers
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+    return _call_runner("generate_membership_attack", params)
+
+
+@safe_tool
 def generate_multimodal_attack(
     goal: t.Annotated[
         str,
