@@ -6650,6 +6650,7 @@ _MEMBERSHIP_ATTACK_MAP = {
 _EVASION_ATTACK_MAP = {
     "boundary": "boundary_evasion",
     "text": "text_evasion",
+    "deepwordbug": "deepwordbug_evasion",
 }
 
 
