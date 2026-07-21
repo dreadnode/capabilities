@@ -721,6 +721,44 @@ class TestGenerateMultimodalAttack:
         missing = sorted(m for m in called if not hasattr(Assessment, m))
         assert not missing, "generated script calls missing Assessment methods: {}".format(missing)
 
+    def test_attack_runs_through_assessment(self, tmp_path, monkeypatch) -> None:
+        """Regression: the multimodal attack must run via ``assessment.run(attack)``,
+        NOT ``attack.run()`` directly.
+
+        Only ``Assessment.run()`` appends the AttackResult to
+        ``assessment.attack_results``; running the Study directly leaves that list
+        empty, so ``_write_local_analytics`` falsely reports "0 finished trials"
+        even though the trials executed and traced. See regression where a custom
+        SageMaker multimodal run reported 0 trials despite succeeding.
+        """
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {"goal": "g", "target_model": "openai/gpt-4o", "image_paths": ["/tmp/a.png"]},
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        compile(script, "multimodal.py", "exec")
+        # The attack is collected through the assessment...
+        assert "await assessment.run(attack)" in script
+        # ...and NOT run directly (which would bypass result collection).
+        assert "await attack.run()" not in script
+
+    def test_error_handler_uses_valid_loop_var(self, tmp_path, monkeypatch) -> None:
+        """Regression: the per-set except handler must reference the real loop
+        variable (``set_number``), not an undefined ``i`` — otherwise an errored
+        set raises NameError inside the handler and masks the true error."""
+        res = self._gen(
+            tmp_path,
+            monkeypatch,
+            {"goal": "g", "target_model": "openai/gpt-4o", "image_paths": ["/tmp/a.png"]},
+        )
+        assert "error" not in res, res
+        script = Path(res["filepath"]).read_text()
+        compile(script, "multimodal.py", "exec")
+        assert "ERROR in media set {set_number}" in script
+        assert "ERROR in media set {i}" not in script
+
     def test_default_path_has_empty_prompts(self, tmp_path, monkeypatch) -> None:
         """Without per-media prompts, PROMPTS is empty and single-goal behaviour holds."""
         res = self._gen(
@@ -791,7 +829,8 @@ class TestGenerateMultimodalAttack:
         script = Path(res["filepath"]).read_text()
         compile(script, "multimodal.py", "exec")
         assert "PROMPTS = ['prompt one', 'prompt two']" in script
-        assert "GOAL_FOR_SET = PROMPTS[i]" in script or "goal_for_set = PROMPTS[i]" in script
+        # Each media set draws its prompt from PROMPTS by index, falling back to GOAL.
+        assert "set_prompt = PROMPTS[media_idx]" in script
 
     def test_per_media_prompts_csv(self, tmp_path, monkeypatch) -> None:
         csv_path = tmp_path / "prompts.csv"
