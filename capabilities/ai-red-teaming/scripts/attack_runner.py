@@ -6642,15 +6642,26 @@ _EXTRACTION_ATTACK_MAP = {
     "jacobian": "jacobian_extraction",
     "copycat": "copycat_extraction",
     "knockoff": "knockoff_extraction",
+    "activethief": "activethief_extraction",
+    "distillation": "distillation_extraction",
 }
 _MEMBERSHIP_ATTACK_MAP = {
     "threshold": "threshold_membership",
     "label_only": "label_only_membership",
+    "lira": "lira_membership",
+    "shadow_model": "shadow_model_membership",
+    "entropy": "entropy_membership",
+    "loss": "loss_membership",
 }
 _EVASION_ATTACK_MAP = {
     "boundary": "boundary_evasion",
+    "hopskipjump": "hopskipjump_evasion",
+    "simba": "simba_evasion",
+    "square": "square_evasion",
+    "zoo": "zoo_evasion",
     "text": "text_evasion",
     "deepwordbug": "deepwordbug_evasion",
+    "textfooler": "textfooler_evasion",
 }
 
 
