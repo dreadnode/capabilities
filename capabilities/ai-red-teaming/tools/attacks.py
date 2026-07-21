@@ -453,7 +453,8 @@ def generate_extraction_attack(
     attack_type: t.Annotated[
         str,
         "Model-extraction attack: equation_solving (exact for linear models), "
-        "jacobian, copycat (hard-label), or knockoff (soft-label, highest fidelity).",
+        "jacobian, copycat (hard-label), knockoff (soft-label, highest fidelity), "
+        "activethief (active-learning query selection), or distillation.",
     ] = "knockoff",
     api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
     api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
@@ -503,7 +504,9 @@ def generate_extraction_attack(
 @safe_tool
 def generate_membership_attack(
     attack_type: t.Annotated[
-        str, "Membership-inference attack: threshold (confidence/loss) or label_only."
+        str,
+        "Membership-inference attack: threshold (confidence/entropy/loss), entropy, "
+        "loss, label_only, shadow_model (Shokri), or lira (likelihood-ratio).",
     ] = "threshold",
     api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
     api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
@@ -557,7 +560,9 @@ def generate_membership_attack(
 @safe_tool
 def generate_evasion_attack(
     attack_type: t.Annotated[
-        str, "Evasion attack: boundary (numeric L2/Linf decision search) or text (token flip)."
+        str,
+        "Evasion attack. Numeric: hopskipjump, boundary, simba, square, zoo. "
+        "Text: text (word flip), deepwordbug (char typos), textfooler (word swaps).",
     ] = "boundary",
     api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
     api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
