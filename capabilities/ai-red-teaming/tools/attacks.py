@@ -555,6 +555,59 @@ def generate_membership_attack(
 
 
 @safe_tool
+def generate_evasion_attack(
+    attack_type: t.Annotated[
+        str, "Evasion attack: boundary (numeric L2/Linf decision search) or text (token flip)."
+    ] = "boundary",
+    api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
+    api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
+    sample_url: t.Annotated[
+        str, "GET endpoint returning {inputs: [...]} - the first input is perturbed."
+    ] = "",
+    original: t.Annotated[
+        object, "Inline original input to perturb (if no sample_url)."
+    ] = None,
+    request_template: t.Annotated[
+        str, "Request body with a single {input} placeholder."
+    ] = '{"features": {input}}',
+    probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
+    input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
+    num_classes: t.Annotated[int, "Number of classes."] = 2,
+    max_queries: t.Annotated[int, "Max target queries."] = 500,
+    norm: t.Annotated[str, "Distance norm for boundary evasion: l2 | linf."] = "l2",
+    modality: t.Annotated[str, "tabular | image | text."] = "tabular",
+    assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
+) -> str:
+    """Craft an adversarial example that flips the target's prediction.
+
+    Reports attack success, perturbation distance (L2/Linf or fraction of tokens),
+    original -> adversarial class, and query cost. Provide api_url and an original
+    input (original or sample_url). Results appear in the platform under AI Red
+    Teaming with model-evasion metrics.
+    """
+    params: dict[str, t.Any] = {
+        "attack_type": attack_type,
+        "api_url": api_url,
+        "num_classes": num_classes,
+        "max_queries": max_queries,
+        "norm": norm,
+        "modality": modality,
+        "request_template": request_template,
+        "probabilities_path": probabilities_path,
+        "input_format": input_format,
+    }
+    if api_key:
+        params["api_key"] = api_key
+    if sample_url:
+        params["sample_url"] = sample_url
+    if original is not None:
+        params["original"] = original
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+    return _call_runner("generate_evasion_attack", params)
+
+
+@safe_tool
 def generate_multimodal_attack(
     goal: t.Annotated[
         str,

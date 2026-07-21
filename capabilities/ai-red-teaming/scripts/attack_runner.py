@@ -6647,6 +6647,10 @@ _MEMBERSHIP_ATTACK_MAP = {
     "threshold": "threshold_membership",
     "label_only": "label_only_membership",
 }
+_EVASION_ATTACK_MAP = {
+    "boundary": "boundary_evasion",
+    "text": "text_evasion",
+}
 
 
 def _build_prediction_imports(func_names: list[str]) -> str:
@@ -6968,6 +6972,146 @@ except Exception:
     )
 
 
+def generate_evasion_attack(params: dict) -> dict:
+    """Generate a workflow that crafts an adversarial example to flip a classifier.
+
+    Requires: api_url and an original input (via `original` or sample_url).
+    """
+    attack_type = params.get("attack_type", "boundary")
+    api_url = params.get("api_url", "")
+    api_key = params.get("api_key", "")
+    sample_url = params.get("sample_url", "")
+    original = params.get("original")
+    request_template = params.get("request_template", '{"features": {input}}')
+    probabilities_path = params.get("probabilities_path", "$.probabilities")
+    input_format = params.get("input_format", "json_array")
+    num_classes = int(params.get("num_classes", 2))
+    max_queries = int(params.get("max_queries", 500))
+    norm = params.get("norm", "l2")
+    modality = params.get("modality", "tabular")
+    assessment_name = params.get("assessment_name", "")
+
+    if not api_url:
+        return {"error": "api_url is required (target classifier predict endpoint)"}
+    if original is None and not sample_url:
+        return {"error": "an original input (original or sample_url) is required to perturb"}
+
+    key = attack_type.strip().lower().replace("-", "_").replace(" ", "_")
+    func = _EVASION_ATTACK_MAP.get(key)
+    if not func:
+        return {
+            "error": "Unknown evasion attack '{}'. Available: {}".format(
+                attack_type, ", ".join(sorted(_EVASION_ATTACK_MAP))
+            )
+        }
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = "evasion_{}_{}.py".format(key, timestamp)
+    assessment_name = assessment_name or "Model Evasion ({})".format(key)
+    imports = _build_prediction_imports([func])
+    configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
+
+    script = '''{imports}
+
+{configure}
+
+{analytics_writer}
+
+API_URL = "{api_url}"
+API_KEY = "{api_key}"
+SAMPLE_URL = "{sample_url}"
+ORIGINAL = {original}
+NUM_CLASSES = {num_classes}
+MAX_QUERIES = {max_queries}
+
+if API_KEY:
+    os.environ["TARGET_API_KEY"] = API_KEY
+
+
+async def main():
+    original = ORIGINAL
+    if SAMPLE_URL:
+        async with httpx.AsyncClient(timeout=60) as _c:
+            original = (await _c.get(SAMPLE_URL)).json()["inputs"][0]
+    print("Perturbing one input against {{}}".format(API_URL))
+    sys.stdout.flush()
+
+    auth = (
+        TargetAuth(type="api_key", header="x-api-key", env_var="TARGET_API_KEY")
+        if API_KEY
+        else TargetAuth()
+    )
+    spec = PredictionTargetSpec(
+        endpoint=API_URL,
+        auth=auth,
+        request_template={request_template!r},
+        probabilities_path={probabilities_path!r},
+        input_format={input_format!r},
+        num_classes=NUM_CLASSES,
+        name="ml_classifier",
+    )
+
+    async with Assessment(
+        name="{assessment_name}",
+        description="Model evasion: {func} on {{}}".format(API_URL),
+        workflow_run_id="{filename}",
+        target_config={{"url": API_URL, "type": "ml_classifier"}},
+        attacker_config={{"attack": "{func}"}},
+        attack_manifest=[{{"attack": "{func}", "domain": "adversarial_ml", "input_modality": "{modality}"}}],
+    ) as assessment:
+        attack = {func}(
+            spec,
+            original,
+            num_classes=NUM_CLASSES,
+            max_queries=MAX_QUERIES,
+            {norm_kw}modality="{modality}",
+            airt_target_model="ml_classifier",
+        )
+        result = await attack.run()
+    print("--- RESULTS ---")
+    print("  Success:     {{}}".format(result.success))
+    print("  Distance:    {{:.4f}} ({{}})".format(result.distance_value, result.distance_norm))
+    print("  Class flip:  {{}} -> {{}}".format(result.original_class, result.adversarial_class))
+    print("  Queries:     {{}}".format(result.query_count))
+    print("--- end ---")
+    sys.stdout.flush()
+    _write_local_analytics(assessment)
+    print("Assessment complete.")
+    sys.stdout.flush()
+
+
+asyncio.run(main())
+
+try:
+    dn.shutdown()
+except Exception:
+    pass
+'''.format(
+        imports=imports,
+        configure=configure,
+        analytics_writer=analytics_writer,
+        api_url=_safe_str(api_url),
+        api_key=_safe_str(api_key),
+        sample_url=_safe_str(sample_url),
+        original=repr(original),
+        num_classes=num_classes,
+        max_queries=max_queries,
+        request_template=request_template,
+        probabilities_path=probabilities_path,
+        input_format=input_format,
+        norm_kw=('norm="{}", '.format(_safe_str(norm)) if key == "boundary" else ""),
+        modality=_safe_str(modality),
+        func=func,
+        assessment_name=_safe_str(assessment_name),
+        filename=_safe_str(filename),
+    )
+
+    return _finalize_prediction_workflow(
+        script, filename, params, "Model Evasion: {} vs {}".format(func, api_url)
+    )
+
+
 def _finalize_prediction_workflow(script: str, filename: str, params: dict, description: str) -> dict:
     """Syntax-check, persist, and (unless generate_only) execute a generated workflow."""
     try:
@@ -7022,6 +7166,7 @@ METHODS = {
     "generate_multimodal_category_attack": generate_multimodal_category_attack,
     "generate_extraction_attack": generate_extraction_attack,
     "generate_membership_attack": generate_membership_attack,
+    "generate_evasion_attack": generate_evasion_attack,
 }
 
 
