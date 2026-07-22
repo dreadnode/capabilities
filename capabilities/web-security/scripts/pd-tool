@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "usage: pd-tool <subfinder|httpx|naabu|dnsx|katana|tlsx|alterx|asnmap|uncover|nuclei> [args...]" >&2
+  exit 2
+fi
+
+tool="$1"
+shift
+
+case "$tool" in
+  subfinder|httpx|naabu|dnsx|katana|tlsx|alterx|asnmap|uncover|nuclei) ;;
+  *)
+    echo "unsupported ProjectDiscovery tool: $tool" >&2
+    exit 2
+    ;;
+esac
+
+candidates=()
+if [[ -n "${PDTM_BIN_DIR:-}" ]]; then
+  candidates+=("${PDTM_BIN_DIR%/}/$tool")
+fi
+candidates+=("$HOME/.pdtm/go/bin/$tool")
+if command -v go >/dev/null 2>&1; then
+  candidates+=("$(go env GOPATH 2>/dev/null)/bin/$tool")
+fi
+
+for candidate in "${candidates[@]}"; do
+  if [[ -x "$candidate" ]]; then
+    exec "$candidate" "$@"
+  fi
+done
+
+path_candidate="$(command -v "$tool" 2>/dev/null || true)"
+if [[ -n "$path_candidate" ]]; then
+  if [[ "$tool" == "httpx" ]]; then
+    version_output="$($path_candidate -version 2>&1 || true)"
+    if ! grep -Eqi 'projectdiscovery|current version|httpx version' <<<"$version_output"; then
+      echo "refusing ambiguous httpx binary at $path_candidate; expected ProjectDiscovery httpx" >&2
+      exit 126
+    fi
+  fi
+  exec "$path_candidate" "$@"
+fi
+
+echo "$tool not found; expected it under \$PDTM_BIN_DIR, ~/.pdtm/go/bin, or PATH" >&2
+exit 127

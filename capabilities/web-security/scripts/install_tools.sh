@@ -4,6 +4,15 @@
 set -euo pipefail
 
 ARCH="$(uname -m)"
+OS="$(uname -s)"
+
+case "$OS" in
+  Linux) ;;
+  *)
+    echo "web-security sandbox provisioning supports Linux; manage local CLI dependencies separately on $OS" >&2
+    exit 0
+    ;;
+esac
 
 # -- Go toolchain (needed for pdtm, protoscope, interactsh, surf) ---------
 if ! command -v go &>/dev/null; then
@@ -18,7 +27,8 @@ fi
 
 # -- PDTM + ProjectDiscovery tools ----------------------------------------
 go install github.com/projectdiscovery/pdtm/cmd/pdtm@latest
-pdtm -install nuclei,httpx,subfinder,naabu,dnsx,uncover,alterx,tlsx,asnmap
+PDTM_BIN="$(go env GOPATH)/bin/pdtm"
+"$PDTM_BIN" -install nuclei,httpx,subfinder,naabu,dnsx,uncover,alterx,tlsx,asnmap
 export PATH="$HOME/.pdtm/go/bin:$PATH"
 
 # -- katana (pre-built binary, go-tree-sitter build issue) -----------------
