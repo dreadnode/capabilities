@@ -1,0 +1,62 @@
+schema: 1
+name: atlassian
+version: "1.0.0"
+description: >
+  Connect to Atlassian Cloud (Jira, Confluence, Compass) from chat and
+  agents — search and read issues, pages, and components; create or
+  update issues and pages; bulk operations and JQL search. Talks
+  directly to Atlassian's hosted Rovo MCP server at
+  https://mcp.atlassian.com/v1/mcp; first use opens a browser
+  for OAuth (the authorization server lives on auth.atlassian.com),
+  then subsequent launches reconnect silently using a stored refresh
+  token (see ~/.dreadnode/mcp-auth.json).
+
+mcp:
+  servers:
+    atlassian:
+      url: https://mcp.atlassian.com/v1/mcp
+      # Native HTTP MCP + Dreadnode-managed OAuth (CAP-MCP-011).
+      # Discovery note, since this one is not like Linear or GitLab:
+      # Atlassian publishes no RFC 9728 protected-resource document
+      # (the .well-known/oauth-protected-resource paths 404 and the 401
+      # carries no resource_metadata), so the client falls back to the
+      # authorization-server metadata at
+      # https://mcp.atlassian.com/.well-known/oauth-authorization-server
+      # — which names cf.mcp.atlassian.com for authorize/token/register
+      # and advertises DCR. That fallback is what makes this work; don't
+      # "fix" it to a protected-resource lookup. For non-interactive
+      # contexts (CI, headless eval), set DREADNODE_HEADLESS=1 and
+      # complete the flow manually.
+      auth:
+        type: oauth
+        client_name: dreadnode
+      headers:
+        # OAuth by default, or set ATLASSIAN_BASIC (base64 of
+        # `email:api_token`) for unattended Basic auth — admin must enable
+        # token auth on the Rovo MCP first. The optional header is dropped
+        # when the var is unset (CAP-MCP-013), so OAuth stays the default.
+        # Service-account API keys use Bearer instead — change "Basic" to
+        # "Bearer" and bind ${ATLASSIAN_API_KEY}.
+        Authorization:
+          value: "Basic ${ATLASSIAN_BASIC}"
+          optional: true
+      init_timeout: 60
+
+skills:
+  - skills/atlassian/
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - atlassian
+  - jira
+  - confluence
+  - compass
+  - rovo
+  - issue-tracker
+  - wiki
+  - jql
+  - connector
