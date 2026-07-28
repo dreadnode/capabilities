@@ -1,0 +1,43 @@
+schema: 1
+name: analysis-ledger
+version: "0.2.1"
+description: >
+  Persistent single-agent code analysis over a durable Agent Output worklist.
+  The agent records analysis runs, ranked targets, and evidence-bearing claims,
+  then repeatedly reads, advances, and expands that frontier across context and
+  session boundaries.
+
+agents:
+  - agents/
+
+skills:
+  - skills/
+
+tools:
+  - tools/
+
+produces:
+  values:
+    - finding
+  analysis_run: "items:AnalysisRun"
+  analysis_target: "items:AnalysisTarget"
+  analysis_claim: "items:AnalysisClaim"
+
+checks:
+  - name: git
+    command: command -v git
+  - name: ripgrep
+    command: command -v rg
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - agent-output
+  - code-analysis
+  - recursive-analysis
+  - single-agent
+  - static-analysis
+  - worklist

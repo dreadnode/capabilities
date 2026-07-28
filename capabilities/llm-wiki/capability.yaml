@@ -1,0 +1,33 @@
+schema: 1
+name: llm-wiki
+version: "0.1.0"
+description: >
+  Persistent LLM-maintained wiki built on Dreadnode Agent Output. Agents compile
+  sources into typed, linked wiki_page items, then browse, read, revise, query,
+  and lint that accumulated knowledge across turns and sessions.
+
+agents:
+  - agents/
+
+skills:
+  - skills/
+
+tools:
+  - tools/
+
+produces:
+  wiki_page: "items:WikiPage"
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - agent-output
+  - knowledge-base
+  - knowledge-management
+  - llm-wiki
+  - research
+  - structured-output
+  - wiki

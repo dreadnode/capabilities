@@ -1,0 +1,4 @@
+interface:
+  display_name: "Recursive Code Analysis"
+  short_description: "Drive a durable single-agent code analysis loop"
+  default_prompt: "Use $recursive-code-analysis to inspect a large codebase through a persistent analysis frontier."
