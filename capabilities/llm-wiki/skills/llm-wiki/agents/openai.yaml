@@ -1,0 +1,4 @@
+interface:
+  display_name: "LLM Wiki"
+  short_description: "Maintain a typed, linked LLM Wiki in Agent Output"
+  default_prompt: "Build or query a persistent LLM Wiki using structured Agent Output pages."
