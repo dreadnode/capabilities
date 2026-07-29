@@ -1,0 +1,82 @@
+schema: 1
+name: azure-devops
+version: "1.0.0"
+description: >
+  Connect to Azure DevOps (Boards, Repos, Pipelines, Wiki) from chat and
+  agents — query work items with WIQL, read PRs, inspect pipeline runs,
+  create or update work items and wiki pages. Test Plans and GHAS alerts
+  are one-line opt-ins. Bundles Microsoft's official local MCP server
+  (npx @azure-devops/mcp) with Azure CLI auth.
+
+mcp:
+  servers:
+    ado:
+      command: "npx"
+      args:
+        - "-y"
+        # Pinned for a reproducible tool surface; bump deliberately.
+        # 2.8.1 is the floor, not just the current release: the
+        # ado_mcp_project / ado_mcp_team defaults below are read in
+        # shared/elicitations.js as of 2.8.0 and are inert on 2.7.x.
+        - "@azure-devops/mcp@2.8.1"
+        # Org is the first positional arg; flags follow it.
+        - "${ADO_ORG}"
+        # Delegate auth to the existing `az login` session (the `checks:`
+        # below enforce that one exists). Without this the upstream
+        # defaults to per-call interactive browser auth. Alternatives:
+        # "interactive", "pat" (PERSONAL_ACCESS_TOKEN), "envvar"
+        # (ADO_MCP_AUTH_TOKEN) — see SKILL.md.
+        - "--authentication"
+        - "azcli"
+        # Ticketing-focused subset — 62 tools without "pipelines", 76 with,
+        # against 90 for the upstream default of "all". Append
+        # "test-plans" (+9) or "advanced-security" (+2, GHAS alerts) as
+        # separate list items; SKILL.md covers what each unlocks.
+        # These MUST stay one-per-line: yargs parses -d as an array, so a
+        # single "core,work,..." item is read as one unknown domain and the
+        # server silently falls back to all 90 tools.
+        - "-d"
+        - "core"
+        - "work"
+        - "work-items"
+        - "repositories"
+        - "wiki"
+        - "pipelines"
+      env:
+        # Optional convenience defaults. The upstream elicits a project /
+        # team picker whenever a tool needs one and none was passed; these
+        # short-circuit that. Lowercase names are the upstream's, not a typo.
+        # Empty string is falsy there, so unset cleanly falls back to the
+        # picker rather than resolving to "".
+        ado_mcp_project: "${ADO_PROJECT:-}"
+        ado_mcp_team: "${ADO_TEAM:-}"
+      init_timeout: 60
+
+checks:
+  - name: azure-cli
+    command: 'command -v az >/dev/null 2>&1'
+  - name: az-logged-in
+    command: 'az account show >/dev/null 2>&1'
+  - name: node-20-plus
+    command: 'command -v node >/dev/null 2>&1 && node --version | grep -Eq "^v(2[0-9]|[3-9][0-9])"'
+
+skills:
+  - skills/azure-devops/
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - azure-devops
+  - ado
+  - boards
+  - work-items
+  - wiql
+  - pipelines
+  - repos
+  - pull-requests
+  - wiki
+  - issue-tracker
+  - connector

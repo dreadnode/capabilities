@@ -1,0 +1,52 @@
+schema: 1
+name: github
+version: "1.0.0"
+description: >
+  Connect to GitHub from chat and agents — issues, pull requests, code
+  search, Actions, releases, Dependabot, and code scanning. Bundles
+  GitHub's official remote MCP server (https://api.githubcopilot.com/mcp/)
+  with PAT authentication.
+
+mcp:
+  servers:
+    github:
+      url: "https://api.githubcopilot.com/mcp/"
+      headers:
+        Authorization: "Bearer ${GITHUB_PAT}"
+        # The server's "default" toolset excludes Actions and every security
+        # surface, so the tools this capability advertises have to be
+        # requested explicitly. Measured against the live server: 47 tools on
+        # the bare default, 58 with the four toolsets below, 95 with "all".
+        # We take the 58 — the advertised surface, without paying context for
+        # discussions / gists / notifications / projects nobody asked for.
+        X-MCP-Toolsets: "default,actions,code_security,dependabot,secret_protection"
+        # Server-side read-only enforcement: when this header is present and
+        # not false/f/0/off, the server refuses to register mutating tools
+        # (58 -> 38 measured). Unset by default, so writes stay governed by
+        # the PAT's scopes; set GITHUB_READ_ONLY_MODE=true for a hard stop
+        # that survives an over-scoped token. Dropped entirely when unset
+        # (CAP-MCP-013), so the default path sends no empty header.
+        X-MCP-Readonly:
+          value: "${GITHUB_READ_ONLY_MODE}"
+          optional: true
+      init_timeout: 60
+
+skills:
+  - skills/github/
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - github
+  - issues
+  - pull-requests
+  - issue-tracker
+  - project-management
+  - code-search
+  - actions
+  - dependabot
+  - code-scanning
+  - connector

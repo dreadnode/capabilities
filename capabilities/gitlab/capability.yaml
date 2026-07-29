@@ -1,0 +1,55 @@
+schema: 1
+name: gitlab
+version: "1.0.0"
+description: >
+  Connect to GitLab (gitlab.com or self-managed) from chat and agents —
+  issues, merge requests, projects, pipelines, milestones, wikis. Bundles
+  the community-maintained zereight/gitlab-mcp server with PAT auth —
+  works on every tier. Defaults to read-only, enforced server-side; flip
+  GITLAB_READ_ONLY_MODE to enable writes. GitLab's own OAuth MCP is a
+  token-free alternative on every tier since 19.2 — see SKILL.md.
+
+mcp:
+  servers:
+    gitlab:
+      command: "npx"
+      args:
+        - "-y"
+        # Pinned for a reproducible tool surface; bump deliberately. This
+        # is a community server — the pin is the trust boundary, so read
+        # the diff before moving it.
+        - "@zereight/mcp-gitlab@2.1.43"
+      env:
+        GITLAB_PERSONAL_ACCESS_TOKEN: "${GITLAB_PAT}"
+        GITLAB_API_URL: "${GITLAB_API_URL:-https://gitlab.com/api/v4}"
+        # Defaults read-only. To enable writes, set
+        # GITLAB_READ_ONLY_MODE=false (secrets screen or your launching
+        # shell) and reload the capability. The upstream server hides
+        # write tools entirely when this is true — real enforcement,
+        # measured at 89 tools read-only vs 161 read-write.
+        GITLAB_READ_ONLY_MODE: "${GITLAB_READ_ONLY_MODE:-true}"
+        # Off by default upstream — without these three, the pipeline,
+        # wiki, and milestone tools this capability advertises are never
+        # registered at all (62 tools instead of 89 in read-only mode).
+        USE_PIPELINE: "${GITLAB_USE_PIPELINE:-true}"
+        USE_GITLAB_WIKI: "${GITLAB_USE_WIKI:-true}"
+        USE_MILESTONE: "${GITLAB_USE_MILESTONE:-true}"
+      init_timeout: 60
+
+skills:
+  - skills/gitlab/
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - gitlab
+  - issues
+  - merge-requests
+  - issue-tracker
+  - pipelines
+  - repos
+  - wiki
+  - connector

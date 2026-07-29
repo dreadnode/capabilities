@@ -1,0 +1,51 @@
+schema: 1
+name: linear
+version: "1.0.0"
+description: >
+  Connect to Linear from chat and agents — search and read issues,
+  projects, cycles, and teams; create and update issues; comment and
+  transition state. Talks directly to Linear's hosted MCP server at
+  https://mcp.linear.app/mcp; first use opens a browser for OAuth, then
+  subsequent launches reconnect silently using a stored refresh token
+  (see ~/.dreadnode/mcp-auth.json).
+
+mcp:
+  servers:
+    linear:
+      url: https://mcp.linear.app/mcp
+      # Native HTTP MCP + Dreadnode-managed OAuth (CAP-MCP-011). On
+      # first connect the runtime opens the user's browser to Linear's
+      # OAuth authorize endpoint and receives the callback on a
+      # localhost ephemeral port. Tokens persist to disk and refresh
+      # transparently. For non-interactive contexts (CI, headless eval),
+      # set DREADNODE_HEADLESS=1 and complete the flow manually.
+      auth:
+        type: oauth
+        client_name: dreadnode
+      headers:
+        # OAuth by default, or set LINEAR_API_KEY for a static token
+        # (CI / service accounts). The optional header is dropped when
+        # the var is unset (CAP-MCP-013), so OAuth stays the default with
+        # no empty `Authorization: Bearer` on the wire. When the key is
+        # set, the static header wins and reactive OAuth stays dormant.
+        Authorization:
+          value: "Bearer ${LINEAR_API_KEY}"
+          optional: true
+      init_timeout: 60
+
+skills:
+  - skills/linear/
+
+author:
+  name: Dreadnode
+  url: https://dreadnode.io
+license: MIT
+repository: https://github.com/dreadnode/capabilities
+keywords:
+  - linear
+  - issue-tracker
+  - project-management
+  - tickets
+  - tasks
+  - engineering-workflow
+  - connector
