@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.3.0"
+version: "1.4.0"
 description: >
   Web application penetration testing with 70+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
@@ -8,7 +8,8 @@ description: >
   AEM/Sling exploitation, GraphQL, OAuth, and client-side attacks.
   Includes HTTP client tooling with OOB callbacks via interactsh, Caido
   and Burp proxy integration via MCP, browser automation via
-  agent-browser, JS static analysis via jxscout, protobuf inspection via
+  agent-browser, JS static analysis via jxscout, AST-based code pattern
+  search via ast-grep, protobuf inspection via
   protoscope, credential management, DNS rebinding, blind SQLi
   extraction, bug bounty scope lookup via bbscope, HackerOne program
   recon and report submission, SecurityContext vulnerability context
@@ -160,6 +161,8 @@ checks:
     command: 'test -f "$HOME/git/archivealchemist/archive-alchemist.py"'
   - name: exiftool
     command: command -v exiftool
+  - name: ast-grep
+    command: command -v ast-grep
   - name: jxscout
     command: command -v jxscout-pro-v2
 
@@ -208,6 +211,7 @@ keywords:
   - browser-automation
   - burp-suite
   - jxscout
+  - ast-grep
   - interactsh
   - oob-callbacks
   - securitycontext

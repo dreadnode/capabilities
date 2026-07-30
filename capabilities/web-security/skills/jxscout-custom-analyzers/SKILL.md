@@ -20,12 +20,13 @@ The `JXSCOUT_PROJECT_NAME` environment variable must be set. The project setting
 
 ## Choosing the right analyzer type
 
-For JS/TS code pattern matching (function calls, assignments, data flow, control structures), **prefer AST-based analysis via script analyzers** (e.g. semgrep) over regex. Regex works for simple literal patterns -- hardcoded URLs, API keys, specific strings -- but is fragile for code constructs because it misses variations in whitespace, formatting, nesting, and comments.
+For JS/TS code pattern matching (function calls, assignments, data flow, control structures), **prefer AST-based analysis via script analyzers** over regex. Regex works for simple literal patterns -- hardcoded URLs, API keys, specific strings -- but is fragile for code constructs because it misses variations in whitespace, formatting, nesting, and comments.
 
 Rule of thumb:
 - **Regex**: simple string patterns that don't depend on code structure
 - **Derived**: narrowing down an existing match kind by value
-- **Script (semgrep)**: anything involving code semantics -- function calls, assignments, data flow, missing checks
+- **Script (ast-grep)**: anything involving code semantics -- function calls, assignments, data flow, missing checks. Installed in the runtime, use this by default.
+- **Script (semgrep)**: same use case as ast-grep, with additional taint tracking in semgrep Pro. Only available if operator-installed.
 
 ## Analyzer types
 
@@ -113,9 +114,87 @@ The script receives file paths on stdin (one per line) and must output a JSON ar
 
 `$JXSCOUT_PROJECT_DIR` and `$JXSCOUT_PROJECT_NAME` are available as environment variables in all scripts.
 
-## Using semgrep for JS analysis
+## Using ast-grep for JS analysis (installed in runtime)
 
-When semgrep is available and you need to find JS/TS code patterns, prefer it over regex. Semgrep uses AST-based matching which is far more accurate for code patterns (function calls, assignments, data flow) than regular expressions.
+ast-grep uses tree-sitter for AST-based structural code matching. Patterns use real code syntax with `$VAR` wildcards -- far more accurate than regex for function calls, assignments, and nested expressions. Prefer ast-grep over regex for script analyzers.
+
+### 1. Create the wrapper script
+
+Create `scripts/ast_grep_to_jxscout.sh` in your project directory. This script converts ast-grep JSON output to the jxscout match format:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+PATTERN=""
+KIND=""
+LANG="javascript"
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -p|--pattern) PATTERN="$2"; shift 2 ;;
+    -k|--kind) KIND="$2"; shift 2 ;;
+    -l|--lang) LANG="$2"; shift 2 ;;
+    *) echo "Usage: $0 -p|--pattern <pattern> -k|--kind <kind> [-l|--lang <lang>] (file paths on stdin)" >&2; exit 1 ;;
+  esac
+done
+
+[[ -n "$PATTERN" ]] || { echo "Missing -p|--pattern <pattern>" >&2; exit 1; }
+[[ -n "$KIND" ]] || { echo "Missing -k|--kind <kind>" >&2; exit 1; }
+
+FILES=()
+while IFS= read -r line || [[ -n "$line" ]]; do
+  [[ -n "$line" ]] && FILES+=("$line")
+done
+
+[[ ${#FILES[@]} -gt 0 ]] || { echo "No file paths on stdin" >&2; exit 1; }
+
+output=""
+for f in "${FILES[@]}"; do
+  AG_JSON=$(ast-grep -p "$PATTERN" -l "$LANG" --json "$f" 2>/dev/null || echo "[]")
+  while IFS= read -r result; do
+    one=$(echo "$result" | jq -c \
+      --arg kind "$KIND" \
+      '{kind: $kind, value: .text, start: {line: (.range.start.line + 1), column: .range.start.column}, end: {line: (.range.end.line + 1), column: .range.end.column}}')
+    output="${output}${one}"$'\n'
+  done < <(echo "$AG_JSON" | jq -c '.[]? // empty')
+done
+
+if [[ -z "$output" ]]; then
+  echo "[]"
+else
+  echo "$output" | jq -cs 'if . == null then [] else . end'
+fi
+```
+
+Make it executable: `chmod +x scripts/ast_grep_to_jxscout.sh`
+
+**Note:** ast-grep uses 0-based line numbers; the script adds 1 to align with jxscout's 1-based convention.
+
+### 2. Add to project settings
+
+```json
+{
+  "analyzer": {
+    "custom_analyzers": {
+      "innerHTML_sink": {
+        "enabled": true,
+        "type": "script",
+        "file_types": ["js", "reversed_source"],
+        "script": "$JXSCOUT_PROJECT_DIR/scripts/ast_grep_to_jxscout.sh --pattern '$EL.innerHTML = $VAR' --kind innerHTML_sink"
+      }
+    }
+  }
+}
+```
+
+### 3. Multiple patterns
+
+For analyzers that need several patterns (e.g. all eval-family sinks), create one analyzer per pattern with a shared match kind, or write a wrapper that runs ast-grep multiple times and merges the output.
+
+## Using semgrep for JS analysis (if operator-installed)
+
+When semgrep is available and you need taint tracking or data-flow analysis beyond structural matching, use it as a script analyzer. Semgrep is not installed in the runtime by default.
 
 ### 1. Create a semgrep rule
 
@@ -304,7 +383,7 @@ jxscout auto-reloads when `settings.jsonc` changes, so the view updates immediat
 
 ## Workflow for adding a custom analyzer
 
-1. Decide the analyzer type: regex for simple literal patterns, derived for filtering existing match kinds, script for code-semantic analysis (prefer semgrep for JS/TS when available)
+1. Decide the analyzer type: regex for simple literal patterns, derived for filtering existing match kinds, script for code-semantic analysis (prefer ast-grep for JS/TS structural matching; use semgrep if operator-installed and taint tracking is needed)
 2. Add the configuration to `settings.jsonc` under `analyzer > custom_analyzers`
 3. Test with `analyze` on a file that should match (create a temp test file if needed, then delete it)
 4. **Always** add the new match kind to the VS Code matches view -- **first ensure the full `vscode_extension` block is in `settings.jsonc`** (get it from `print-full-project-settings` if missing), then append your entry
