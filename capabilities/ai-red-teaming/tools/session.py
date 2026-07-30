@@ -102,16 +102,17 @@ def save_session_context(
 
 @safe_tool
 def get_session_context() -> str:
-    """Retrieve the current session context for iterative refinement.
+    """Retrieve saved AI red-teaming session context when *resuming* a prior attack.
 
-    Returns the last target, goal, models, transforms, and results
-    so you can build on previous attacks without the user re-specifying
-    everything. Use this at the start of follow-up commands like
-    "try another attack" or "add transforms".
+    AI-red-teaming only. Use ONLY to continue a previous red-teaming assessment —
+    e.g. follow-ups like "try another attack", "add transforms", or "re-run against
+    the same target" — so you don't have to re-specify the target/goal/models. It is
+    pull-only: you do NOT need to call this to begin a task, and it is not relevant to
+    non-red-teaming work. Returns an empty result if no prior red-teaming session exists.
     """
     session = _load()
     if not session or "current" not in session:
-        return "No session context found. Run an attack first to establish context."
+        return "No prior red-teaming session. Nothing to resume — proceed with the task directly."
 
     current = session["current"]
     lines = [
