@@ -176,7 +176,7 @@ The AI Red Teaming capability provides these tools:
 **Session Context (Iterative Refinement):**
 
 - **save_session_context** — Save current attack context (target, goal, results) for follow-up attacks
-- **get_session_context** — Retrieve previous attack context to auto-fill parameters
+- **get_session_context** — Pull-only, red-teaming resume aid: call ONLY when continuing a prior attack (e.g. "try another attack", "add transforms") to auto-fill target/goal/models. Do NOT call it to start a task or for non-red-teaming work.
 - **clear_session_context** — Clear session to start fresh
 
 **Results & Analytics:**
