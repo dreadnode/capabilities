@@ -22,6 +22,7 @@
 #   - kiterunner          (API-aware content discovery)
 #   - surf                (SSRF target identification)
 #   - pacu                (AWS exploitation framework)
+#   - ast-grep            (AST-based code pattern search via tree-sitter)
 #
 # Tools with bundled SDK/MCP integration (require a running instance
 # reachable by network — the client library and MCP server are included):
@@ -119,7 +120,8 @@ RUN pip install --no-cache-dir \
         "fastmcp>=2.0" \
         "httpx>=0.28" \
         "caido-sdk-client" \
-        "pacu"
+        "pacu" \
+        "ast-grep-cli"
 
 # ── fireprox (AWS API Gateway IP rotation) ──────────────────────────
 # Installed to a predictable path; requires AWS credentials at runtime.

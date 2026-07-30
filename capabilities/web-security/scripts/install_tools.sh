@@ -119,6 +119,11 @@ fi
 npm install -g agent-browser
 agent-browser install || true
 
+# -- ast-grep (AST-based code pattern search) ---------------------------------
+# Tree-sitter based structural code matching for JS/TS/HTML. Lightweight
+# alternative to semgrep for pattern matching (no taint analysis).
+pip install --break-system-packages ast-grep-cli
+
 # -- waymore (Wayback Machine recon) -----------------------------------------
 pip install --break-system-packages waymore
 
