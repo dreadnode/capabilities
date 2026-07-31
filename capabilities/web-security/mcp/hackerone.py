@@ -498,9 +498,9 @@ async def hackerone_submit_report(
 ) -> str:
     """Submit a new vulnerability report to a HackerOne program.
 
-    Only use this after the full reporting pipeline: assess_confidence
-    returned CONFIRMED, report-preflight passed, and exploit-verifier
-    completed the triple-check.
+    Only use this after the reporting pipeline completes: assess_confidence
+    returned CONFIRMED, report-preflight passed, exploit-verifier completed
+    the triple-check, and report_item has been called.
     """
     client, err = await _h1.safe_get()
     if err:
