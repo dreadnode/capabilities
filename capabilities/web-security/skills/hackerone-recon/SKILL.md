@@ -57,7 +57,7 @@ Check for `informative`/`not-applicable` verdicts (understand rejections), `dupl
 
 ## Phase 4: Report Submission
 
-After the full pipeline (`assess_confidence` -> `report-preflight` -> `exploit-verifier` -> `report-writer`):
+After the reporting pipeline (`assess_confidence` -> `report-preflight` -> `exploit-verifier` -> `report_item`):
 
 ```
 hackerone_submit_report(

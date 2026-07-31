@@ -119,5 +119,5 @@ After classification, use `assess-confidence` to evaluate the finding with the e
 ## Skill Pipeline
 
 ```
-vuln-critic (evidence quality) → report-preflight (eligibility) → exploit-verifier (confirmation) → report-writer (deliverable)
+vuln-critic (evidence quality) → report-preflight (eligibility) → exploit-verifier (confirmation) → report_item (structured output)
 ```
