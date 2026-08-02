@@ -111,7 +111,7 @@ class Cracking(Toolset):
                 ["hashcat", "-m", str(hashcat_mode), hash_file_path, "--show"]
             )
 
-    @tool_method(catch=True, variants=["john", "all"])
+    @tool_method(catch=True, variants=["hashcat", "john", "all"])
     async def john_the_ripper(
         self,
         hash_format: str,
