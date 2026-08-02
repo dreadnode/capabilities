@@ -9,6 +9,15 @@ from loguru import logger
 
 g_hashcat_lock = asyncio.Lock()
 
+HASHCAT_TO_JOHN: dict[int, str] = {
+    1000: "nt",
+    2100: "mscash2",
+    13100: "krb5tgs",
+    18200: "krb5asrep",
+}
+
+_NO_BACKEND_MARKERS = ("CL_PLATFORM_NOT_FOUND_KHR", "No devices found/left")
+
 
 class Cracking(Toolset):
     """
@@ -56,31 +65,51 @@ class Cracking(Toolset):
                 raise FileNotFoundError(f"Hash file {hash_file_path} does not exist.")
 
             if not os.path.exists(wordlist_path):
-                raise FileNotFoundError(f"Wordlist file {wordlist_path} does not exist.")
+                raise FileNotFoundError(
+                    f"Wordlist file {wordlist_path} does not exist."
+                )
 
             logger.info(
                 f"Cracking {hash_file_path} with mode {hashcat_mode} using wordlist {wordlist_path}"
             )
 
             # Execute the cracking command
-            await execute(
-                [
-                    "hashcat",
-                    "-m",
-                    str(hashcat_mode),
-                    "-a",
-                    "0",
-                    hash_file_path,
-                    wordlist_path,
-                    "--runtime",
-                    str(max_time_minutes * 60),
-                    "--force",
-                ],
-                timeout=(max_time_minutes * 60) + 30,
-            )
+            try:
+                await execute(
+                    [
+                        "hashcat",
+                        "-m",
+                        str(hashcat_mode),
+                        "-a",
+                        "0",
+                        hash_file_path,
+                        wordlist_path,
+                        "--runtime",
+                        str(max_time_minutes * 60),
+                        "--force",
+                    ],
+                    timeout=(max_time_minutes * 60) + 30,
+                )
+            except Exception as e:
+                msg = str(e)
+                if any(marker in msg for marker in _NO_BACKEND_MARKERS):
+                    john_fmt = HASHCAT_TO_JOHN.get(hashcat_mode)
+                    if john_fmt:
+                        raise RuntimeError(
+                            f"hashcat failed: no OpenCL/CUDA/HIP backend available. "
+                            f"Use john_the_ripper instead with hash_format='{john_fmt}'."
+                        ) from e
+                    raise RuntimeError(
+                        f"hashcat failed: no OpenCL/CUDA/HIP backend available. "
+                        f"Use john_the_ripper instead (hashcat mode {hashcat_mode} "
+                        f"has no automatic john format mapping — consult john documentation)."
+                    ) from e
+                raise
 
             # Execute the --show command to get the cracked results
-            return await execute(["hashcat", "-m", str(hashcat_mode), hash_file_path, "--show"])
+            return await execute(
+                ["hashcat", "-m", str(hashcat_mode), hash_file_path, "--show"]
+            )
 
     @tool_method(catch=True, variants=["john", "all"])
     async def john_the_ripper(
@@ -138,4 +167,6 @@ class Cracking(Toolset):
         )
 
         # Execute the --show command to get the cracked results
-        return await execute(["john", "--show", f"--format={hash_format}", hash_file_path])
+        return await execute(
+            ["john", "--show", f"--format={hash_format}", hash_file_path]
+        )
