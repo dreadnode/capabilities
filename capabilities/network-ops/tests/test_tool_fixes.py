@@ -614,25 +614,29 @@ class TestHashcatNoBackendDetection:
                 )
 
     @pytest.mark.asyncio
-    async def test_backend_error_suggests_john_with_unknown_mode(self, tmp_path):
-        """Unknown hashcat mode should still suggest john but note missing mapping."""
+    async def test_backend_error_chains_original_exception(self, tmp_path):
+        """The original hashcat error should be preserved as __cause__."""
         hash_file = tmp_path / "hashes.txt"
-        hash_file.write_text("somehash")
+        hash_file.write_text("aad3b435b51404eeaad3b435b51404ee")
         wordlist = tmp_path / "wordlist.txt"
         wordlist.write_text("password\n")
 
         cracker = cracking_mod.Cracking()
+        original = RuntimeError(
+            "Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"
+        )
 
         async def fake_execute(cmd, **kwargs):
-            raise RuntimeError("Command failed (255): No devices found/left")
+            raise original
 
         with patch.object(cracking_mod, "execute", side_effect=fake_execute):
-            with pytest.raises(RuntimeError, match=r"no automatic john format mapping"):
+            with pytest.raises(RuntimeError) as exc_info:
                 await cracker.hashcat(
-                    hashcat_mode=99999,
+                    hashcat_mode=1000,
                     hash_file=str(hash_file),
                     wordlist_path=str(wordlist),
                 )
+            assert exc_info.value.__cause__ is original
 
     @pytest.mark.asyncio
     async def test_non_backend_error_propagates_unchanged(self, tmp_path):
