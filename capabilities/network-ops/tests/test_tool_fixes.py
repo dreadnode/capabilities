@@ -104,6 +104,7 @@ def _load_module(name: str, filename: str):
 nmap_mod = _load_module("nmap_tools", "nmap.py")
 certipy_mod = _load_module("certipy_tools", "certipy.py")
 impacket_mod = _load_module("impacket_tools", "impacket.py")
+cracking_mod = _load_module("cracking_tools", "cracking.py")
 
 
 # ===================================================================
@@ -577,3 +578,83 @@ class TestKillRelay:
             await impacket_mod._kill_relay(proc)
             mock_getpgid.assert_called_once_with(99999)
             mock_killpg.assert_called()
+
+
+# ===================================================================
+# Cracking: hashcat no-backend detection
+# ===================================================================
+
+
+class TestHashcatNoBackendDetection:
+    """hashcat should raise an actionable error when no GPU backend is available."""
+
+    @pytest.mark.asyncio
+    async def test_backend_error_suggests_john_with_known_mode(self, tmp_path):
+        """CL_PLATFORM_NOT_FOUND_KHR should suggest john_the_ripper with mapped format."""
+        hash_file = tmp_path / "hashes.txt"
+        hash_file.write_text("aad3b435b51404eeaad3b435b51404ee")
+        wordlist = tmp_path / "wordlist.txt"
+        wordlist.write_text("password\n")
+
+        cracker = cracking_mod.Cracking()
+
+        async def fake_execute(cmd, **kwargs):
+            raise RuntimeError(
+                "Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"
+            )
+
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            with pytest.raises(
+                RuntimeError, match=r"Use john_the_ripper.*hash_format='nt'"
+            ):
+                await cracker.hashcat(
+                    hashcat_mode=1000,
+                    hash_file=str(hash_file),
+                    wordlist_path=str(wordlist),
+                )
+
+    @pytest.mark.asyncio
+    async def test_backend_error_chains_original_exception(self, tmp_path):
+        """The original hashcat error should be preserved as __cause__."""
+        hash_file = tmp_path / "hashes.txt"
+        hash_file.write_text("aad3b435b51404eeaad3b435b51404ee")
+        wordlist = tmp_path / "wordlist.txt"
+        wordlist.write_text("password\n")
+
+        cracker = cracking_mod.Cracking()
+        original = RuntimeError(
+            "Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"
+        )
+
+        async def fake_execute(cmd, **kwargs):
+            raise original
+
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            with pytest.raises(RuntimeError) as exc_info:
+                await cracker.hashcat(
+                    hashcat_mode=1000,
+                    hash_file=str(hash_file),
+                    wordlist_path=str(wordlist),
+                )
+            assert exc_info.value.__cause__ is original
+
+    @pytest.mark.asyncio
+    async def test_non_backend_error_propagates_unchanged(self, tmp_path):
+        """Errors unrelated to missing backends should propagate as-is."""
+        hash_file = tmp_path / "hashes.txt"
+        hash_file.write_text("badhash")
+        wordlist = tmp_path / "wordlist.txt"
+        wordlist.write_text("password\n")
+
+        cracker = cracking_mod.Cracking()
+
+        async def fake_execute(cmd, **kwargs):
+            raise RuntimeError("Command failed (1): Hash format mismatch")
+
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            with pytest.raises(RuntimeError, match=r"Hash format mismatch"):
+                await cracker.hashcat(
+                    hashcat_mode=1000,
+                    hash_file=str(hash_file),
+                    wordlist_path=str(wordlist),
+                )
