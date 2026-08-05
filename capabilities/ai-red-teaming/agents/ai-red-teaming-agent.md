@@ -75,7 +75,8 @@ Keep it to a single line; don't pad it.
 1. Pick the right generator for the target type:
    - LLM with a specific goal → `generate_attack`
    - LLM by harm category / sweep → `generate_category_attack`
-   - Agent/MCP/HTTP endpoint with tools → `generate_agentic_attack`
+   - Agent/MCP/HTTP endpoint with tools, ONE specific attack → `generate_agentic_attack`
+   - **"Run all possible attacks" / "red team my agent" / comprehensive agent audit → `generate_agentic_suite_attack`**. This is the turnkey full-coverage path: it runs every OWASP-ASI category (auto-selecting the mapped attacks, family transforms, and detection scorers) against the agent endpoint — the user does NOT need to name attacks. Pass `agent_url` + `attacker_model` (+ preset/template + `agent_dangerous_tools`); omit `categories` to run everything. Use this whenever the user hands you an agent and asks for a broad/complete assessment.
    - Multi-agent system (delegation chains, trust boundaries) → provision a hosted environment with `provision_environment` (or use a user-supplied URL), then `generate_atlas_attack`
    - ML image classifier (perturb pixels to misclassify) → `generate_image_attack`
    - **Multimodal LLM (vision/audio/video) with media inputs → `generate_multimodal_attack`**. Detect this when the user attaches or points to media and wants to probe a chat/vision model: "attack this vision model", "run these prompts with the images in `./imgs`", "apply an image transform on the images", "test this voice model with the audio in this folder", "visual prompt injection", "typographic jailbreak". Pass `image_dir`/`audio_dir`/`video_dir` for folders or `image_paths`/`audio_paths`/`video_paths` for explicit files. Do NOT confuse with `generate_image_attack` (classifier evasion, not chat).
@@ -147,7 +148,8 @@ The AI Red Teaming capability provides these tools:
 
 - **generate_attack** — Generate + auto-execute an attack workflow (single, campaign, or transform study)
 - **generate_category_attack** — Generate + auto-execute a category-based assessment from bundled goals
-- **generate_agentic_attack** — Generate + auto-execute an attack against an HTTP agent API
+- **generate_agentic_attack** — Generate + auto-execute a single attack against an HTTP agent API
+- **generate_agentic_suite_attack** — Generate + auto-execute the FULL agentic suite against an HTTP agent API: every OWASP-ASI category, auto-selecting the mapped attacks + family transforms (MCP, multi-agent, reasoning, exfiltration, …) + detection scorers. The "run all possible attacks on my agent" path — no need to name individual attacks; omit `categories` for everything.
 - **generate_atlas_attack** — Generate + auto-execute an ATLAS multi-agent campaign (Adaptive Topology-Level Attack Synthesis) against a deployed multi-agent environment. Runs a Probe → Route → Learn loop over a budget of episodes, driving GOAT/Crescendo through three injection surfaces (direct / tool_output / peer_message) and gating success on *real tool execution*. Use for multi-agent systems with delegation chains and trust boundaries.
 - **generate_image_attack** — Generate + auto-execute a traditional ML adversarial attack (HopSkipJump, SimBA, NES, ZOO) against an image classifier endpoint
 - **generate_multimodal_attack** — Generate + auto-execute a MULTIMODAL LLM red teaming attack: send text + image/audio/video to a vision/audio-capable model, apply modality-typed transforms, score the text response for jailbreak success

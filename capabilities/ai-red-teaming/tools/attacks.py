@@ -299,6 +299,62 @@ def generate_agentic_attack(
     return _call_runner("generate_agentic_attack", params)
 
 
+def generate_agentic_suite_attack(
+    goal: t.Annotated[str, "Overall red-team goal for the agent"],
+    agent_url: t.Annotated[str, "HTTP endpoint of the target agent"],
+    attacker_model: t.Annotated[str, "LLM generating attack prompts"],
+    categories: t.Annotated[
+        list[str] | None,
+        "OWASP-ASI category values to run (e.g. 'agentic_asi02_tool_misuse'); "
+        "omit to run ALL categories — the 'run all possible attacks' path.",
+    ] = None,
+    agent_auth_type: t.Annotated[str, "Auth scheme: 'none', 'bearer', or 'api_key'"] = "none",
+    agent_auth_env_var: t.Annotated[str, "Env var name for auth credential"] = "AGENT_API_KEY",
+    agent_request_template: t.Annotated[str, "JSON request template with {prompt} placeholder"] = "",
+    agent_response_text_path: t.Annotated[str, "JSONPath to extract response text"] = "",
+    agent_response_tool_calls_path: t.Annotated[str, "JSONPath for tool calls in response"] = "",
+    agent_dangerous_tools: t.Annotated[list[str] | None, "Dangerous tool names for scoring"] = None,
+    agent_safe_tools: t.Annotated[list[str] | None, "Safe tool whitelist for scoring"] = None,
+    agent_preset: t.Annotated[str, "Preset: 'openai_assistants', 'anthropic', or 'custom'"] = "custom",
+    evaluator_model: t.Annotated[str, "Judge LLM"] = "",
+    assessment_name: t.Annotated[str, "Assessment name"] = "",
+) -> str:
+    """Red-team an agent with the FULL agentic suite (all OWASP-ASI categories).
+
+    This is the "run all possible attacks on my agent" path: it drives every ASI
+    category the SDK map covers, auto-selecting the mapped attacks, family
+    transforms, and detection scorers — no need to name individual attacks. Point
+    it at the agent's HTTP endpoint (with a preset or custom request/response
+    template); omit ``categories`` to run everything.
+    """
+    params: dict[str, t.Any] = {
+        "goal": goal,
+        "agent_url": agent_url,
+        "attacker_model": attacker_model,
+        "agent_auth_type": agent_auth_type,
+        "agent_auth_env_var": agent_auth_env_var,
+        "agent_preset": agent_preset,
+    }
+    if categories:
+        params["categories"] = categories
+    if agent_request_template:
+        params["agent_request_template"] = agent_request_template
+    if agent_response_text_path:
+        params["agent_response_text_path"] = agent_response_text_path
+    if agent_response_tool_calls_path:
+        params["agent_response_tool_calls_path"] = agent_response_tool_calls_path
+    if agent_dangerous_tools:
+        params["agent_dangerous_tools"] = agent_dangerous_tools
+    if agent_safe_tools:
+        params["agent_safe_tools"] = agent_safe_tools
+    if evaluator_model:
+        params["evaluator_model"] = evaluator_model
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+
+    return _call_runner("generate_agentic_suite", params)
+
+
 @safe_tool
 def generate_atlas_attack(
     agent_url: t.Annotated[str, "HTTP /attack endpoint of the deployed multi-agent environment"],

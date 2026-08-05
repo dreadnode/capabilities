@@ -7170,12 +7170,175 @@ def _finalize_prediction_workflow(script: str, filename: str, params: dict, desc
     return {"result": "\n".join(result_lines), "filename": filename, "filepath": str(filepath)}
 
 
+_AGENTIC_SUITE_BODY = '''
+async def main():
+    output_dir = Path.home() / "workspace" / "airt"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    assessment = Assessment(
+        ASSESSMENT_NAME,
+        target_model=TARGET_MODEL,
+        model=ATTACKER_MODEL,
+        attacker_model=ATTACKER_MODEL,
+        judge_model=JUDGE_MODEL,
+        attack_manifest=[{"attack": "agentic_suite"}],
+    )
+    await assessment.register()
+    print(f"Assessment registered: {assessment.assessment_id or 'local-only'}")
+    print("Mode: Agentic Suite (all OWASP-ASI categories)")
+    print(f"Agent URL: {AGENT_URL}")
+    sys.stdout.flush()
+
+    categories = None
+    if CATEGORIES:
+        categories = [OWASPAgenticCategory(c) for c in CATEGORIES]
+
+    async with assessment.trace():
+        try:
+            results = await run_agentic_suite(
+                assessment, target=target, goal=GOAL, categories=categories
+            )
+            summary = {}
+            for cat, attacks in results.items():
+                ran = [name for name, entry in attacks.items() if "error" not in entry]
+                summary[cat] = {"attacks_run": ran, "errors": len(attacks) - len(ran)}
+            print("\\n--- AGENTIC SUITE RESULTS ---")
+            print(json.dumps(summary, indent=2))
+            sys.stdout.flush()
+        except Exception as e:
+            print(f"\\nERROR: {e}")
+            traceback.print_exc()
+            await assessment.fail(str(e))
+            sys.exit(1)
+
+    _write_local_analytics(
+        assessment, target_model=TARGET_MODEL, attacker_model=ATTACKER_MODEL, evaluator_model=JUDGE_MODEL
+    )
+    print("\\nAssessment complete.")
+    sys.stdout.flush()
+
+asyncio.run(main())
+
+try:
+    dn.shutdown()
+except Exception:
+    pass
+'''
+
+
+def _generate_agentic_suite_script(config: dict, agent_config: dict) -> str:
+    """Assemble a workflow that runs the full agentic suite against an agent API."""
+    imports = chr(10).join(
+        [
+            "import asyncio",
+            "import json",
+            "import os",
+            "import sys",
+            "import traceback",
+            "from pathlib import Path",
+            "",
+            "import dreadnode as dn",
+            "from dreadnode import task",
+            "from dreadnode.generators.generator import get_generator, GenerateParams",
+            "from dreadnode.airt import run_agentic_suite",
+            "from dreadnode.airt.assessment import Assessment",
+            "from dreadnode.airt.analytics import analyze",
+            "from dreadnode.airt.compliance.owasp_agentic import OWASPAgenticCategory",
+        ]
+    )
+    constants = chr(10).join(
+        [
+            "GOAL = {!r}".format(config["goal"]),
+            "AGENT_URL = {!r}".format(agent_config["agent_url"]),
+            "TARGET_MODEL = {!r}".format(config["target_model"]),
+            "ATTACKER_MODEL = {!r}".format(config["attacker_model"]),
+            "JUDGE_MODEL = {!r}".format(config["evaluator_model"]),
+            "ASSESSMENT_NAME = {!r}".format(config["assessment_name"]),
+            "CATEGORIES = {!r}".format(config.get("categories") or None),
+        ]
+    )
+    parts = [
+        imports,
+        _build_configure(),
+        _build_analytics_writer(),
+        constants,
+        "",
+        _build_agent_target_code(agent_config),
+        _AGENTIC_SUITE_BODY,
+    ]
+    return chr(10).join(parts)
+
+
+def generate_agentic_suite(params: dict) -> dict:
+    """Generate a workflow that red-teams an agent with the FULL agentic suite.
+
+    Runs every OWASP-ASI category the SDK map covers (auto-selecting attacks,
+    family transforms, and detection scorers) against the agent endpoint — this is
+    the "run all possible attacks on my agent" path.
+    """
+    goal = params.get("goal", "")
+    agent_url = params.get("agent_url", "")
+    attacker_model = params.get("attacker_model")
+    evaluator_model = params.get("evaluator_model")
+    if not goal:
+        return {"error": "goal is required"}
+    if not agent_url:
+        return {"error": "agent_url is required — the HTTP endpoint of the agent to red-team"}
+    if not attacker_model:
+        return {"error": "attacker_model is required (the LLM that generates adversarial prompts)"}
+
+    preset = _AGENT_PRESETS.get(params.get("agent_preset", "custom"), _AGENT_PRESETS["custom"])
+    agent_config = {
+        "agent_url": agent_url,
+        "agent_auth_type": params.get("agent_auth_type", "none"),
+        "agent_auth_env_var": params.get("agent_auth_env_var", "AGENT_API_KEY"),
+        "agent_request_template": params.get("agent_request_template") or preset["request_template"],
+        "agent_response_text_path": params.get("agent_response_text_path") or preset["response_text_path"],
+        "agent_response_tool_calls_path": params.get("agent_response_tool_calls_path")
+        or preset["response_tool_calls_path"],
+        "agent_dangerous_tools": params.get("agent_dangerous_tools", []),
+        "agent_safe_tools": params.get("agent_safe_tools", []),
+    }
+    resolved_attacker = _resolve_model(attacker_model)
+    resolved_eval = _resolve_model(evaluator_model) if evaluator_model else resolved_attacker
+
+    config = {
+        "goal": goal,
+        "target_model": "agent://{}".format(agent_url.split("//")[-1].split("/")[0]),
+        "attacker_model": resolved_attacker,
+        "evaluator_model": resolved_eval,
+        "assessment_name": _safe_str(params.get("assessment_name") or "Agentic Suite Assessment"),
+        "categories": params.get("categories"),
+    }
+
+    script = _generate_agentic_suite_script(config, agent_config)
+
+    try:
+        compile(script, "<agentic_suite>", "exec")
+    except SyntaxError as e:
+        return {"error": "generated script has a syntax error: {}".format(e)}
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = "agentic_suite_{}.py".format(timestamp)
+    WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
+    filepath = WORKFLOWS_DIR / filename
+    filepath.write_text(script)
+    return {
+        "result": "Agentic suite workflow generated (all OWASP-ASI categories).\\n\\nFile: {}".format(
+            filepath
+        ),
+        "filename": filename,
+        "filepath": str(filepath),
+    }
+
+
 # stdin/stdout JSON dispatch
 
 METHODS = {
     "generate_attack": generate_attack,
     "generate_category_attack": generate_category_attack,
     "generate_agentic_attack": generate_agentic_attack,
+    "generate_agentic_suite": generate_agentic_suite,
     "generate_atlas_attack": generate_atlas_attack,
     "generate_image_attack": generate_image_attack,
     "generate_tabular_attack": generate_tabular_attack,
