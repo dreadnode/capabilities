@@ -2,8 +2,10 @@
 
 Tools that let the AI red-teaming agent provision a hosted **task environment**
 (e.g. the ``finops-mesh`` / ``devsecops-mesh`` / ``healthcare-mesh`` /
-``soc-mesh`` multi-agent systems) and target it with ATLAS — closing the loop
-between the Environments the platform hosts and ``generate_atlas_attack``.
+``soc-mesh`` tool-misuse pipelines, ``devops-rce-mesh`` for real code execution,
+and ``support-exfil-mesh`` for data exfiltration) and target it with ATLAS —
+closing the loop between the Environments the platform hosts and
+``generate_atlas_attack``.
 
 Provisioning uses the SDK's ``TaskEnvironment`` (platform Docker/E2B sandbox
 provider). The model the environment's agents use is passed in via

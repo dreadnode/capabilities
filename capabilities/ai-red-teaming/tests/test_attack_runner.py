@@ -357,6 +357,20 @@ class TestScriptGeneration:
         )
         assert "error" not in result
 
+    def test_agentic_suite(self) -> None:
+        result = _generate_method(
+            "generate_agentic_suite",
+            {
+                "goal": "red team my agent",
+                "agent_url": "http://localhost:8100/attack",
+                "attacker_model": "groq",
+            },
+        )
+        assert "error" not in result
+        script = Path(result["filepath"]).read_text()
+        assert "run_agentic_suite(" in script
+        assert "def target(" in script
+
     def test_with_goal_category(self) -> None:
         result = _generate(
             {
