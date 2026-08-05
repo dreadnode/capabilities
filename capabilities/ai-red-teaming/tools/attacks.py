@@ -309,7 +309,10 @@ def generate_atlas_attack(
         "CB, DE, GH, RP, MP. Defaults to one objective per category if omitted.",
     ] = None,
     scenario_name: t.Annotated[
-        str, "Scenario for scenario-specific probes: finops, devsecops, healthcare, soc"
+        str,
+        "Scenario for scenario-specific probes and the shipped argument-aware "
+        "policy: finops, devsecops, healthcare, soc, devops (RCE), support (exfil). "
+        "The environment-derived name also works (e.g. 'devops-rce', 'support-exfil').",
     ] = "",
     total_budget: t.Annotated[int, "Total attack episodes across the campaign"] = 64,
     evaluator_model: t.Annotated[str, "Judge LLM (defaults to attacker_model)"] = "",
