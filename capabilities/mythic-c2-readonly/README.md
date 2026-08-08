@@ -2,6 +2,8 @@
 
 Read-only Mythic C2 integration. Query callbacks, task history, credentials, downloaded files, artifacts, and more — without executing any commands or modifying Mythic state.
 
+For active tasking, Apollo post-exploitation, or the AI-annotation worker, use the `mythic-c2` capability — it is the superset (same observation surface plus opt-in active features). This one has no active surface at all.
+
 ## Prerequisites
 
 - Python 3.11+
