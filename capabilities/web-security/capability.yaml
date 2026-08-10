@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.4.0"
+version: "1.5.0"
 description: >
   Web application penetration testing with 70+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
@@ -35,6 +35,22 @@ mcp:
       args:
         - "run"
         - "${CAPABILITY_ROOT}/mcp/caido.py"
+      init_timeout: 60
+    caido-go:
+      # Upstream Go MCP server (c0tton-fluff/caido-mcp-server), installed by
+      # scripts/install_tools.sh. Exposes the full 60+ tool surface (batch
+      # send, race-window, tamper rules, intercept, environments, websocket
+      # streams) that the lightweight Python `caido` wrapper does not. Both
+      # target the same Caido instance via CAIDO_URL. Auth resolves from
+      # CAIDO_ACCESS_TOKEN (or the deprecated CAIDO_PAT alias), otherwise the
+      # shared ~/.caido-mcp/token.json created by `caido-mcp-server login`.
+      command: "caido-mcp-server"
+      args:
+        - "serve"
+      env:
+        CAIDO_URL: "${CAIDO_URL:-http://127.0.0.1:8080}"
+        CAIDO_ACCESS_TOKEN: "${CAIDO_ACCESS_TOKEN:-}"
+        CAIDO_ALLOW_SENSITIVE_HEADERS: "${CAIDO_ALLOW_SENSITIVE_HEADERS:-}"
       init_timeout: 60
     jxscout:
       command: "uv"
@@ -149,6 +165,8 @@ checks:
     command: 'command -v protoscope >/dev/null 2>&1 || test -x "$HOME/go/bin/protoscope"'
   - name: caido-cli
     command: command -v caido-cli
+  - name: caido-mcp-server
+    command: 'command -v caido-mcp-server >/dev/null 2>&1 || test -x "$HOME/bin/caido-mcp-server"'
   - name: burp
     command: test -f /opt/burp/burpsuite.jar
   - name: waymore
@@ -215,3 +233,4 @@ keywords:
   - interactsh
   - oob-callbacks
   - securitycontext
+  - caido

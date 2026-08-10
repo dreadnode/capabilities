@@ -78,6 +78,36 @@ if ! command -v caido-cli &>/dev/null; then
   || echo "WARN: Caido CLI install failed (check version), skipping"
 fi
 
+# -- Caido MCP server (Go, c0tton-fluff/caido-mcp-server) -------------------
+# Full-surface Caido MCP server wired into capability.yaml as `caido-go`.
+# Pinned to a release with SHA-256 verification. Installed to /usr/local/bin
+# so it resolves on PATH for the MCP `command: caido-mcp-server`.
+if ! command -v caido-mcp-server &>/dev/null; then
+  CAIDO_MCP_VERSION="4.3.0"
+  case "$ARCH" in
+    aarch64|arm64)
+      CAIDO_MCP_ARCH="arm64"
+      CAIDO_MCP_SHA256="7b8d6a89f6b404345715a25d8201a0fbe37db9a0f23b8b1868d01c68b110071b"
+      ;;
+    *)
+      CAIDO_MCP_ARCH="amd64"
+      CAIDO_MCP_SHA256="5236620c693f973d5725133c660ca0ac852796dd75e02ce1993bd66202d0b04c"
+      ;;
+  esac
+  CAIDO_MCP_URL="https://github.com/c0tton-fluff/caido-mcp-server/releases/download/v${CAIDO_MCP_VERSION}/caido-mcp-server-linux-${CAIDO_MCP_ARCH}"
+  if curl -fsSL "$CAIDO_MCP_URL" -o /tmp/caido-mcp-server; then
+    if echo "${CAIDO_MCP_SHA256}  /tmp/caido-mcp-server" | sha256sum -c - >/dev/null 2>&1; then
+      install -m 0755 /tmp/caido-mcp-server /usr/local/bin/caido-mcp-server
+      echo "caido-mcp-server v${CAIDO_MCP_VERSION} installed"
+    else
+      echo "WARN: caido-mcp-server checksum mismatch, skipping install" >&2
+    fi
+    rm -f /tmp/caido-mcp-server
+  else
+    echo "WARN: caido-mcp-server download failed (check version), skipping" >&2
+  fi
+fi
+
 # -- Burp Suite Community (headless) ----------------------------------------
 # Downloads the Burp Suite Community JAR for headless scanning.
 # Pro features require BURP_LICENSE_KEY at runtime.
