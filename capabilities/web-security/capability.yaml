@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.5.0"
+version: "1.6.0"
 description: >
   Web application penetration testing with 70+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
