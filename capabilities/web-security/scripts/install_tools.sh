@@ -149,6 +149,18 @@ fi
 npm install -g agent-browser
 agent-browser install || true
 
+# -- caido-mode skill deps (Caido TypeScript SDK CLI) -----------------------
+# The caido-mode skill bundles a tsx CLI built on @caido/sdk-client (caido-ts).
+# Pre-install its node_modules so `npx tsx caido-client.ts` resolves offline at
+# runtime. Path is relative to the capability root (CAPABILITY_ROOT if exported,
+# else the script's own location, which is <root>/scripts).
+CAIDO_MODE_DIR="${CAPABILITY_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/skills/caido-mode"
+if [ -f "$CAIDO_MODE_DIR/package.json" ]; then
+  ( cd "$CAIDO_MODE_DIR" && npm install --no-audit --no-fund ) \
+    && echo "caido-mode skill deps installed (@caido/sdk-client / caido-ts)" \
+    || echo "WARN: caido-mode npm install failed, skipping"
+fi
+
 # -- ast-grep (AST-based code pattern search) ---------------------------------
 # Tree-sitter based structural code matching for JS/TS/HTML. Lightweight
 # alternative to semgrep for pattern matching (no taint analysis).

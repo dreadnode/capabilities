@@ -26,8 +26,14 @@
 #
 # Tools with bundled SDK/MCP integration (require a running instance
 # reachable by network — the client library and MCP server are included):
-#   - Caido   — caido-sdk-client + MCP server bundled; set CAIDO_URL
-#               to a running Caido instance
+#   - Caido   — caido-sdk-client (Python) + caido-mcp-server + the
+#               caido-mode TypeScript SDK CLI (@caido/sdk-client / caido-ts,
+#               vendored under skills/caido-mode) are all wired in; set
+#               CAIDO_URL to a running Caido instance. The caido-mode skill's
+#               node_modules are installed at provision time by
+#               scripts/install_tools.sh (the skill dir is mounted at runtime,
+#               not baked into this image); tsx is pre-installed globally here
+#               as a cold-start aid.
 #
 # Tools NOT included (require external setup):
 #   - Burp    — set burp MCP url to a running instance
@@ -113,6 +119,12 @@ RUN go install rsc.io/2fa@latest
 RUN npm install -g agent-browser \
  && agent-browser install || true
 ENV CHROME_PATH="/usr/bin/chromium"
+
+# ── tsx (for the caido-mode skill's TypeScript SDK CLI) ─────────────
+# The caido-mode skill (skills/caido-mode) is mounted at runtime and its
+# node_modules are installed by scripts/install_tools.sh at provision time.
+# Pre-install tsx globally so `npx tsx caido-client.ts` has a warm runner.
+RUN npm install -g tsx
 
 # ── Python packages used by MCP servers ─────────────────────────────
 # Pre-install so `uv run` doesn't fetch on every cold start.

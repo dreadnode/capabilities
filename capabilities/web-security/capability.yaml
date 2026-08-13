@@ -1,13 +1,16 @@
 schema: 1
 name: web-security
-version: "1.6.0"
+version: "1.7.0"
 description: >
   Web application penetration testing with 70+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
   vulnerabilities, authentication bypasses, parser differentials,
   AEM/Sling exploitation, GraphQL, OAuth, and client-side attacks.
   Includes HTTP client tooling with OOB callbacks via interactsh, Caido
-  and Burp proxy integration via MCP, browser automation via
+  integration via MCP, the Python caido-sdk-client, and the caido-mode
+  TypeScript SDK CLI (@caido/sdk-client / caido-ts) for curl-through-Caido
+  testing, match & replace rules, and replay handoffs; Burp proxy
+  integration via MCP, browser automation via
   agent-browser, JS static analysis via jxscout, AST-based code pattern
   search via ast-grep, protobuf inspection via
   protoscope, credential management, DNS rebinding, blind SQLi
@@ -167,6 +170,8 @@ checks:
     command: command -v caido-cli
   - name: caido-mcp-server
     command: 'command -v caido-mcp-server >/dev/null 2>&1 || test -x "$HOME/bin/caido-mcp-server"'
+  - name: caido-mode
+    command: 'test -f skills/caido-mode/caido-client.ts && test -d skills/caido-mode/node_modules'
   - name: burp
     command: test -f /opt/burp/burpsuite.jar
   - name: waymore
