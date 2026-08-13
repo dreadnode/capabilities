@@ -1,12 +1,13 @@
 schema: 1
 name: web-security
-version: "1.7.0"
+version: "1.8.0"
 description: >
   Web application penetration testing with 70+ attack technique playbooks
   covering request smuggling, cache poisoning, SSRF, SSTI, DOM
   vulnerabilities, authentication bypasses, parser differentials,
   AEM/Sling exploitation, GraphQL, OAuth, and client-side attacks.
-  Includes HTTP client tooling with OOB callbacks via interactsh, Caido
+  Includes HTTP client tooling with OOB callbacks via webhook.site
+  (API-key aware) and interactsh, Caido
   integration via MCP, the Python caido-sdk-client, and the caido-mode
   TypeScript SDK CLI (@caido/sdk-client / caido-ts) for curl-through-Caido
   testing, match & replace rules, and replay handoffs; Burp proxy
