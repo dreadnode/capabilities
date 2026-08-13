@@ -3,6 +3,17 @@
 Registers callback URLs via webhook.site (primary), interactsh API (secondary),
 or interactsh-client CLI (fallback) for detecting SSRF, XXE, SSTI, and blind
 injection vulnerabilities.
+
+webhook.site now paywalls token creation: anonymous accounts are heavily rate
+limited and premium ("Basic") subscriptions cap free-tier accounts at a single
+token per account. To keep webhook.site usable this client will pick up an API
+key from the environment (``WEBHOOK_SITE_API_KEY``, with ``WEBHOOKSITE_API_KEY``
+and ``WEBHOOK_API_KEY`` accepted as aliases). When a key is present it is sent
+as the ``Api-Key`` header on every webhook.site request, and — because paid
+Basic accounts are limited to one token — the client transparently reuses the
+account's existing token instead of failing when the per-account cap is hit.
+The key may be exported in the shell or loaded from a ``.env`` file; it is never
+persisted by this toolset.
 """
 
 from __future__ import annotations
@@ -39,6 +50,29 @@ _INTERACTSH_SERVERS: list[str] = [
 _CORRELATION_ID_LENGTH = 20
 _NONCE_LENGTH = 13
 _RSA_KEY_SIZE = 2048
+
+# webhook.site configuration.
+_WEBHOOK_SITE_BASE_URL = "https://webhook.site"
+# Environment variables checked (in order) for a webhook.site API key. The
+# first non-empty value wins. WEBHOOK_SITE_API_KEY is the canonical name.
+_WEBHOOK_SITE_API_KEY_ENVS: tuple[str, ...] = (
+    "WEBHOOK_SITE_API_KEY",
+    "WEBHOOKSITE_API_KEY",
+    "WEBHOOK_API_KEY",
+)
+
+
+def _resolve_webhook_site_api_key() -> str | None:
+    """Return a webhook.site API key from the environment, if configured.
+
+    Checks the supported env-var names in priority order and returns the first
+    non-empty, stripped value. Returns None when no key is set.
+    """
+    for env_name in _WEBHOOK_SITE_API_KEY_ENVS:
+        value = os.environ.get(env_name, "").strip()
+        if value:
+            return value
+    return None
 
 
 def _generate_correlation_id(length: int = _CORRELATION_ID_LENGTH) -> str:
@@ -185,11 +219,18 @@ class CallbackClient(Toolset):
     Registers with webhook.site (primary), interactsh API (secondary), or
     interactsh-client CLI (fallback) to provide callback URLs for SSRF, XXE,
     SSTI, and blind injection testing.
+
+    webhook.site now paywalls token creation. Set ``WEBHOOK_SITE_API_KEY`` (or
+    the ``WEBHOOKSITE_API_KEY`` / ``WEBHOOK_API_KEY`` aliases) in the environment
+    or a ``.env`` file to authenticate with a paid account; the key is sent as
+    the ``Api-Key`` header and, since paid Basic accounts allow only one token,
+    the existing account token is reused automatically when the cap is reached.
     """
 
     _callback_url: str | None = PrivateAttr(default=None)
     _provider: str | None = PrivateAttr(default=None)
     _token_id: str | None = PrivateAttr(default=None)
+    _webhook_api_key: str | None = PrivateAttr(default=None)
     _seen_ids: set[str] = PrivateAttr(default_factory=set)
     _interactsh_session: _InteractshSession | None = PrivateAttr(default=None)
 
@@ -197,28 +238,84 @@ class CallbackClient(Toolset):
     # Provider: webhook.site
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _webhook_headers(api_key: str | None) -> dict[str, str]:
+        """Build request headers for webhook.site, including auth when present."""
+        headers = {"Accept": "application/json"}
+        if api_key:
+            headers["Api-Key"] = api_key
+        return headers
+
     async def _register_webhook_site(self) -> bool:
-        """Register with webhook.site and return True on success."""
+        """Register with webhook.site and return True on success.
+
+        When a ``WEBHOOK_SITE_API_KEY`` (or alias) is configured it is sent as
+        the ``Api-Key`` header so the request is attributed to the paid account.
+        Paid "Basic" accounts are capped at a single token per account, so if
+        creation is rejected for exceeding that cap we fall back to reusing the
+        account's existing token rather than failing outright.
+        """
+        api_key = _resolve_webhook_site_api_key()
+        self._webhook_api_key = api_key
+        headers = self._webhook_headers(api_key)
         try:
             async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
                 response = await client.post(
-                    "https://webhook.site/token",
+                    f"{_WEBHOOK_SITE_BASE_URL}/token",
                     json={
                         "default_content": "OK",
                         "default_status": 200,
                         "default_content_type": "text/plain",
                     },
+                    headers=headers,
                 )
-                if response.status_code != 201:
-                    return False
-                data = response.json()
-                token_id = data.get("uuid")
-                if not token_id:
-                    return False
-                self._token_id = token_id
-                self._callback_url = f"https://webhook.site/{token_id}"
-                self._provider = "webhook_site"
-                return True
+                # Successful creation returns 201 with a token uuid.
+                if response.status_code == 201:
+                    data = response.json()
+                    token_id = data.get("uuid")
+                    if not token_id:
+                        return False
+                    self._set_webhook_token(token_id)
+                    return True
+
+                # With an API key, a Basic subscription caps the account at one
+                # token. When the cap is hit, reuse the existing token instead.
+                if api_key and await self._reuse_webhook_site_token(client, headers):
+                    return True
+
+                return False
+        except Exception:
+            return False
+
+    def _set_webhook_token(self, token_id: str) -> None:
+        """Record the active webhook.site token and callback URL."""
+        self._token_id = token_id
+        self._callback_url = f"{_WEBHOOK_SITE_BASE_URL}/{token_id}"
+        self._provider = "webhook_site"
+
+    async def _reuse_webhook_site_token(
+        self, client: httpx.AsyncClient, headers: dict[str, str]
+    ) -> bool:
+        """Reuse an existing token on an API-key account (Basic tier: 1 token).
+
+        Lists the account's tokens and adopts the most recent one. Returns True
+        on success, False if none can be found.
+        """
+        try:
+            resp = await client.get(
+                f"{_WEBHOOK_SITE_BASE_URL}/tokens",
+                headers=headers,
+            )
+            if resp.status_code != 200:
+                return False
+            body = resp.json()
+            tokens = body.get("data", []) if isinstance(body, dict) else []
+            for entry in tokens:
+                token_id = entry.get("uuid")
+                if token_id:
+                    self._set_webhook_token(token_id)
+                    return True
+            return False
         except Exception:
             return False
 
@@ -491,9 +588,14 @@ class CallbackClient(Toolset):
         elif protocol == "dns":
             url = url.replace("http://", "").replace("https://", "")
 
+        provider_note = self._provider
+        if self._provider == "webhook_site":
+            auth = "authenticated" if self._webhook_api_key else "anonymous"
+            provider_note = f"{self._provider} ({auth})"
+
         return (
             f"{url}\n\n"
-            f"Provider: {self._provider}. "
+            f"Provider: {provider_note}. "
             f"Inject this URL in payloads, then use check_callbacks to see if the target contacted it."
         )
 
@@ -526,10 +628,11 @@ class CallbackClient(Toolset):
             return "Error: No webhook.site token."
 
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
                 response = await client.get(
-                    f"https://webhook.site/token/{self._token_id}/requests",
+                    f"{_WEBHOOK_SITE_BASE_URL}/token/{self._token_id}/requests",
                     params={"sorting": "newest"},
+                    headers=self._webhook_headers(self._webhook_api_key),
                 )
                 if response.status_code != 200:
                     return f"Error: Poll failed: HTTP {response.status_code}"
@@ -619,6 +722,7 @@ class CallbackClient(Toolset):
         self._callback_url = None
         self._provider = None
         self._token_id = None
+        self._webhook_api_key = None
         self._seen_ids.clear()
         self._interactsh_session = None
         return "Callback state reset. Next get_callback_url will register a new URL."
