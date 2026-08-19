@@ -31,6 +31,7 @@ produces:
 
 hooks:
   - hooks/interrupted_tool_result.py
+  - hooks/frontend_honeypot_guard.py
 
 mcp:
   servers:
