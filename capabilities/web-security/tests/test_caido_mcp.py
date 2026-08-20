@@ -48,12 +48,16 @@ def _stub_caido_sdk(monkeypatch: pytest.MonkeyPatch) -> None:
     scope_mod = types.ModuleType("caido_sdk_client.types.scope")
     scope_mod.CreateScopeOptions = MagicMock  # type: ignore[attr-defined]
 
+    network_mod = types.ModuleType("caido_sdk_client.types.network")
+    network_mod.ConnectionInfoInput = MagicMock  # type: ignore[attr-defined]
+
     monkeypatch.setitem(sys.modules, "caido_sdk_client", sdk)
     monkeypatch.setitem(sys.modules, "caido_sdk_client.auth", auth)
     monkeypatch.setitem(sys.modules, "caido_sdk_client.types", types.ModuleType("caido_sdk_client.types"))
     monkeypatch.setitem(sys.modules, "caido_sdk_client.types.finding", finding_mod)
     monkeypatch.setitem(sys.modules, "caido_sdk_client.types.replay_session", replay_mod)
     monkeypatch.setitem(sys.modules, "caido_sdk_client.types.scope", scope_mod)
+    monkeypatch.setitem(sys.modules, "caido_sdk_client.types.network", network_mod)
 
 
 def _load_caido_module() -> types.ModuleType:
@@ -186,3 +190,71 @@ class TestCaidoClientSafeGetRetry:
             await client.safe_get()
 
         assert sleep_calls == [2.0]
+
+
+# =============================================================================
+# SDK API contract (static)
+# =============================================================================
+
+
+class TestCaidoSdkApiContract:
+    """Guard against silent drift between mcp/caido.py and caido-sdk-client.
+
+    The fixture above stubs the SDK dataclasses with ``MagicMock``, which
+    accepts *any* keyword argument. That is fine for exercising retry logic,
+    but it means a genuinely wrong constructor call (``ReplaySendOptions(
+    host=..., port=..., tls=...)`` instead of the nested ``connection=
+    ConnectionInfoInput(...)``) sails through the mocked tests and only fails
+    against a real instance.
+
+    These tests read the source with ``ast`` and assert the shape directly, so
+    they hold regardless of what is installed in the test environment.
+    """
+
+    SOURCE = MODULE_PATH.read_text(encoding="utf-8")
+
+    def _calls(self, name: str) -> list[set[str]]:
+        import ast
+
+        found: list[set[str]] = []
+        for node in ast.walk(ast.parse(self.SOURCE)):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == name
+            ):
+                found.append({kw.arg for kw in node.keywords if kw.arg})
+        return found
+
+    def test_replay_send_options_uses_nested_connection(self) -> None:
+        calls = self._calls("ReplaySendOptions")
+        assert calls, "ReplaySendOptions is never constructed"
+        for kwargs in calls:
+            # Real fields are raw / connection / settings.
+            assert kwargs <= {"raw", "connection", "settings"}, (
+                f"unexpected kwargs {sorted(kwargs)}; connection details belong "
+                "in ConnectionInfoInput, not flat on ReplaySendOptions"
+            )
+            assert "connection" in kwargs
+
+    def test_connection_info_input_field_names(self) -> None:
+        calls = self._calls("ConnectionInfoInput")
+        assert calls, "ConnectionInfoInput is never constructed"
+        for kwargs in calls:
+            assert kwargs <= {"host", "port", "is_tls", "sni"}
+            # `is_tls`, not `tls` — a silent TypeError at runtime otherwise.
+            assert "tls" not in kwargs
+
+    def test_connection_info_input_is_imported(self) -> None:
+        assert (
+            "from caido_sdk_client.types.network import ConnectionInfoInput"
+            in self.SOURCE
+        )
+
+    def test_replay_result_status_attribute(self) -> None:
+        # ReplaySendResult exposes `status`, never `task_status`.
+        assert "task_status" not in self.SOURCE
+
+    def test_pep723_header_pins_sdk_floor(self) -> None:
+        # The uv-run script header must carry the same floor as capability.yaml.
+        assert '"caido-sdk-client>=0.3.0"' in self.SOURCE

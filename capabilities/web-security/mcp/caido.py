@@ -3,10 +3,17 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "fastmcp>=2.0",
-#   "caido-sdk-client",
+#   "caido-sdk-client>=0.3.0",
 # ]
 # ///
 """Caido proxy tools — wraps the caido-sdk-client for host interaction.
+
+Requires caido-sdk-client >= 0.3.0. Earlier releases hardcode the pre-0.57
+replay schema (they select `collection`/`activeEntry` on ReplaySession and omit
+`ReplaySessionKind`), so `caido_replay_request` and `caido_replay_sessions`
+fail against Caido >= 0.57 with "Unknown field collection on type
+ReplaySession". 0.3.0 added the versioned transport split (transport/latest vs
+transport/v0_56) and negotiates the right schema per instance.
 
 Auth resolution order:
   1. CAIDO_PAT env var → PATAuthOptions (no connect() needed)
@@ -27,6 +34,7 @@ from typing import Annotated
 
 from caido_sdk_client import Client
 from caido_sdk_client.types.finding import CreateFindingOptions
+from caido_sdk_client.types.network import ConnectionInfoInput
 from caido_sdk_client.types.replay_session import ReplaySendOptions
 from caido_sdk_client.types.scope import CreateScopeOptions
 from fastmcp import FastMCP
@@ -249,21 +257,23 @@ async def caido_replay_request(
 
     assert client is not None
     session = await client.replay.sessions.create()
+    # Connection details are nested under `connection` (ConnectionInfoInput) —
+    # they are not flat kwargs on ReplaySendOptions.
     result = await client.replay.send(
         session.id,
         ReplaySendOptions(
             raw=raw_request.replace("\\r\\n", "\r\n").encode(),
-            host=host,
-            port=port if port is not None else (443 if tls else 80),
-            tls=tls,
+            connection=ConnectionInfoInput(
+                host=host,
+                port=port if port is not None else (443 if tls else 80),
+                is_tls=tls,
+            ),
         ),
     )
 
-    status_str = (
-        result.task_status
-        if isinstance(result.task_status, str)
-        else str(result.task_status)
-    )
+    # ReplaySendResult exposes `status` ("DONE" | "CANCELLED" | "ERROR").
+    status_value = getattr(result, "status", None)
+    status_str = status_value if isinstance(status_value, str) else str(status_value)
     lines = [f"status: {status_str}"]
     if result.error:
         lines.append(f"error: {result.error}")

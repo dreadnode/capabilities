@@ -26,11 +26,15 @@
 #
 # Tools with bundled SDK/MCP integration (require a running instance
 # reachable by network — the client library and MCP server are included):
-#   - Caido   — caido-sdk-client (Python) + caido-mcp-server + the
-#               caido-mode TypeScript SDK CLI (@caido/sdk-client / caido-ts,
-#               vendored under skills/caido-mode) are all wired in; set
-#               CAIDO_URL to a running Caido instance. The caido-mode skill's
-#               node_modules are installed at provision time by
+#   - Caido   — four surfaces against one instance, all keyed off CAIDO_URL:
+#               (1) caido-cli          headless server, pinned >= 0.57.x
+#               (2) caido MCP          Python, caido-sdk-client >= 0.3.0
+#               (3) caido-go MCP       upstream Go binary, pinned + checksummed
+#               (4) caido-mode skill   TS CLI on @caido/sdk-client 0.4.0
+#               (vendored under skills/caido-mode)
+#               The 0.57 replay schema break is why (1) and (2) carry floors —
+#               see scripts/install_tools.sh and mcp/caido.py. The caido-mode
+#               skill's node_modules are installed at provision time by
 #               scripts/install_tools.sh (the skill dir is mounted at runtime,
 #               not baked into this image); tsx is pre-installed globally here
 #               as a cold-start aid.
@@ -131,7 +135,7 @@ RUN npm install -g tsx
 RUN pip install --no-cache-dir \
         "fastmcp>=2.0" \
         "httpx>=0.28" \
-        "caido-sdk-client" \
+        "caido-sdk-client>=0.3.0" \
         "pacu" \
         "ast-grep-cli"
 

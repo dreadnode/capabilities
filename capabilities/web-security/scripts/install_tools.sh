@@ -63,10 +63,17 @@ if ! command -v kr &>/dev/null; then
 fi
 
 # -- Caido CLI -------------------------------------------------------------
-# Downloads the latest Caido CLI binary. Auth is handled at runtime via
+# Pinned Caido CLI (headless server) release. Auth is handled at runtime via
 # CAIDO_URL + CAIDO_PAT env vars or the device flow login.
+#
+# Keep this pin >= 0.57.0. The vendored caido-mode skill runs on
+# @caido/sdk-client 0.4.0, which targets the 0.57 replay schema (ReplaySession
+# as an interface, `kind: ReplaySessionKind!` on createReplaySession, and
+# task-based sending via startReplayTask). Pinning an older server here puts
+# the client and server on opposite sides of that schema break.
+# tests/test_caido_mode_skill.py enforces the floor.
 if ! command -v caido-cli &>/dev/null; then
-  CAIDO_VERSION="0.45.0"
+  CAIDO_VERSION="0.57.1"
   case "$ARCH" in
     aarch64|arm64) CAIDO_ARCH="aarch64" ;;
     *)             CAIDO_ARCH="x86_64" ;;
