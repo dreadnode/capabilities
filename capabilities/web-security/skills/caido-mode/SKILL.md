@@ -1,8 +1,40 @@
 ---
 name: caido-mode
 description: "Full Caido TypeScript SDK CLI (the official @caido/sdk-client / caido-ts library). Search HTTP history with HTTPQL, test with curl proxied through Caido (caching auth in reusable static curl config files), add match & replace (tamper) rules, manage findings/scopes/filters/environments, and organize handoffs into named replay sessions and collections. Use for rich write-side Caido automation (M&R rules, replay handoff, curl-through-Caido) that the lightweight caido-sdk (Python) and caido-proxy (MCP) skills do not cover. Requires Node.js + a reachable Caido instance."
-tags: [worker]
+compatibility: "Requires Node.js >= 18 and a reachable Caido instance >= 0.57 (CAIDO_URL). Vendored node_modules must be installed."
+metadata:
+  upstream: "caido/skills@41697d8 (PR #22)"
+  upstream-skill: caido-mode
+  sdk: "@caido/sdk-client 0.4.0"
+  role: worker
 ---
+
+<!--
+VENDORED SKILL — provenance and local patches.
+
+Source: https://github.com/caido/skills, skills/caido-mode, at commit 41697d8
+("feat(caido-mode): revamp — curl workflow, M&R rules, multi-instance auth,
+pagination fixes", PR #22). Everything except this SKILL.md is byte-identical
+to upstream; re-sync by copying the upstream tree over the sibling files.
+
+This SKILL.md is a DELIBERATE FORK. Preserve these local sections on re-sync:
+
+  1. Frontmatter        — Dreadnode skill format: `description` written for the
+                          skill router, plus `compatibility` / `metadata`.
+                          Upstream's `tags:` key is NOT read by the Dreadnode
+                          loader (dreadnode/agents/skills.py accepts only name,
+                          description, allowed-tools, license, compatibility,
+                          metadata) — it is carried in `metadata.role` instead.
+  2. "Where this lives" — upstream says ~/.claude/skills/caido-mode/; here the
+                          skill is capability-relative at skills/caido-mode/.
+  3. "Which Caido surface" — routing across the four surfaces this capability
+                          ships. Upstream ships caido-mode standalone.
+  4. Hosted-runtime auth note in "Authentication setup".
+
+Version contract: this skill runs @caido/sdk-client 0.4.0, which targets the
+Caido 0.57 replay schema. scripts/install_tools.sh pins caido-cli >= 0.57.1 to
+match; tests/test_caido_mode_skill.py enforces both ends.
+-->
 
 # Caido Mode Skill
 
@@ -25,19 +57,45 @@ Every command is then `npx tsx caido-client.ts <command>` and outputs JSON unles
 also run `npx --prefix skills/caido-mode tsx skills/caido-mode/caido-client.ts <command>` without
 `cd`, but `cd skills/caido-mode` is simplest.)
 
-## Relationship to the other Caido skills (no interference)
+## Which Caido surface should I use?
 
-The capability ships three independent Caido surfaces — pick one, they don't collide:
+The capability ships **four** Caido surfaces against one instance. They are independent and do
+not collide — pick by the job, not by habit:
 
-- **`caido-mode` (this skill)** — TypeScript SDK CLI. Best for curl-through-Caido testing,
-  Match & Replace rules, and replay-session/collection handoffs.
-- **`caido-sdk`** — direct Python `caido-sdk-client` calls for quick read/replay in-process.
-- **`caido-proxy` / `caido-go` MCP** — MCP tool surface for history search, replay, findings.
+| Surface | Use it for | Skill |
+|---|---|---|
+| **`caido-mode`** (this skill) | curl-through-Caido testing, Match & Replace rules, replay-session/collection handoff | this file |
+| **`caido-sdk`** (Python lib) | quick in-process read/replay when you're already scripting Python | `caido-sdk` |
+| **`caido` MCP** (Python, 9 tools) | lightweight history search / replay / findings as tool calls | `caido-proxy` |
+| **`caido-go` MCP** (Go, 66+ tools) | batch send, race windows, intercept, environments, WS streams, tamper rules | `caido-proxy` |
 
-All target the **same** Caido instance via `CAIDO_URL`/`CAIDO_PAT`. This skill caches its own auth
-token in `~/.claude/config/secrets.json` (under `.caido`), which is **separate** from the
-`~/.caido-mcp/token.json` used by the Python SDK skill and the MCP servers — so setting up
-`caido-mode` never clobbers the other skills' auth, and vice-versa.
+Decision shortcut:
+
+- **Iterating on requests against a target** → this skill (curl + `-K` config).
+- **One-off lookup mid-conversation** → an MCP tool call (`caido-proxy`).
+- **Need a Caido feature no other surface exposes** (intercept queue, race window, WS) →
+  `caido-go` MCP.
+- **Already inside a Python script** → `caido-sdk`.
+
+### Auth isolation (why these never clobber each other)
+
+All four resolve the same instance from `CAIDO_URL`, but they store credentials in **different
+places**, deliberately:
+
+| Surface | Credential store | Env |
+|---|---|---|
+| `caido-mode` | `~/.claude/config/secrets.json` → `.caido.instances[<url>]` | `CAIDO_PAT`, `CAIDO_PROXY` |
+| `caido-sdk`, `caido` MCP | `~/.caido-mcp/token.json` | `CAIDO_PAT` |
+| `caido-go` MCP | `~/.caido-mcp/token.json` | `CAIDO_ACCESS_TOKEN` (`CAIDO_PAT` deprecated alias) |
+
+Running `setup` here never touches `~/.caido-mcp/token.json`, and `caido-mcp-server login` never
+touches `secrets.json`. Set up whichever surfaces you need, in any order.
+
+> **Token types are not interchangeable.** The Go MCP wants the **local instance access token**
+> (from the Caido GUI: devtools console →
+> `JSON.parse(localStorage.CAIDO_AUTHENTICATION).accessToken`). A Caido **Cloud PAT** (prefixed
+> `caido_`) authenticates the cloud dashboard API, not your local instance. Feeding a Cloud PAT to
+> `CAIDO_ACCESS_TOKEN` yields `Invalid token`.
 
 ## How to operate (read this first)
 

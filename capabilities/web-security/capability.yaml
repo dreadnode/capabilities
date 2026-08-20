@@ -1,15 +1,16 @@
 schema: 1
 name: web-security
-version: "1.10.0"
+version: "1.11.0"
 description: >
-  Web application penetration testing with 80+ attack technique playbooks
+  Web application penetration testing with 82 attack technique playbooks
   covering HTTP desync/request smuggling, cache poisoning, SSRF, SSTI, DOM
   vulnerabilities, authentication bypasses, parser differentials,
   AEM/Sling exploitation, GraphQL, OAuth, and client-side attacks.
   Includes HTTP client tooling with OOB callbacks via webhook.site
-  (API-key aware) and interactsh, Caido
-  integration via MCP, the Python caido-sdk-client, and the caido-mode
-  TypeScript SDK CLI (@caido/sdk-client / caido-ts) for curl-through-Caido
+  (API-key aware) and interactsh, four coexisting Caido surfaces
+  (caido-cli server, the Python caido-sdk-client, lightweight and
+  full-surface MCP servers, and the caido-mode TypeScript SDK CLI on
+  @caido/sdk-client / caido-ts) for curl-through-Caido
   testing, match & replace rules, and replay handoffs; Burp proxy
   integration via MCP, browser automation via
   agent-browser, JS static analysis via jxscout, AST-based code pattern
@@ -135,7 +136,9 @@ dependencies:
   python:
     - "fastmcp>=2.0"
     - "httpx>=0.28"
-    - "caido-sdk-client"
+    # >= 0.3.0: versioned GraphQL transport (transport/latest vs transport/v0_56).
+    # Older releases break against Caido >= 0.57 replay schema. See mcp/caido.py.
+    - "caido-sdk-client>=0.3.0"
     - "cryptography>=41.0"
     - "pydantic>=2.0"
   scripts:
