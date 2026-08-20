@@ -40,6 +40,7 @@ X-Ignore: x
 - Timing: second request arrives faster than expected (already queued)
 
 ## Chain With
+- http-desync-smuggling (CL.TE/TE.CL and 9 other body-framing families, plus `desync_fingerprint` to check what the stack accepts before probing TE.0)
 - web-cache-deception-path (poison cache via smuggled request)
 
 ## Reference
