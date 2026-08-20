@@ -86,14 +86,17 @@ async def main():
     if entry and entry.response and entry.response.raw:
         print(entry.response.raw.decode(errors="replace")[:2000])
 
-    # replay — connection details are NESTED, not flat kwargs
-    from caido_sdk_client.types.replay_session import ReplaySendOptions
+    # replay — SEED the session, and bound the send (see notes below)
+    from caido_sdk_client.types.replay_session import (
+        CreateReplaySessionFromRaw, CreateReplaySessionOptions, ReplaySendOptions)
     from caido_sdk_client.types.network import ConnectionInfoInput
-    s = await client.replay.sessions.create()
-    res = await client.replay.send(s.id, ReplaySendOptions(
-        raw=b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n",
-        connection=ConnectionInfoInput(host="example.com", port=443, is_tls=True)))
-    print(res.status)          # "DONE" | "CANCELLED" | "ERROR"
+    raw_req = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
+    conn = ConnectionInfoInput(host="example.com", port=443, is_tls=True)
+    s = await client.replay.sessions.create(CreateReplaySessionOptions(
+        request_source=CreateReplaySessionFromRaw(raw=raw_req, connection=conn)))
+    res = await asyncio.wait_for(
+        client.replay.send(s.id, ReplaySendOptions(raw=raw_req, connection=conn)), 30)
+    print(getattr(res.status, "value", res.status))   # "DONE" | "CANCELLED" | "ERROR"
     if res.entry and res.entry.response:
         print(res.entry.response.status_code)
 
@@ -119,6 +122,38 @@ are verified against `caido-sdk-client` 0.3.0:
 
 `ReplaySendOptions` fields are exactly `raw`, `connection`, `settings`.
 `ReplaySendResult` fields are exactly `entry`, `status`, `error`.
+
+### Two more, both verified live against Caido 0.57.1
+
+**Seed the session, or `send()` refuses.** On >= 0.57, `send()` updates the
+draft of an *existing* entry and then starts a replay task. A bare
+`sessions.create()` produces a session with no entries, so `send()` raises
+`OtherUserError: Replay session has no entries`. Create the session with
+`request_source=CreateReplaySessionFromRaw(raw=..., connection=...)`.
+
+**Always bound `send()` with `asyncio.wait_for`.** After starting the task the
+SDK waits on a task-finished *subscription*. If the target answers before that
+subscription is established, the event is missed and the await never returns —
+reproducible roughly 2 in 3 times against a localhost target. The request is
+still sent, so on timeout recover the result instead of assuming failure:
+
+```python
+try:
+    res = await asyncio.wait_for(client.replay.send(s.id, opts), 30)
+    entry_id = res.entry.id
+except TimeoutError:
+    session = await client.replay.sessions.get(s.id)
+    conn = await session.entries().last(1).execute()
+    entry_id = conn.edges[-1].node.id
+
+# Re-fetch by id — entries listed off a session carry no response body,
+# and `response` hangs off the ENTRY, not off entry.request.
+entry = await client.replay.entries.get(entry_id)
+print(entry.response.status_code, entry.response.raw[:200])
+```
+
+`status` may arrive as a `TaskStatus` enum whose `str()` is `"TaskStatus.DONE"`
+— unwrap with `getattr(status, "value", status)`.
 
 Confirm against whatever is actually installed before writing a long script:
 
