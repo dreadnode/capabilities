@@ -130,6 +130,7 @@ Nuclei templates from `turtlesec-software/crlf-desyncs` cover all probes above. 
 
 ## Chain With
 
+- `http-desync-smuggling` — body-framing desync (CL vs TE) when no CRLF injection point exists
 - `crlf-response-splitting` — response header CRLF → XSS via nested splitting
 - `web-cache-deception-path` — cache the poisoned/tunnelled response for persistent impact
 - `parser-differential-bypass` — proxy normalizes `%0d%0a` differently than origin
