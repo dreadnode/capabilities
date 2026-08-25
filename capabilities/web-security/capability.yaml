@@ -1,12 +1,14 @@
 schema: 1
 name: web-security
-version: "1.12.0"
+version: "1.13.0"
 description: >
-  Web application penetration testing with 82 attack technique playbooks
+  Web application penetration testing with 83 attack technique playbooks
   covering HTTP desync/request smuggling, cache poisoning, SSRF, SSTI, DOM
   vulnerabilities, authentication bypasses, parser differentials,
   AEM/Sling exploitation, GraphQL, OAuth, and client-side attacks.
-  Includes HTTP client tooling with OOB callbacks via webhook.site
+  Includes geo-distributed DNS resolution via in-region open resolvers
+  (Shodan/Censys) for detecting geo-fenced infrastructure,
+  HTTP client tooling with OOB callbacks via webhook.site
   (API-key aware) and interactsh, four coexisting Caido surfaces
   (caido-cli server, the Python caido-sdk-client, lightweight and
   full-surface MCP servers, and the caido-mode TypeScript SDK CLI on
@@ -244,4 +246,10 @@ keywords:
   - interactsh
   - oob-callbacks
   - securitycontext
+  - geo-dns
+  - geo-fencing
+  - open-resolvers
+  - shodan
+  - censys
+  - distributed-routing
   - caido
