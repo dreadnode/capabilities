@@ -25,7 +25,7 @@ description: >
   exploitation with Pacu, phone verification, vulnerability
   verification, IP rotation helpers (Flareprox, fireprox), archive
   extraction vulnerability crafting with archivealchemist, EXIF
-  metadata manipulation via exiftool, and AgentMail email inboxes for
+  metadata manipulation via exiftool, LSB steganography via stegano, and AgentMail email inboxes for
   agent-owned signup, recovery, and verification flows.
 
 produces:
@@ -143,6 +143,7 @@ dependencies:
     - "caido-sdk-client>=0.3.0"
     - "cryptography>=41.0"
     - "pydantic>=2.0"
+    - "stegano>=0.11"
   scripts:
     - scripts/install_tools.sh
 
@@ -253,3 +254,4 @@ keywords:
   - censys
   - distributed-routing
   - caido
+  - steganography
