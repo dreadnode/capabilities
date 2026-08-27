@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.13.0"
+version: "1.14.0"
 description: >
   Web application penetration testing with 83 attack technique playbooks
   covering HTTP desync/request smuggling, cache poisoning, SSRF, SSTI, DOM
@@ -174,8 +174,13 @@ checks:
     command: 'command -v interactsh-client >/dev/null 2>&1 || test -x "$HOME/go/bin/interactsh-client"'
   - name: protoscope
     command: 'command -v protoscope >/dev/null 2>&1 || test -x "$HOME/go/bin/protoscope"'
+  # The capability talks to Caido over CAIDO_URL using the Python client, not
+  # by driving the local binary (see mcp/caido.py). Asserting only the binary
+  # reports a correctly configured deployment as degraded — self-hosted
+  # installs may not ship caido-cli at all and instead point at a Caido the
+  # operator runs. Local binary or reachable endpoint, either satisfies it.
   - name: caido-cli
-    command: command -v caido-cli
+    command: 'command -v caido-cli >/dev/null 2>&1 || curl -fsS --max-time 3 -o /dev/null "${CAIDO_URL:-http://localhost:8080}"'
   - name: caido-mcp-server
     command: 'command -v caido-mcp-server >/dev/null 2>&1 || test -x "$HOME/bin/caido-mcp-server"'
   - name: caido-mode

@@ -222,11 +222,18 @@ class TestCaidoModeInstall:
         # skill dir is mounted, not baked into the image.
         assert (
             'CAIDO_MODE_DIR="${CAPABILITY_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}'
-            "/skills/caido-mode\"" in INSTALL_SCRIPT
+            '/skills/caido-mode"' in INSTALL_SCRIPT
         )
 
-    def test_install_is_guarded_on_package_json(self) -> None:
-        assert 'if [ -f "$CAIDO_MODE_DIR/package.json" ]; then' in INSTALL_SCRIPT
+    def test_install_is_guarded_on_package_json_and_installed_deps(self) -> None:
+        # Guarded on both: package.json alone re-runs `npm install` on every
+        # boot, which reaches the registry even when the dependencies are
+        # already present — an outbound attempt a disconnected deployment
+        # cannot satisfy and does not need.
+        assert (
+            'if [ -f "$CAIDO_MODE_DIR/package.json" ] '
+            '&& [ ! -d "$CAIDO_MODE_DIR/node_modules" ]; then'
+        ) in INSTALL_SCRIPT
 
     def test_install_failure_is_non_fatal(self) -> None:
         # A missing Node toolchain must not abort the whole provision run.
@@ -404,9 +411,9 @@ class TestCaidoProxySkillToolNames:
             "caido_get_automate_entry",
         ):
             assert tool in self.SKILL
-            assert self.SKILL.index(tool) > go_section, (
-                f"{tool} is a caido-go tool but appears before the caido-go section"
-            )
+            assert (
+                self.SKILL.index(tool) > go_section
+            ), f"{tool} is a caido-go tool but appears before the caido-go section"
 
     def test_documents_both_servers(self) -> None:
         assert "Two MCP servers, one instance" in self.SKILL
