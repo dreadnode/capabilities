@@ -56,10 +56,23 @@ class TestFetchesAreGuarded:
 
     def test_global_npm_install_is_guarded(self) -> None:
         for i, line in enumerate(LINES):
-            if re.search(r"^\s*npm install -g", line):
+            if re.search(r"^\s*(as_root\s+)?npm install -g", line):
                 assert "have " in _preceding_context(
                     i
                 ), f"unguarded global npm install at line {i + 1}: {line.strip()}"
+
+    def test_npm_installs_are_version_pinned(self) -> None:
+        # Same SBOM argument as the go pins: an unpinned `npm install -g`
+        # re-resolves against the registry on every boot even when the binary
+        # is present, and installs a different tool on different days.
+        unpinned = [
+            line.strip()
+            for line in LINES
+            if re.search(r"^\s*(as_root\s+)?npm install -g", line)
+            and not re.search(r"@\$?\{?[A-Za-z0-9_.-]+\}?", line.split("-g", 1)[-1])
+            and not line.strip().startswith("#")
+        ]
+        assert not unpinned, f"unpinned npm installs: {unpinned}"
 
     def test_py_install_calls_are_guarded(self) -> None:
         # Every `py_install` call must be preceded by a `have` check so that
@@ -108,6 +121,22 @@ class TestFetchesAreGuarded:
     def test_kiterunner_build_is_guarded(self) -> None:
         idx = next(i for i, line in enumerate(LINES) if "assetnote/kiterunner" in line)
         assert "have kr" in _preceding_context(idx, span=4)
+
+    def test_wrangler_install_is_guarded_and_pinned(self) -> None:
+        # wrangler is fetched from npm, so the guard-and-pin discipline applies
+        # exactly as it does to the go installs: present binary -> no registry
+        # request; absent binary -> the pinned version, not @latest.
+        idx = next(
+            i for i, line in enumerate(LINES) if "wrangler@${WRANGLER_VERSION}" in line
+        )
+        assert "have wrangler" in _preceding_context(idx, span=6)
+        pin = next(
+            i for i, line in enumerate(LINES) if line.startswith("WRANGLER_VERSION=")
+        )
+        assert re.fullmatch(
+            r"WRANGLER_VERSION=\"[0-9]+\.[0-9]+\.[0-9]+\"",
+            LINES[pin].strip(),
+        ), f"unpinned wrangler version: {LINES[pin]}"
 
     def test_git_clones_are_guarded_on_target_dir(self) -> None:
         # Clones to persistent paths (fireprox, archivealchemist) are guarded
@@ -208,6 +237,7 @@ class TestFailuresStayNonFatal:
             "WARN: waymore install failed",
             "WARN: pacu install failed",
             "WARN: agent-browser install failed",
+            "WARN: wrangler install failed",
             "WARN: caido-mode npm install failed",
         ):
             assert marker in INSTALL_SCRIPT, f"missing non-fatal fallback: {marker}"

@@ -244,8 +244,11 @@ if ! command -v node &>/dev/null; then
     && as_root apt-get install -y --no-install-recommends nodejs \
     || echo "WARN: Node.js install failed, skipping"
 fi
+# agent-browser pinned to the current latest — an unpinned install resolves
+# to a different tool on different days, which no SBOM can describe.
+AGENT_BROWSER_VERSION="0.35.1"
 if ! have agent-browser; then
-  as_root npm install -g agent-browser \
+  as_root npm install -g "agent-browser@${AGENT_BROWSER_VERSION}" \
     || echo "WARN: agent-browser install failed, skipping"
 fi
 # `agent-browser install` downloads the browser binaries themselves. Guarded on
@@ -270,6 +273,18 @@ if [ -f "$CAIDO_MODE_DIR/package.json" ] && [ ! -d "$CAIDO_MODE_DIR/node_modules
     && echo "caido-mode skill deps installed (@caido/sdk-client / caido-ts)" \
     || echo "WARN: caido-mode npm install failed, skipping"
 fi
+
+# -- wrangler (Cloudflare Workers CLI for OAST endpoints) ------------------
+# Deploys Cloudflare Workers as custom OAST endpoints (blind XSS payload
+# hosting, configurable callback receivers, SSRF redirectors) — see the
+# wrangler toolset and the wrangler-oast skill. Auth is runtime-only via
+# CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID (CF_* aliases accepted).
+# Pinned: an unpinned npm install re-resolves against the registry even when
+# the binary is already present, which a sealed deployment must never do.
+WRANGLER_VERSION="4.127.0"
+have wrangler || \
+  as_root npm install -g "wrangler@${WRANGLER_VERSION}" \
+  || echo "WARN: wrangler install failed, skipping"
 
 # -- ast-grep (AST-based code pattern search) ---------------------------------
 # Tree-sitter based structural code matching for JS/TS/HTML. Lightweight

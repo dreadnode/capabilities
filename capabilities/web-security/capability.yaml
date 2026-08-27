@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.14.0"
+version: "1.15.0"
 description: >
   Web application penetration testing with 83 attack technique playbooks
   covering HTTP desync/request smuggling, cache poisoning, SSRF, SSTI, DOM
@@ -9,7 +9,10 @@ description: >
   Includes geo-distributed DNS resolution via in-region open resolvers
   (Shodan/Censys) for detecting geo-fenced infrastructure,
   HTTP client tooling with OOB callbacks via webhook.site
-  (API-key aware) and interactsh, four coexisting Caido surfaces
+  (API-key aware) and interactsh, Cloudflare Workers deployment
+  via wrangler for custom OAST endpoints (blind XSS payload
+  hosting, configurable callback receivers, SSRF redirect
+  servers), four coexisting Caido surfaces
   (caido-cli server, the Python caido-sdk-client, lightweight and
   full-surface MCP servers, and the caido-mode TypeScript SDK CLI on
   @caido/sdk-client / caido-ts) for curl-through-Caido
@@ -199,6 +202,8 @@ checks:
     command: command -v exiftool
   - name: ast-grep
     command: command -v ast-grep
+  - name: wrangler
+    command: command -v wrangler
   - name: jxscout
     command: command -v jxscout-pro-v2
 
@@ -251,6 +256,9 @@ keywords:
   - ast-grep
   - interactsh
   - oob-callbacks
+  - wrangler
+  - cloudflare-workers
+  - oast
   - securitycontext
   - geo-dns
   - geo-fencing
