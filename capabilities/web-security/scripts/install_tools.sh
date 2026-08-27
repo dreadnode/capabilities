@@ -131,12 +131,14 @@ have 2fa || go install "rsc.io/2fa@${GO_TOOL_VERSIONS_2fa}"
 have surf || go install "github.com/assetnote/surf/cmd/surf@${GO_TOOL_VERSIONS_surf}"
 
 # -- kiterunner (API content discovery) ------------------------------------
-if ! command -v kr &>/dev/null; then
-  git clone --depth 1 https://github.com/assetnote/kiterunner /tmp/kiterunner
-  cd /tmp/kiterunner && make build
-  mv /tmp/kiterunner/dist/kr /usr/local/bin/kr
-  rm -rf /tmp/kiterunner
-  cd -
+if ! have kr; then
+  if git clone --depth 1 https://github.com/assetnote/kiterunner /tmp/kiterunner; then
+    ( cd /tmp/kiterunner && make build ) \
+      && as_root mv /tmp/kiterunner/dist/kr /usr/local/bin/kr
+    rm -rf /tmp/kiterunner
+  else
+    echo "WARN: kiterunner clone failed, skipping"
+  fi
 fi
 
 # -- Caido CLI -------------------------------------------------------------
@@ -157,7 +159,7 @@ if ! command -v caido-cli &>/dev/null; then
   esac
   curl -fsSL "https://caido.download/releases/v${CAIDO_VERSION}/caido-cli-v${CAIDO_VERSION}-linux-${CAIDO_ARCH}.tar.gz" \
     -o /tmp/caido-cli.tar.gz \
-  && tar -xzf /tmp/caido-cli.tar.gz -C /usr/local/bin/ \
+  && as_root tar -xzf /tmp/caido-cli.tar.gz -C /usr/local/bin/ \
   && rm /tmp/caido-cli.tar.gz \
   || echo "WARN: Caido CLI install failed (check version), skipping"
 fi
@@ -181,7 +183,7 @@ if ! command -v caido-mcp-server &>/dev/null; then
   CAIDO_MCP_URL="https://github.com/c0tton-fluff/caido-mcp-server/releases/download/v${CAIDO_MCP_VERSION}/caido-mcp-server-linux-${CAIDO_MCP_ARCH}"
   if curl -fsSL "$CAIDO_MCP_URL" -o /tmp/caido-mcp-server; then
     if echo "${CAIDO_MCP_SHA256}  /tmp/caido-mcp-server" | sha256sum -c - >/dev/null 2>&1; then
-      install -m 0755 /tmp/caido-mcp-server /usr/local/bin/caido-mcp-server
+      as_root install -m 0755 /tmp/caido-mcp-server /usr/local/bin/caido-mcp-server
       echo "caido-mcp-server v${CAIDO_MCP_VERSION} installed"
     else
       echo "WARN: caido-mcp-server checksum mismatch, skipping install" >&2
@@ -222,8 +224,9 @@ fi
 # Commercial binary — if JXSCOUT_BINARY_URL is set, download from there.
 # Otherwise skip; the MCP server falls back to PATH / ~/go/bin / ~/bin.
 if ! command -v jxscout-pro-v2 &>/dev/null && [ -n "${JXSCOUT_BINARY_URL:-}" ]; then
-  curl -fsSL "$JXSCOUT_BINARY_URL" -o /usr/local/bin/jxscout-pro-v2
-  chmod +x /usr/local/bin/jxscout-pro-v2
+  curl -fsSL "$JXSCOUT_BINARY_URL" -o /tmp/jxscout-pro-v2 \
+    && as_root install -m 0755 /tmp/jxscout-pro-v2 /usr/local/bin/jxscout-pro-v2
+  rm -f /tmp/jxscout-pro-v2
   echo "jxscout installed from JXSCOUT_BINARY_URL"
 elif ! command -v jxscout-pro-v2 &>/dev/null; then
   echo "WARN: jxscout-pro-v2 not found. Set JXSCOUT_BINARY_URL to install, or place binary on PATH."
@@ -242,7 +245,8 @@ if ! command -v node &>/dev/null; then
     || echo "WARN: Node.js install failed, skipping"
 fi
 if ! have agent-browser; then
-  npm install -g agent-browser
+  as_root npm install -g agent-browser \
+    || echo "WARN: agent-browser install failed, skipping"
 fi
 # `agent-browser install` downloads the browser binaries themselves. Guarded on
 # its cache so a runtime that already has them makes no request, and left
@@ -304,6 +308,8 @@ if [ ! -d "$ARCHIVEALCHEMIST_DIR" ]; then
 fi
 
 # -- Clean up Go build cache -----------------------------------------------
-go clean -cache -modcache 2>/dev/null || true
+if [ "$need_go" = true ]; then
+  go clean -cache -modcache 2>/dev/null || true
+fi
 
 echo "web-security tools installed successfully"
