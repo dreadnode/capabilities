@@ -21,6 +21,7 @@
 #   - agent-browser       (headless Chromium for DOM interaction)
 #   - kiterunner          (API-aware content discovery)
 #   - surf                (SSRF target identification)
+#   - wrangler            (Cloudflare Workers CLI for custom OAST endpoints)
 #   - pacu                (AWS exploitation framework)
 #   - ast-grep            (AST-based code pattern search via tree-sitter)
 #
@@ -120,9 +121,18 @@ RUN go install github.com/projectdiscovery/interactsh/cmd/interactsh-client@late
 RUN go install rsc.io/2fa@latest
 
 # ── agent-browser ───────────────────────────────────────────────────
-RUN npm install -g agent-browser \
+# Pinned to match scripts/install_tools.sh (AGENT_BROWSER_VERSION).
+ARG AGENT_BROWSER_VERSION=0.35.1
+RUN npm install -g agent-browser@${AGENT_BROWSER_VERSION} \
  && agent-browser install || true
 ENV CHROME_PATH="/usr/bin/chromium"
+
+# ── wrangler (Cloudflare Workers CLI for custom OAST endpoints) ─────
+# Deploy/tail/delete Workers used as OAST callback endpoints. Auth at
+# runtime via CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID (CF_* aliases
+# accepted by the wrangler toolset).
+ARG WRANGLER_VERSION=4.127.0
+RUN npm install -g wrangler@${WRANGLER_VERSION}
 
 # ── tsx (for the caido-mode skill's TypeScript SDK CLI) ─────────────
 # The caido-mode skill (skills/caido-mode) is mounted at runtime and its
