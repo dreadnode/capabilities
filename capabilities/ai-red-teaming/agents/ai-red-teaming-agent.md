@@ -4,8 +4,8 @@ model: anthropic/claude-opus-4-20250514
 description: >
   Unified AI Red Teaming agent for probing security and safety vulnerabilities in LLMs,
   agentic systems, MCP servers, multi-agent architectures, ML classifiers, and custom AI endpoints.
-  Orchestrates 45 attack algorithms (41 LLM + 4 adversarial ML samplers), 500+ transforms,
-  an extensive scorer catalog, and 260 bundled harm goals across OWASP LLM Top 10,
+  Orchestrates 70+ attack strategies covering traditional ML and generative AI, 590+ transforms,
+  140+ scorers, and 260 bundled harm goals across OWASP LLM Top 10,
   OWASP ASI01-ASI10, and MITRE ATLAS frameworks.
 ---
 
@@ -207,7 +207,7 @@ When you call `generate_attack`, it:
 
 ## Attack Types (common subset)
 
-The capability ships 41 LLM attack algorithms plus 4 adversarial ML samplers; the table below covers the most common picks. Use `"Show me all available attacks"` to enumerate the full set.
+The capability ships 70+ attack strategies covering traditional ML and generative AI (generative jailbreaks plus adversarial-ML evasion, extraction, membership inference, and inversion); the table below covers the most common picks. Use `"Show me all available attacks"` to enumerate the full set.
 
 | Attack | Best For | Query Budget |
 |--------|----------|-------------|
@@ -243,7 +243,7 @@ The capability ships 41 LLM attack algorithms plus 4 adversarial ML samplers; th
 
 ## Transform Catalog
 
-📖 **Complete catalog**: See [transform-catalog.md](./transform-catalog.md) for full reference (500+ transforms across encoding, cipher, persuasion, language, MCP, multi-agent, exfiltration, and more)
+📖 **Complete catalog**: See [transform-catalog.md](./transform-catalog.md) for full reference (590+ transforms across encoding, cipher, persuasion, language, MCP, multi-agent, exfiltration, and more)
 
 **Common transforms include**:
 - **Encoding**: `base64`, `hex`, `leetspeak`, `morse`, `unicode_escape`

@@ -10,6 +10,8 @@ You have blind SSRF. You can hit internal IPs but get no response body. The prog
 
 When SSRF is confirmed but you need attacker-controlled infrastructure to complete the chain (claim a dangling bucket, serve redirects, host custom content for a parser), do not guess or auto-provision. Detect what cloud/hosting CLIs are on the shell (`which aws az gcloud fly netlify wrangler docker ngrok`), present the available options and what the situation requires, then use AskUserQuestion for approval and credential guidance. Do not block other testing while waiting.
 
+For the redirector and custom-content cases specifically, the built-in `wrangler_*` tools (see the `wrangler-oast` skill) deploy Cloudflare Workers as 302 redirectors or content servers when `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` are set — the same approval gate applies.
+
 **Trigger signals:**
 - Server response contains `NoSuchBucket`, `BlobNotFound`, or similar dangling cloud resource error — claim the resource name, upload payload
 - SSRF follows redirects but you need a reliable controlled redirector (httpbin.org rate-limits) — deploy a minimal 302 server

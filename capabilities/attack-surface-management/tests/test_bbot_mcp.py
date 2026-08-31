@@ -6,6 +6,25 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
+
+
+CAPABILITY_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_manifest_declares_runtime_dependencies_and_checks():
+    manifest = yaml.safe_load((CAPABILITY_ROOT / "capability.yaml").read_text())
+
+    assert "nmap" in manifest["dependencies"]["packages"]
+    assert "bbot" in manifest["dependencies"]["python"]
+    assert "neo4j>=5.28.1" in manifest["dependencies"]["python"]
+    assert "fastmcp>=2.0" in manifest["dependencies"]["python"]
+
+    checks = {check["name"]: check["command"] for check in manifest["checks"]}
+    assert "bbot" in checks
+    assert "nmap" in checks
+    assert "neo4j-python" in checks
+    assert "fastmcp-python" in checks
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "mcp" / "bbot.py"

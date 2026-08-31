@@ -44,9 +44,14 @@ def _stub_caido_sdk(monkeypatch: pytest.MonkeyPatch) -> None:
 
     replay_mod = types.ModuleType("caido_sdk_client.types.replay_session")
     replay_mod.ReplaySendOptions = MagicMock  # type: ignore[attr-defined]
+    replay_mod.CreateReplaySessionFromRaw = MagicMock  # type: ignore[attr-defined]
+    replay_mod.CreateReplaySessionOptions = MagicMock  # type: ignore[attr-defined]
 
     scope_mod = types.ModuleType("caido_sdk_client.types.scope")
     scope_mod.CreateScopeOptions = MagicMock  # type: ignore[attr-defined]
+
+    network_mod = types.ModuleType("caido_sdk_client.types.network")
+    network_mod.ConnectionInfoInput = MagicMock  # type: ignore[attr-defined]
 
     monkeypatch.setitem(sys.modules, "caido_sdk_client", sdk)
     monkeypatch.setitem(sys.modules, "caido_sdk_client.auth", auth)
@@ -54,6 +59,7 @@ def _stub_caido_sdk(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "caido_sdk_client.types.finding", finding_mod)
     monkeypatch.setitem(sys.modules, "caido_sdk_client.types.replay_session", replay_mod)
     monkeypatch.setitem(sys.modules, "caido_sdk_client.types.scope", scope_mod)
+    monkeypatch.setitem(sys.modules, "caido_sdk_client.types.network", network_mod)
 
 
 def _load_caido_module() -> types.ModuleType:
@@ -186,3 +192,126 @@ class TestCaidoClientSafeGetRetry:
             await client.safe_get()
 
         assert sleep_calls == [2.0]
+
+
+# =============================================================================
+# SDK API contract (static)
+# =============================================================================
+
+
+class TestCaidoSdkApiContract:
+    """Guard against silent drift between mcp/caido.py and caido-sdk-client.
+
+    The fixture above stubs the SDK dataclasses with ``MagicMock``, which
+    accepts *any* keyword argument. That is fine for exercising retry logic,
+    but it means a genuinely wrong constructor call (``ReplaySendOptions(
+    host=..., port=..., tls=...)`` instead of the nested ``connection=
+    ConnectionInfoInput(...)``) sails through the mocked tests and only fails
+    against a real instance.
+
+    These tests read the source with ``ast`` and assert the shape directly, so
+    they hold regardless of what is installed in the test environment.
+    """
+
+    SOURCE = MODULE_PATH.read_text(encoding="utf-8")
+
+    def _calls(self, name: str) -> list[set[str]]:
+        import ast
+
+        found: list[set[str]] = []
+        for node in ast.walk(ast.parse(self.SOURCE)):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == name
+            ):
+                found.append({kw.arg for kw in node.keywords if kw.arg})
+        return found
+
+    def test_replay_send_options_uses_nested_connection(self) -> None:
+        calls = self._calls("ReplaySendOptions")
+        assert calls, "ReplaySendOptions is never constructed"
+        for kwargs in calls:
+            # Real fields are raw / connection / settings.
+            assert kwargs <= {"raw", "connection", "settings"}, (
+                f"unexpected kwargs {sorted(kwargs)}; connection details belong "
+                "in ConnectionInfoInput, not flat on ReplaySendOptions"
+            )
+            assert "connection" in kwargs
+
+    def test_connection_info_input_field_names(self) -> None:
+        calls = self._calls("ConnectionInfoInput")
+        assert calls, "ConnectionInfoInput is never constructed"
+        for kwargs in calls:
+            assert kwargs <= {"host", "port", "is_tls", "sni"}
+            # `is_tls`, not `tls` — a silent TypeError at runtime otherwise.
+            assert "tls" not in kwargs
+
+    def test_connection_info_input_is_imported(self) -> None:
+        assert (
+            "from caido_sdk_client.types.network import ConnectionInfoInput"
+            in self.SOURCE
+        )
+
+    def test_replay_result_status_attribute(self) -> None:
+        # ReplaySendResult exposes `status`, never `task_status`.
+        assert "task_status" not in self.SOURCE
+
+    def test_pep723_header_pins_sdk_floor(self) -> None:
+        # The uv-run script header must carry the same floor as capability.yaml.
+        assert '"caido-sdk-client>=0.3.0"' in self.SOURCE
+
+    # -- live-verified against Caido 0.57.1 -------------------------------
+    #
+    # These assertions inspect the body of `caido_replay_request` via AST
+    # rather than scanning the whole file, so prose and comments that mention
+    # `replay.send()` cannot satisfy (or break) them.
+
+    @staticmethod
+    def _tool_body(name: str) -> str:
+        import ast
+
+        tree = ast.parse(TestCaidoSdkApiContract.SOURCE)
+        for node in tree.body:
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == name:
+                return ast.unparse(node)
+        raise AssertionError(f"{name} not found")
+
+    def test_replay_session_is_seeded_with_the_request(self) -> None:
+        # On Caido >= 0.57, replay.send() updates the draft of an EXISTING
+        # entry. A bare sessions.create() yields an empty session and send()
+        # aborts with "Replay session has no entries" - verified live against
+        # 0.57.1. The session must be created from the raw request.
+        body = self._tool_body("caido_replay_request")
+        assert "CreateReplaySessionFromRaw" in body
+        assert "request_source=" in body
+        assert body.index("replay.sessions.create(") < body.index("replay.send(")
+
+    def test_replay_send_is_bounded_by_a_timeout(self) -> None:
+        # send() waits on a task-finished subscription that is missed when the
+        # target responds faster than the subscription is established (~2 in 3
+        # against localhost). Unbounded, the MCP call hangs forever.
+        body = self._tool_body("caido_replay_request")
+        assert "REPLAY_SEND_TIMEOUT" in self.SOURCE
+        assert "asyncio.wait_for(" in body
+        assert "timeout=REPLAY_SEND_TIMEOUT" in body
+
+    def test_replay_timeout_falls_back_to_session_state(self) -> None:
+        # The request really was sent, so a timeout must recover the result
+        # rather than report a false failure.
+        body = self._tool_body("caido_replay_request")
+        assert "TimeoutError" in body
+        assert "_replay_result_from_session" in body
+
+    def test_recovery_reads_response_off_the_entry(self) -> None:
+        # Entries listed from a session carry no response body; the entry must
+        # be re-fetched by id, and `response` hangs off the entry itself, not
+        # off entry.request.
+        body = self._tool_body("_replay_result_from_session")
+        assert "replay.entries.get(" in body
+        assert "getattr(entry, 'response', None)" in body or 'getattr(entry, "response", None)' in body
+
+    def test_status_enum_is_unwrapped(self) -> None:
+        # TaskStatus.DONE stringifies as "TaskStatus.DONE"; callers want "DONE".
+        body = self._tool_body("caido_replay_request")
+        assert "getattr(status_value, 'value', status_value)" in body or 'getattr(status_value, "value", status_value)' in body

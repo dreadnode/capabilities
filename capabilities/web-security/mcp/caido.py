@@ -3,10 +3,17 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "fastmcp>=2.0",
-#   "caido-sdk-client",
+#   "caido-sdk-client>=0.3.0",
 # ]
 # ///
 """Caido proxy tools — wraps the caido-sdk-client for host interaction.
+
+Requires caido-sdk-client >= 0.3.0. Earlier releases hardcode the pre-0.57
+replay schema (they select `collection`/`activeEntry` on ReplaySession and omit
+`ReplaySessionKind`), so `caido_replay_request` and `caido_replay_sessions`
+fail against Caido >= 0.57 with "Unknown field collection on type
+ReplaySession". 0.3.0 added the versioned transport split (transport/latest vs
+transport/v0_56) and negotiates the right schema per instance.
 
 Auth resolution order:
   1. CAIDO_PAT env var → PATAuthOptions (no connect() needed)
@@ -27,7 +34,12 @@ from typing import Annotated
 
 from caido_sdk_client import Client
 from caido_sdk_client.types.finding import CreateFindingOptions
-from caido_sdk_client.types.replay_session import ReplaySendOptions
+from caido_sdk_client.types.network import ConnectionInfoInput
+from caido_sdk_client.types.replay_session import (
+    CreateReplaySessionFromRaw,
+    CreateReplaySessionOptions,
+    ReplaySendOptions,
+)
 from caido_sdk_client.types.scope import CreateScopeOptions
 from fastmcp import FastMCP
 
@@ -35,6 +47,14 @@ DEFAULT_CAIDO_URL = "http://localhost:8080"
 DEFAULT_TOKEN_PATH = Path.home() / ".caido-mcp" / "token.json"
 MAX_OUTPUT_CHARS = 50_000
 CONNECT_TIMEOUT = 30
+
+# Upper bound on `replay.send()`. On Caido >= 0.57 the SDK starts a replay task
+# and then waits on a task-finished *subscription*. If the target responds
+# before that subscription is established, the completion event is missed and
+# the await never returns — reproducible against a fast (localhost) target.
+# The send itself still succeeds server-side, so on timeout we fall back to
+# reading the session's active entry instead of hanging the MCP call forever.
+REPLAY_SEND_TIMEOUT = 30
 _SAFE_GET_RETRIES = 1
 _SAFE_GET_RETRY_DELAY = 2.0  # seconds
 
@@ -233,6 +253,46 @@ async def caido_get_request(
     return "\n".join(lines)
 
 
+async def _replay_result_from_session(client: Client, session_id: object) -> str:
+    """Recover a replay result by reading the session's newest entry.
+
+    Used when `replay.send()` times out waiting on the task-finished
+    subscription. The send has still happened server-side, so the entry
+    carries the real request/response.
+    """
+    lines = ["status: DONE (recovered — task subscription timed out)"]
+    try:
+        session = await client.replay.sessions.get(session_id)
+        if session is None:
+            return "status: UNKNOWN\nerror: replay session vanished after send"
+        conn = await session.entries().last(1).execute()
+        if not conn.edges:
+            return "status: UNKNOWN\nerror: replay session has no entries"
+        # Re-fetch by id: entries listed via the session carry no response body.
+        entry = await client.replay.entries.get(conn.edges[-1].node.id)
+        if entry is None:
+            return "status: UNKNOWN\nerror: replay entry not found"
+    except Exception as exc:  # noqa: BLE001 - surface, never mask
+        return f"status: UNKNOWN\nerror: could not recover replay result: {exc}"
+
+    lines.append(f"entry_id: {entry.id}")
+    request = getattr(entry, "request", None)
+    if request is not None:
+        lines.append(f"request_id: {request.id}")
+    # `response` hangs off the entry, not off entry.request.
+    response = getattr(entry, "response", None)
+    if response is not None:
+        lines.append(f"response: {response.status_code} ({response.length} bytes)")
+        raw = getattr(response, "raw", None)
+        if raw:
+            text = raw.decode(errors="replace")
+            truncated = text[:MAX_OUTPUT_CHARS]
+            if len(text) > MAX_OUTPUT_CHARS:
+                truncated += f"\n\n... [TRUNCATED: {len(text)} chars total]"
+            lines.append(truncated)
+    return "\n".join(lines)
+
+
 @mcp.tool
 async def caido_replay_request(
     raw_request: Annotated[str, "Raw HTTP request including request line"],
@@ -248,22 +308,45 @@ async def caido_replay_request(
         return err
 
     assert client is not None
-    session = await client.replay.sessions.create()
-    result = await client.replay.send(
-        session.id,
-        ReplaySendOptions(
-            raw=raw_request.replace("\\r\\n", "\r\n").encode(),
-            host=host,
-            port=port if port is not None else (443 if tls else 80),
-            tls=tls,
-        ),
+    raw = raw_request.replace("\\r\\n", "\r\n").encode()
+    connection = ConnectionInfoInput(
+        host=host,
+        port=port if port is not None else (443 if tls else 80),
+        is_tls=tls,
     )
 
-    status_str = (
-        result.task_status
-        if isinstance(result.task_status, str)
-        else str(result.task_status)
+    # The session must be SEEDED with the request. On Caido >= 0.57 `send()`
+    # updates the draft of an existing entry and then starts a replay task — a
+    # bare `sessions.create()` yields a session with no entries, so send()
+    # aborts with "Replay session has no entries". Creating from raw gives the
+    # session its first entry.
+    session = await client.replay.sessions.create(
+        CreateReplaySessionOptions(
+            request_source=CreateReplaySessionFromRaw(raw=raw, connection=connection)
+        )
     )
+    # Connection details are nested under `connection` (ConnectionInfoInput) —
+    # they are not flat kwargs on ReplaySendOptions.
+    try:
+        result = await asyncio.wait_for(
+            client.replay.send(
+                session.id,
+                ReplaySendOptions(raw=raw, connection=connection),
+            ),
+            timeout=REPLAY_SEND_TIMEOUT,
+        )
+    except TimeoutError:
+        # The task-finished subscription was missed (see REPLAY_SEND_TIMEOUT).
+        # The request itself has almost certainly been sent, so recover the
+        # result from the session rather than reporting a false failure.
+        return await _replay_result_from_session(client, session.id)
+
+    # ReplaySendResult exposes `status` ("DONE" | "CANCELLED" | "ERROR"). It may
+    # arrive as a TaskStatus enum, whose str() is "TaskStatus.DONE" — unwrap to
+    # the bare value so output is stable across SDK versions.
+    status_value = getattr(result, "status", None)
+    status_value = getattr(status_value, "value", status_value)
+    status_str = status_value if isinstance(status_value, str) else str(status_value)
     lines = [f"status: {status_str}"]
     if result.error:
         lines.append(f"error: {result.error}")

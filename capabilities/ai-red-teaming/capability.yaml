@@ -11,7 +11,7 @@ description: >
   and NIST AI RMF compliance frameworks. Also probes traditional black-box ML
   classifiers: model extraction (model stealing), membership inference (training-data
   leakage), and model evasion (adversarial examples) across tabular, image, and text.
-  500+ transforms, an extensive scorer catalog, and 260 bundled harm goals across 25
+  590+ transforms, 140+ scorers, and 260 bundled harm goals across 25
   sub-categories in safety, security, and agentic tiers.
 
 agents:

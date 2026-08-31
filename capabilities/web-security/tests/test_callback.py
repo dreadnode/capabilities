@@ -41,6 +41,7 @@ from callback import (
     _generate_correlation_id,
     _generate_rsa_keypair,
     _generate_secret_key,
+    _resolve_webhook_site_api_key,
 )
 
 # ---------------------------------------------------------------------------
@@ -59,6 +60,7 @@ def client() -> CallbackClient:
     c._callback_url = None
     c._provider = None
     c._token_id = None
+    c._webhook_api_key = None
     c._seen_ids = set()
     c._interactsh_session = None
     return c
@@ -364,6 +366,190 @@ class TestWebhookSiteProvider:
     async def test_poll_webhook_site_no_token(self, client: CallbackClient) -> None:
         result = await client._poll_webhook_site(300)
         assert "Error" in result
+
+class TestWebhookSiteApiKey:
+    """webhook.site API-key sourcing, auth headers, and Basic-tier reuse."""
+
+    def test_resolve_api_key_none(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            assert _resolve_webhook_site_api_key() is None
+
+    def test_resolve_api_key_canonical(self) -> None:
+        with patch.dict(os.environ, {"WEBHOOK_SITE_API_KEY": "  key-123  "}, clear=True):
+            assert _resolve_webhook_site_api_key() == "key-123"
+
+    def test_resolve_api_key_alias_precedence(self) -> None:
+        env = {
+            "WEBHOOKSITE_API_KEY": "alias-1",
+            "WEBHOOK_API_KEY": "alias-2",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            # WEBHOOKSITE_API_KEY has higher priority than WEBHOOK_API_KEY.
+            assert _resolve_webhook_site_api_key() == "alias-1"
+
+    def test_resolve_api_key_ignores_empty(self) -> None:
+        env = {"WEBHOOK_SITE_API_KEY": "   ", "WEBHOOKSITE_API_KEY": "real"}
+        with patch.dict(os.environ, env, clear=True):
+            assert _resolve_webhook_site_api_key() == "real"
+
+    def test_webhook_headers_without_key(self) -> None:
+        headers = CallbackClient._webhook_headers(None)
+        assert "Api-Key" not in headers
+        assert headers["Accept"] == "application/json"
+
+    def test_webhook_headers_with_key(self) -> None:
+        headers = CallbackClient._webhook_headers("key-abc")
+        assert headers["Api-Key"] == "key-abc"
+
+    @pytest.mark.asyncio
+    async def test_register_sends_api_key_header(self, client: CallbackClient) -> None:
+        mock_resp = _mock_response(201, {"uuid": "auth-uuid"})
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_resp
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"WEBHOOK_SITE_API_KEY": "key-xyz"}, clear=True),
+            patch("callback.httpx.AsyncClient", return_value=mock_client),
+        ):
+            result = await client._register_webhook_site()
+
+        assert result is True
+        assert client._webhook_api_key == "key-xyz"
+        assert client._token_id == "auth-uuid"
+        assert client._callback_url == "https://webhook.site/auth-uuid"
+        # Verify the Api-Key header was attached to the create call.
+        _, kwargs = mock_client.post.call_args
+        assert kwargs["headers"]["Api-Key"] == "key-xyz"
+
+    @pytest.mark.asyncio
+    async def test_register_reuses_token_when_capped(
+        self, client: CallbackClient
+    ) -> None:
+        """Basic tier caps at 1 token: creation fails, existing token reused."""
+        create_resp = _mock_response(
+            403,
+            {
+                "success": False,
+                "error": {
+                    "message": "Basic subscriptions can only have 1 URL per account, upgrade to continue"
+                },
+            },
+        )
+        list_resp = _mock_response(
+            200, {"data": [{"uuid": "existing-token"}], "total": 1}
+        )
+        mock_client = AsyncMock()
+        mock_client.post.return_value = create_resp
+        mock_client.get.return_value = list_resp
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"WEBHOOK_SITE_API_KEY": "key-xyz"}, clear=True),
+            patch("callback.httpx.AsyncClient", return_value=mock_client),
+        ):
+            result = await client._register_webhook_site()
+
+        assert result is True
+        assert client._token_id == "existing-token"
+        assert client._callback_url == "https://webhook.site/existing-token"
+        assert client._provider == "webhook_site"
+        # The token list must have been queried with the Api-Key header.
+        _, get_kwargs = mock_client.get.call_args
+        assert get_kwargs["headers"]["Api-Key"] == "key-xyz"
+
+    @pytest.mark.asyncio
+    async def test_register_no_reuse_without_key(self, client: CallbackClient) -> None:
+        """Without an API key, a non-201 create must NOT attempt token reuse."""
+        create_resp = _mock_response(429, {"error": "rate limited"})
+        mock_client = AsyncMock()
+        mock_client.post.return_value = create_resp
+        mock_client.get.return_value = _mock_response(200, {"data": []})
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("callback.httpx.AsyncClient", return_value=mock_client),
+        ):
+            result = await client._register_webhook_site()
+
+        assert result is False
+        mock_client.get.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_register_capped_no_existing_token(
+        self, client: CallbackClient
+    ) -> None:
+        """API key present, capped, but token list empty -> failure."""
+        create_resp = _mock_response(403, {"success": False})
+        list_resp = _mock_response(200, {"data": [], "total": 0})
+        mock_client = AsyncMock()
+        mock_client.post.return_value = create_resp
+        mock_client.get.return_value = list_resp
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"WEBHOOK_SITE_API_KEY": "key-xyz"}, clear=True),
+            patch("callback.httpx.AsyncClient", return_value=mock_client),
+        ):
+            result = await client._register_webhook_site()
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_poll_sends_api_key_header(self, client: CallbackClient) -> None:
+        client._token_id = "auth-token"
+        client._provider = "webhook_site"
+        client._webhook_api_key = "key-poll"
+
+        mock_resp = _mock_response(200, {"data": []})
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_resp
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("callback.httpx.AsyncClient", return_value=mock_client):
+            await client._poll_webhook_site(300)
+
+        _, kwargs = mock_client.get.call_args
+        assert kwargs["headers"]["Api-Key"] == "key-poll"
+
+    @pytest.mark.asyncio
+    async def test_get_callback_url_reports_authenticated(
+        self, client: CallbackClient
+    ) -> None:
+        client._callback_url = "https://webhook.site/uuid"
+        client._provider = "webhook_site"
+        client._webhook_api_key = "key-abc"
+
+        result = await client.get_callback_url("http")
+        assert "authenticated" in result
+
+    @pytest.mark.asyncio
+    async def test_get_callback_url_reports_anonymous(
+        self, client: CallbackClient
+    ) -> None:
+        client._callback_url = "https://webhook.site/uuid"
+        client._provider = "webhook_site"
+        client._webhook_api_key = None
+
+        result = await client.get_callback_url("http")
+        assert "anonymous" in result
+
+    @pytest.mark.asyncio
+    async def test_reset_clears_api_key(self, client: CallbackClient) -> None:
+        client._callback_url = "https://webhook.site/uuid"
+        client._provider = "webhook_site"
+        client._token_id = "uuid"
+        client._webhook_api_key = "key-abc"
+
+        await client.reset_callback()
+        assert client._webhook_api_key is None
+
 
 
 # ---------------------------------------------------------------------------

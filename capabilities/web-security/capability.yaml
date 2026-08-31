@@ -1,23 +1,34 @@
 schema: 1
 name: web-security
-version: "1.4.0"
+version: "1.15.0"
 description: >
-  Web application penetration testing with 70+ attack technique playbooks
-  covering request smuggling, cache poisoning, SSRF, SSTI, DOM
+  Web application penetration testing with 83 attack technique playbooks
+  covering HTTP desync/request smuggling, cache poisoning, SSRF, SSTI, DOM
   vulnerabilities, authentication bypasses, parser differentials,
   AEM/Sling exploitation, GraphQL, OAuth, and client-side attacks.
-  Includes HTTP client tooling with OOB callbacks via interactsh, Caido
-  and Burp proxy integration via MCP, browser automation via
+  Includes geo-distributed DNS resolution via in-region open resolvers
+  (Shodan/Censys) for detecting geo-fenced infrastructure,
+  HTTP client tooling with OOB callbacks via webhook.site
+  (API-key aware) and interactsh, Cloudflare Workers deployment
+  via wrangler for custom OAST endpoints (blind XSS payload
+  hosting, configurable callback receivers, SSRF redirect
+  servers), four coexisting Caido surfaces
+  (caido-cli server, the Python caido-sdk-client, lightweight and
+  full-surface MCP servers, and the caido-mode TypeScript SDK CLI on
+  @caido/sdk-client / caido-ts) for curl-through-Caido
+  testing, match & replace rules, and replay handoffs; Burp proxy
+  integration via MCP, browser automation via
   agent-browser, JS static analysis via jxscout, AST-based code pattern
   search via ast-grep, protobuf inspection via
-  protoscope, credential management, DNS rebinding, blind SQLi
-  extraction, bug bounty scope lookup via bbscope, HackerOne program
+  protoscope, credential management, DNS rebinding, HTTP desync
+  fingerprinting with byte-exact smuggling payload construction, blind
+  SQLi extraction, bug bounty scope lookup via bbscope, HackerOne program
   recon and report submission, SecurityContext vulnerability context
   from GitHub repos, issue tracking via Jira/GitHub/Linear, AWS
   exploitation with Pacu, phone verification, vulnerability
   verification, IP rotation helpers (Flareprox, fireprox), archive
   extraction vulnerability crafting with archivealchemist, EXIF
-  metadata manipulation via exiftool, and AgentMail email inboxes for
+  metadata manipulation via exiftool, LSB steganography via stegano, and AgentMail email inboxes for
   agent-owned signup, recovery, and verification flows.
 
 produces:
@@ -35,6 +46,22 @@ mcp:
       args:
         - "run"
         - "${CAPABILITY_ROOT}/mcp/caido.py"
+      init_timeout: 60
+    caido-go:
+      # Upstream Go MCP server (c0tton-fluff/caido-mcp-server), installed by
+      # scripts/install_tools.sh. Exposes the full 60+ tool surface (batch
+      # send, race-window, tamper rules, intercept, environments, websocket
+      # streams) that the lightweight Python `caido` wrapper does not. Both
+      # target the same Caido instance via CAIDO_URL. Auth resolves from
+      # CAIDO_ACCESS_TOKEN (or the deprecated CAIDO_PAT alias), otherwise the
+      # shared ~/.caido-mcp/token.json created by `caido-mcp-server login`.
+      command: "caido-mcp-server"
+      args:
+        - "serve"
+      env:
+        CAIDO_URL: "${CAIDO_URL:-http://127.0.0.1:8080}"
+        CAIDO_ACCESS_TOKEN: "${CAIDO_ACCESS_TOKEN:-}"
+        CAIDO_ALLOW_SENSITIVE_HEADERS: "${CAIDO_ALLOW_SENSITIVE_HEADERS:-}"
       init_timeout: 60
     jxscout:
       command: "uv"
@@ -114,9 +141,12 @@ dependencies:
   python:
     - "fastmcp>=2.0"
     - "httpx>=0.28"
-    - "caido-sdk-client"
+    # >= 0.3.0: versioned GraphQL transport (transport/latest vs transport/v0_56).
+    # Older releases break against Caido >= 0.57 replay schema. See mcp/caido.py.
+    - "caido-sdk-client>=0.3.0"
     - "cryptography>=41.0"
     - "pydantic>=2.0"
+    - "stegano>=0.11"
   scripts:
     - scripts/install_tools.sh
 
@@ -147,8 +177,17 @@ checks:
     command: 'command -v interactsh-client >/dev/null 2>&1 || test -x "$HOME/go/bin/interactsh-client"'
   - name: protoscope
     command: 'command -v protoscope >/dev/null 2>&1 || test -x "$HOME/go/bin/protoscope"'
+  # The capability talks to Caido over CAIDO_URL using the Python client, not
+  # by driving the local binary (see mcp/caido.py). Asserting only the binary
+  # reports a correctly configured deployment as degraded — self-hosted
+  # installs may not ship caido-cli at all and instead point at a Caido the
+  # operator runs. Local binary or reachable endpoint, either satisfies it.
   - name: caido-cli
-    command: command -v caido-cli
+    command: 'command -v caido-cli >/dev/null 2>&1 || curl -fsS --max-time 3 -o /dev/null "${CAIDO_URL:-http://localhost:8080}"'
+  - name: caido-mcp-server
+    command: 'command -v caido-mcp-server >/dev/null 2>&1 || test -x "$HOME/bin/caido-mcp-server"'
+  - name: caido-mode
+    command: 'test -f skills/caido-mode/caido-client.ts && test -d skills/caido-mode/node_modules'
   - name: burp
     command: test -f /opt/burp/burpsuite.jar
   - name: waymore
@@ -163,6 +202,8 @@ checks:
     command: command -v exiftool
   - name: ast-grep
     command: command -v ast-grep
+  - name: wrangler
+    command: command -v wrangler
   - name: jxscout
     command: command -v jxscout-pro-v2
 
@@ -175,6 +216,7 @@ keywords:
   - web-security
   - penetration-testing
   - request-smuggling
+  - http-desync
   - cache-poisoning
   - dns-rebinding
   - dom-security
@@ -214,4 +256,15 @@ keywords:
   - ast-grep
   - interactsh
   - oob-callbacks
+  - wrangler
+  - cloudflare-workers
+  - oast
   - securitycontext
+  - geo-dns
+  - geo-fencing
+  - open-resolvers
+  - shodan
+  - censys
+  - distributed-routing
+  - caido
+  - steganography
