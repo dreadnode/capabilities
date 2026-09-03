@@ -150,12 +150,45 @@ def update_assessment_status(
     # Auto-complete assessment if all planned attacks are done
     planned = data.get("planned_attacks", [])
     completed_names = {c["attack_name"] for c in completed}
-    if all(a in completed_names for a in planned):
+    just_completed = (
+        bool(planned)
+        and all(a in completed_names for a in planned)
+        and data.get("status") != "completed"
+    )
+    if just_completed:
         data["status"] = "completed"
 
     _save(data)
 
+    # On completion, reap provisioned sandboxes so they stop billing. Best-effort:
+    # never let teardown failure break status recording.
+    teardown_note = _teardown_on_complete() if just_completed else ""
+
     total = len(planned)
     done = len(completed)
     asr_str = f" (ASR={asr}%)" if asr is not None else ""
-    return f"Recorded {attack_name}: {status}{asr_str}. Progress: {done}/{total}."
+    return f"Recorded {attack_name}: {status}{asr_str}. Progress: {done}/{total}.{teardown_note}"
+
+
+def _teardown_on_complete() -> str:
+    """Tear down every provisioned environment now that the assessment is complete.
+
+    Loads the environments tool as a flat module (capability tool files have no
+    parent package) and reaps the session registry. ``AIRT_ENV_TEARDOWN_GRACE_SEC``
+    (default 0) leaves very recently provisioned sandboxes alone so a trailing
+    attack is not killed mid-run. Returns a note to append, or "" on any failure.
+    """
+    try:
+        grace = float(os.environ.get("AIRT_ENV_TEARDOWN_GRACE_SEC", "0") or "0")
+    except ValueError:
+        grace = 0.0
+    try:
+        env_path = _Path(__file__).resolve().parent / "environments.py"
+        spec = _ilu.spec_from_file_location("airt_tools_environments", env_path)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        result = mod.teardown_session_environments(older_than_sec=grace)
+        n = len(result.get("torn_down", []))
+        return f" Assessment complete - tore down {n} environment(s) to stop billing." if n else ""
+    except Exception:  # noqa: BLE001 - teardown is best-effort, must not break status
+        return ""

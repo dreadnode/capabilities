@@ -162,7 +162,8 @@ The AI Red Teaming capability provides these tools:
 **Multi-Agent Environments:**
 
 - **list_environments** — List the deployable multi-agent environments (e.g. `finops-mesh`, `devsecops-mesh`, `healthcare-mesh`, `soc-mesh`) that ATLAS can target
-- **provision_environment** — Deploy a hosted multi-agent environment (passing the model its agents use) and return its `/attack` URL + execute token. Chain into `generate_atlas_attack` to probe it — closing the loop from Environment to ATLAS probe.
+- **provision_environment** — Deploy a hosted multi-agent environment (passing the model its agents use) and return its `id`, `/attack` URL + execute token. Chain into `generate_atlas_attack` to probe it — closing the loop from Environment to ATLAS probe. The sandbox is recorded and torn down automatically when the assessment completes.
+- **teardown_environment** — Delete provisioned environment sandboxes to stop billing. Hosted sandboxes bill for their whole lifetime. With no id it reaps every environment provisioned this session; pass an id to reap one. Teardown also runs automatically when `update_assessment_status` marks the assessment complete, so call this only to reap early or after a partial run.
 
 **Workflow Management:**
 
