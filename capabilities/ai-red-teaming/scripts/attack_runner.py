@@ -6838,6 +6838,10 @@ _EVASION_ATTACK_MAP = {
     "deepwordbug": "deepwordbug_evasion",
     "textfooler": "textfooler_evasion",
 }
+_INVERSION_ATTACK_MAP = {
+    "confidence": "confidence_inversion",
+    "nes": "nes_inversion",
+}
 
 
 def _build_prediction_imports(func_names: list[str]) -> str:
@@ -6871,6 +6875,7 @@ def generate_extraction_attack(params: dict) -> dict:
     input_format = params.get("input_format", "json_array")
     num_classes = int(params.get("num_classes", 2))
     query_budget = int(params.get("query_budget", 1000))
+    measure_transfer = bool(params.get("measure_transfer", True))
     modality = params.get("modality", "tabular")
     goal = params.get("goal", "Steal model functionality via API queries")
     goal_category = params.get("goal_category", "model_extraction")
@@ -6878,8 +6883,11 @@ def generate_extraction_attack(params: dict) -> dict:
 
     if not api_url:
         return {"error": "api_url is required (target classifier predict endpoint)"}
-    if not pool_url and not query_pool:
-        return {"error": "pool_url or query_pool is required (extraction query inputs)"}
+    if not pool_url and not query_pool and "/predict" not in api_url:
+        return {
+            "error": "Provide pool_url or query_pool, or an api_url ending in /predict so "
+            "the query pool can be derived from the target's /pool endpoint."
+        }
 
     key = attack_type.strip().lower().replace("-", "_").replace(" ", "_")
     func = _EXTRACTION_ATTACK_MAP.get(key)
@@ -6909,14 +6917,27 @@ POOL_URL = "{pool_url}"
 QUERY_POOL = {query_pool}
 NUM_CLASSES = {num_classes}
 QUERY_BUDGET = {query_budget}
+MEASURE_TRANSFER = {measure_transfer}
 
 if API_KEY:
     os.environ["TARGET_API_KEY"] = API_KEY
 
 
 async def main():
+    # Extraction needs a pool of unlabeled inputs to query the target with. If the
+    # caller gave none, derive it from the target's sibling /pool endpoint (the
+    # convention these classifier targets expose) so the TUI flow is turnkey.
+    _pool_url = POOL_URL
+    if not _pool_url and not QUERY_POOL and "/predict" in API_URL:
+        _pool_url = API_URL.rsplit("/predict", 1)[0] + "/pool"
+        print("No pool supplied; deriving from target: {{}}".format(_pool_url))
     async with httpx.AsyncClient(timeout=60) as _c:
-        pool = (await _c.get(POOL_URL)).json()["inputs"] if POOL_URL else QUERY_POOL
+        pool = (await _c.get(_pool_url)).json()["inputs"] if _pool_url else QUERY_POOL
+    if not pool:
+        raise RuntimeError(
+            "Extraction needs a non-empty query pool but got 0 inputs (POOL_URL={{}}). "
+            "Provide pool_url=<target>/pool or an inline query_pool.".format(_pool_url or "(none)")
+        )
     print("Query pool: {{}} inputs".format(len(pool)))
     sys.stdout.flush()
 
@@ -6952,16 +6973,29 @@ async def main():
                 query_budget=QUERY_BUDGET,
                 num_classes=NUM_CLASSES,
                 modality="{modality}",
-                measure_transfer=False,
+                measure_transfer=MEASURE_TRANSFER,
                 airt_assessment_id=assessment.assessment_id,
                 airt_target_model="ml_classifier",
             )
             result = await attack.run()
         print("--- RESULTS ---")
-        print("  Strategy:  {{}}".format(result.strategy))
-        print("  Fidelity:  {{:.4f}}".format(result.fidelity))
-        print("  Agreement: {{:.4f}}".format(result.agreement_rate))
-        print("  Queries:   {{}}".format(result.query_count))
+        print("  Strategy:      {{}}".format(result.strategy))
+        print("  Fidelity:      {{:.4f}}  (top-1 match on a held-out eval split, not the training pool)".format(result.fidelity))
+        print("  Soft fidelity: {{:.4f}}  (probability-vector match)".format(result.soft_fidelity))
+        print("  Agreement:     {{:.4f}}".format(result.agreement_rate))
+        print("  KL divergence: {{:.4f}}  (lower = surrogate matched the target's confidences)".format(result.kl_divergence))
+        if result.surrogate_accuracy is not None:
+            print("  Surrogate acc: {{:.4f}}".format(result.surrogate_accuracy))
+        if result.transfer_success is not None:
+            print("  Transfer:      {{:.4f}}  (surrogate-crafted adversarial examples that also fooled the target)".format(result.transfer_success))
+        print("  Queries:       {{}} / {{}} budget".format(result.query_count, result.query_budget))
+        if result.per_class_fidelity:
+            print("  Per-class fidelity:")
+            for _cls, _fid in sorted(result.per_class_fidelity.items()):
+                print("    class {{}}: {{:.4f}}".format(_cls, _fid))
+        if result.fidelity_vs_budget:
+            _curve = ", ".join("{{}}q->{{:.3f}}".format(_b, _f) for _b, _f in result.fidelity_vs_budget)
+            print("  Fidelity vs query budget: {{}}".format(_curve))
         print("--- end ---")
         sys.stdout.flush()
         await assessment.complete()
@@ -6990,6 +7024,7 @@ except Exception:
         query_pool=repr(query_pool),
         num_classes=num_classes,
         query_budget=query_budget,
+        measure_transfer=measure_transfer,
         request_template=request_template,
         probabilities_path=probabilities_path,
         input_format=input_format,
@@ -7027,8 +7062,13 @@ def generate_membership_attack(params: dict) -> dict:
 
     if not api_url:
         return {"error": "api_url is required (target classifier predict endpoint)"}
-    if not (members_url or members) or not (nonmembers_url or nonmembers):
-        return {"error": "members/nonmembers (or *_url) are required for membership scoring"}
+    if (
+        not (members_url or members) or not (nonmembers_url or nonmembers)
+    ) and "/predict" not in api_url:
+        return {
+            "error": "Provide members/nonmembers (or *_url), or an api_url ending in /predict "
+            "so the member sets can be derived from the target's /members and /nonmembers endpoints."
+        }
 
     key = attack_type.strip().lower().replace("-", "_").replace(" ", "_")
     func = _MEMBERSHIP_ATTACK_MAP.get(key)
@@ -7065,9 +7105,27 @@ if API_KEY:
 
 
 async def main():
+    # Membership inference needs member and non-member record sets. If the caller
+    # gave none, derive them from the target's sibling /members and /nonmembers
+    # endpoints so the TUI flow is turnkey.
+    _m_url = MEMBERS_URL
+    _nm_url = NONMEMBERS_URL
+    if not _m_url and not MEMBERS and "/predict" in API_URL:
+        _m_url = API_URL.rsplit("/predict", 1)[0] + "/members"
+    if not _nm_url and not NONMEMBERS and "/predict" in API_URL:
+        _nm_url = API_URL.rsplit("/predict", 1)[0] + "/nonmembers"
+    if _m_url or _nm_url:
+        print("Deriving membership data from target: {{}} | {{}}".format(_m_url, _nm_url))
     async with httpx.AsyncClient(timeout=60) as _c:
-        m = (await _c.get(MEMBERS_URL)).json() if MEMBERS_URL else {{"records": MEMBERS, "labels": None}}
-        nm = (await _c.get(NONMEMBERS_URL)).json() if NONMEMBERS_URL else {{"records": NONMEMBERS, "labels": None}}
+        m = (await _c.get(_m_url)).json() if _m_url else {{"records": MEMBERS, "labels": None}}
+        nm = (await _c.get(_nm_url)).json() if _nm_url else {{"records": NONMEMBERS, "labels": None}}
+    if not m["records"] or not nm["records"]:
+        raise RuntimeError(
+            "Membership inference needs non-empty members and non-members (got {{}}/{{}}). "
+            "Provide members_url/nonmembers_url (e.g. <target>/members) or inline records.".format(
+                len(m["records"]), len(nm["records"])
+            )
+        )
     print("Members: {{}}  Non-members: {{}}".format(len(m["records"]), len(nm["records"])))
     sys.stdout.flush()
 
@@ -7502,6 +7560,194 @@ def generate_agentic_suite(params: dict) -> dict:
     }
 
 
+def generate_inversion_attack(params: dict) -> dict:
+    """Generate a workflow that reconstructs a representative input per class.
+
+    Model inversion queries the target directly (no external dataset). Requires:
+    api_url and num_classes. input_dim / input_shape are inferred from the target's
+    /pool endpoint when omitted.
+    """
+    attack_type = params.get("attack_type", "confidence")
+    api_url = params.get("api_url", "")
+    api_key = params.get("api_key", "")
+    pool_url = params.get("pool_url", "")
+    request_template = params.get("request_template", '{"features": {input}}')
+    probabilities_path = params.get("probabilities_path", "$.probabilities")
+    input_format = params.get("input_format", "json_array")
+    num_classes = int(params.get("num_classes", 2))
+    input_dim = params.get("input_dim")
+    input_shape = params.get("input_shape")  # e.g. "8,8" for images
+    target_classes = params.get("target_classes")  # list[int] or None
+    max_queries = int(params.get("max_queries", 1500))
+    modality = params.get("modality", "tabular")
+    assessment_name = params.get("assessment_name", "")
+
+    if not api_url:
+        return {"error": "api_url is required (target classifier predict endpoint)"}
+
+    key = attack_type.strip().lower().replace("-", "_").replace(" ", "_")
+    func = _INVERSION_ATTACK_MAP.get(key)
+    if not func:
+        return {
+            "error": "Unknown inversion attack '{}'. Available: {}".format(
+                attack_type, ", ".join(sorted(_INVERSION_ATTACK_MAP))
+            )
+        }
+
+    # Normalise input_shape ("8,8" -> (8, 8)) for the generated call.
+    shape_literal = "None"
+    if input_shape:
+        if isinstance(input_shape, str):
+            dims = tuple(int(p) for p in input_shape.replace("(", "").replace(")", "").split(",") if p.strip())
+        else:
+            dims = tuple(int(p) for p in input_shape)
+        shape_literal = repr(dims)
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = "inversion_{}_{}.py".format(key, timestamp)
+    assessment_name = assessment_name or "Model Inversion ({})".format(key)
+    imports = _build_prediction_imports([func])
+    configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
+
+    script = '''{imports}
+
+import math
+
+{configure}
+
+{analytics_writer}
+
+API_URL = "{api_url}"
+API_KEY = "{api_key}"
+POOL_URL = "{pool_url}"
+NUM_CLASSES = {num_classes}
+INPUT_DIM = {input_dim}
+INPUT_SHAPE = {shape_literal}
+TARGET_CLASSES = {target_classes}
+MAX_QUERIES = {max_queries}
+
+if API_KEY:
+    os.environ["TARGET_API_KEY"] = API_KEY
+
+
+async def main():
+    # Inversion needs the input dimensionality. Infer it from one /pool sample when
+    # the caller did not supply input_dim/input_shape (turnkey for hosted targets).
+    input_dim = INPUT_DIM
+    input_shape = INPUT_SHAPE
+    if input_dim is None and input_shape is None:
+        _pool_url = POOL_URL or (API_URL.rsplit("/predict", 1)[0] + "/pool" if "/predict" in API_URL else "")
+        if _pool_url:
+            async with httpx.AsyncClient(timeout=60) as _c:
+                _sample = (await _c.get(_pool_url)).json()["inputs"][0]
+            input_dim = len(_sample)
+            if "{modality}" == "image":
+                _side = int(math.isqrt(input_dim))
+                if _side * _side == input_dim:
+                    input_shape = (_side, _side)
+            print("Inferred input_dim={{}} input_shape={{}} from {{}}".format(input_dim, input_shape, _pool_url))
+    if input_dim is None and input_shape is None:
+        raise RuntimeError(
+            "Model inversion needs input_dim or input_shape. Provide one, or an "
+            "api_url ending in /predict so it can be inferred from the target's /pool."
+        )
+
+    auth = (
+        TargetAuth(type="api_key", header="x-api-key", env_var="TARGET_API_KEY")
+        if API_KEY
+        else TargetAuth()
+    )
+    spec = PredictionTargetSpec(
+        endpoint=API_URL,
+        auth=auth,
+        request_template={request_template!r},
+        probabilities_path={probabilities_path!r},
+        input_format={input_format!r},
+        num_classes=NUM_CLASSES,
+        name="ml_classifier",
+    )
+
+    assessment = Assessment(
+        name="{assessment_name}",
+        description="Model inversion: {func} on {{}}".format(API_URL),
+        workflow_run_id="{filename}",
+        target_config={{"url": API_URL, "type": "ml_classifier"}},
+        attacker_config={{"attack": "{func}"}},
+        attack_manifest=[{{"attack": "{func}", "domain": "model_inversion", "input_modality": "{modality}"}}],
+    )
+    await assessment.register()
+    _kwargs = dict(
+        num_classes=NUM_CLASSES,
+        modality="{modality}",
+        max_queries=MAX_QUERIES,
+        airt_assessment_id=assessment.assessment_id,
+        airt_target_model="ml_classifier",
+    )
+    if input_dim is not None:
+        _kwargs["input_dim"] = input_dim
+    if input_shape is not None:
+        _kwargs["input_shape"] = input_shape
+    if TARGET_CLASSES:
+        _kwargs["target_classes"] = TARGET_CLASSES
+    try:
+        with dn.run("{assessment_name}"):
+            attack = {func}(spec, **_kwargs)
+            result = await attack.run()
+        print("--- RESULTS ---")
+        print("  Strategy:            {{}}".format(result.strategy))
+        print("  Mean confidence:     {{:.4f}}".format(result.mean_confidence))
+        print("  Classes reconstructed: {{}} / {{}}".format(result.classes_reconstructed, result.num_classes))
+        print("  Queries:             {{}}".format(result.query_count))
+        if result.mean_reference_similarity is not None:
+            print("  Reference similarity: {{:.4f}}  (recon vs a real member of the class)".format(result.mean_reference_similarity))
+        for _pc in result.per_class:
+            print("    class {{}}: confidence {{:.4f}} ({{}} queries)".format(
+                _pc.get("class"), _pc.get("achieved_confidence", 0.0), _pc.get("queries", 0)))
+        print("--- end ---")
+        sys.stdout.flush()
+        await assessment.complete()
+    except Exception as e:
+        await assessment.fail(str(e))
+        raise
+
+    _write_local_analytics(assessment)
+    print("Assessment complete.")
+    sys.stdout.flush()
+
+
+asyncio.run(main())
+
+try:
+    dn.shutdown()
+except Exception:
+    pass
+'''.format(
+        imports=imports,
+        configure=configure,
+        analytics_writer=analytics_writer,
+        api_url=_safe_str(api_url),
+        api_key=_safe_str(api_key),
+        pool_url=_safe_str(pool_url),
+        num_classes=num_classes,
+        input_dim=repr(int(input_dim)) if input_dim is not None else "None",
+        shape_literal=shape_literal,
+        target_classes=repr(list(target_classes)) if target_classes else "None",
+        max_queries=max_queries,
+        request_template=request_template,
+        probabilities_path=probabilities_path,
+        input_format=input_format,
+        modality=_safe_str(modality),
+        func=func,
+        assessment_name=_safe_str(assessment_name),
+        filename=_safe_str(filename),
+    )
+
+    return _finalize_prediction_workflow(
+        script, filename, params, "Model Inversion: {} vs {}".format(func, api_url)
+    )
+
+
 # stdin/stdout JSON dispatch
 
 METHODS = {
@@ -7517,6 +7763,7 @@ METHODS = {
     "generate_multimodal_category_attack": generate_multimodal_category_attack,
     "generate_extraction_attack": generate_extraction_attack,
     "generate_membership_attack": generate_membership_attack,
+    "generate_inversion_attack": generate_inversion_attack,
     "generate_evasion_attack": generate_evasion_attack,
 }
 
