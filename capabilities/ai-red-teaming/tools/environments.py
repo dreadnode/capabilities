@@ -79,6 +79,129 @@ def list_environments() -> str:
     return "\n".join(lines)
 
 
+# Dreadnode-hosted traditional-ML /predict classifiers, provisionable for
+# evasion / extraction / membership / inversion attacks.
+_ML_TARGETS: dict[str, dict] = {
+    "ml-extraction-fraud-tabular": {
+        "modality": "tabular", "num_classes": 2, "input_dim": 30,
+        "label": "Credit-card fraud (tabular)",
+    },
+    "ml-extraction-mnist-image": {
+        "modality": "image", "num_classes": 10, "input_shape": [8, 8],
+        "label": "Handwritten digits (image)",
+    },
+    "ml-extraction-imdb-text": {
+        "modality": "text", "num_classes": 2,
+        "label": "Movie-review sentiment (text)",
+    },
+}
+
+
+def _fetch_seed(members_url: str) -> t.Any:
+    """Fetch one sample record from a hosted target's /members endpoint (best effort)."""
+    import json as _json
+    import urllib.request as _u
+
+    try:
+        with _u.urlopen(members_url, timeout=30) as r:  # noqa: S310 - platform sandbox URL
+            data = _json.loads(r.read().decode())
+        recs = data.get("records") or data.get("inputs") or []
+        return recs[0] if recs else None
+    except Exception:
+        return None
+
+
+@safe_tool
+def list_ml_targets() -> str:
+    """List Dreadnode-hosted traditional-ML classifier targets (fraud/tabular,
+    MNIST/image, IMDB/text) you can deploy with ``provision_ml_target``.
+
+    For your own classifier, skip provisioning and pass its predict URL directly
+    to generate_evasion_attack / generate_extraction_attack /
+    generate_membership_attack / generate_inversion_attack via ``api_url``.
+    """
+    lines = ["Hosted traditional-ML targets (deploy with provision_ml_target):"]
+    for ref, spec in _ML_TARGETS.items():
+        shape = spec.get("input_shape") or spec.get("input_dim")
+        lines.append(
+            f"  - {ref}  [{spec['modality']}, {spec['num_classes']} classes"
+            f"{f', shape/dim={shape}' if shape else ''}]  {spec['label']}"
+        )
+    lines.append("\nOwn target? Pass its /predict URL to any trad-ML attack tool via api_url.")
+    return "\n".join(lines)
+
+
+@safe_tool
+def provision_ml_target(
+    task_ref: t.Annotated[
+        str, "Hosted ML target to deploy (e.g. 'ml-extraction-fraud-tabular'); see list_ml_targets."
+    ],
+    timeout_sec: t.Annotated[int, "Provision budget in seconds"] = 600,
+) -> str:
+    """Deploy a Dreadnode-hosted traditional-ML classifier and return its /predict URL
+    plus a seed input, ready to hand to the evasion / extraction / membership / inversion tools.
+
+    Use this when the user wants to attack a **Dreadnode** target. For the user's **own**
+    classifier, skip this and pass their predict URL directly via ``api_url``.
+    """
+    from dreadnode.core.environment import TaskEnvironment
+
+    _inst, api, org, workspace = _configured()
+    if not org or not workspace:
+        return "Not configured for a platform org/workspace. Run `dreadnode login` first."
+
+    env = TaskEnvironment(api, org=org, workspace=workspace, task_ref=task_ref, timeout_sec=timeout_sec)
+    ctx = _run(env.setup())
+    svc = (ctx.get("service_urls") or {}).get("challenge")
+    url = (svc.get("url") if isinstance(svc, dict) else svc) or ""
+    if not url:
+        return f"Target '{task_ref}' provisioned but exposed no 'challenge' URL: {ctx.get('service_urls')}"
+
+    predict_url = f"{url}/predict"
+    pool_url = f"{url}/pool?n=50"
+    members_url = f"{url}/members?n=1"
+    members_pool_url = f"{url}/members?n=200"
+    nonmembers_url = f"{url}/nonmembers?n=200"
+    spec = _ML_TARGETS.get(task_ref, {})
+    modality = spec.get("modality", "tabular")
+    num_classes = spec.get("num_classes")
+    seed = _fetch_seed(members_url)
+
+    lines = [
+        f"Target '{task_ref}' is ready.",
+        f"  Predict URL: {predict_url}",
+        f"  Pool URL:    {pool_url}   (query inputs for extraction; derives input_dim)",
+        f"  Members URL: {members_url}   (labeled records for membership/evasion seeds)",
+        f"  Modality:    {modality}",
+    ]
+    if num_classes is not None:
+        lines.append(f"  Classes:     {num_classes}")
+    if spec.get("input_shape"):
+        lines.append(f"  Input shape: {spec['input_shape']} (for inversion)")
+    if spec.get("input_dim"):
+        lines.append(f"  Input dim:   {spec['input_dim']} (for inversion)")
+    if seed is not None:
+        preview = repr(seed)
+        lines.append(f"  Seed input:  {preview[:160]}{'...' if len(preview) > 160 else ''}")
+
+    nc = num_classes if num_classes is not None else 2
+    lines += [
+        "",
+        ">>> NEXT STEP: run an attack against it, e.g.:",
+        f'  - Evasion:    generate_evasion_attack(api_url="{predict_url}", modality="{modality}", '
+        f'num_classes={nc}, original=<the seed input above or a record from {members_url}>)',
+        f'  - Extraction: generate_extraction_attack(api_url="{predict_url}", pool_url="{pool_url}", '
+        f'num_classes={nc}, modality="{modality}")',
+        f'  - Membership: generate_membership_attack(api_url="{predict_url}", num_classes={nc}, '
+        f'modality="{modality}", members_url="{members_pool_url}", nonmembers_url="{nonmembers_url}")',
+        f'  - Inversion:  generate_inversion_attack(api_url="{predict_url}", num_classes={nc}, '
+        f'modality="{modality}", '
+        + (f'input_shape={spec.get("input_shape")}' if spec.get("input_shape") else f'pool_url="{pool_url}"')
+        + ")",
+    ]
+    return "\n".join(lines)
+
+
 @safe_tool
 def provision_environment(
     task_ref: t.Annotated[str, "Environment/task to deploy, e.g. 'finops-mesh'"],

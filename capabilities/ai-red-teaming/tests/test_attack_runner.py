@@ -1147,3 +1147,81 @@ class TestAtlasDataset:
         script = Path(result["filepath"]).read_text()
         # 25 objective ids from the dataset should be embedded.
         assert script.count("'category':") >= 25 or script.count('"category":') >= 25
+
+
+class TestTraditionalMLGeneration:
+    """Generated traditional-ML workflows for the Dreadnode /predict flow must
+    compile and target the provided endpoint (evasion, extraction, membership,
+    inversion). Covers the hosted-environment path a user drives by natural language."""
+
+    DN_URL = "https://8000-abc.sandbox.dreadnode.io/predict"
+    POOL = "https://8000-abc.sandbox.dreadnode.io/pool?n=50"
+    MEMBERS = "https://8000-abc.sandbox.dreadnode.io/members?n=200"
+    NONMEMBERS = "https://8000-abc.sandbox.dreadnode.io/nonmembers?n=200"
+
+    def _gen_ok(self, method: str, params: dict) -> str:
+        result = _generate_method(method, {**params, "generate_only": True})
+        assert "error" not in result, result.get("error")
+        src = Path(result["filepath"]).read_text()
+        assert self.DN_URL in src, "generated workflow must target the provided predict URL"
+        compile(src, result["filepath"], "exec")
+        return src
+
+    def test_evasion_tabular_generates(self):
+        self._gen_ok(
+            "generate_evasion_attack",
+            {"attack_type": "hopskipjump", "api_url": self.DN_URL,
+             "modality": "tabular", "num_classes": 2, "original": [0.1, 0.2, 0.3]},
+        )
+
+    def test_extraction_tabular_generates(self):
+        self._gen_ok(
+            "generate_extraction_attack",
+            {"attack_type": "knockoff", "api_url": self.DN_URL,
+             "pool_url": self.POOL, "modality": "tabular", "num_classes": 2},
+        )
+
+    def test_membership_generates(self):
+        self._gen_ok(
+            "generate_membership_attack",
+            {"attack_type": "shadow_model", "api_url": self.DN_URL, "num_classes": 2,
+             "modality": "tabular", "members_url": self.MEMBERS, "nonmembers_url": self.NONMEMBERS},
+        )
+
+    def test_inversion_tabular_generates(self):
+        src = self._gen_ok(
+            "generate_inversion_attack",
+            {"attack_type": "confidence", "api_url": self.DN_URL, "modality": "tabular",
+             "num_classes": 2, "pool_url": self.POOL, "target_classes": [0, 1]},
+        )
+        assert "confidence_inversion(" in src
+        # input_dim must reference the resolved local (derived from pool), not the None constant
+        assert "input_dim=input_dim" in src
+
+    def test_inversion_image_generates(self):
+        src = self._gen_ok(
+            "generate_inversion_attack",
+            {"attack_type": "confidence", "api_url": self.DN_URL, "modality": "image",
+             "num_classes": 10, "input_shape": [8, 8]},
+        )
+        assert "input_shape=tuple(INPUT_SHAPE)" in src
+
+    def test_inversion_registered(self):
+        assert "generate_inversion_attack" in runner.METHODS
+        assert set(runner._INVERSION_ATTACK_MAP) >= {"confidence", "nes"}
+
+    def test_inversion_requires_dim_or_pool(self):
+        result = _generate_method(
+            "generate_inversion_attack",
+            {"attack_type": "confidence", "api_url": self.DN_URL,
+             "modality": "tabular", "num_classes": 2, "generate_only": True},
+        )
+        assert "error" in result  # neither input_dim nor pool_url supplied
+
+    def test_inversion_image_requires_shape(self):
+        result = _generate_method(
+            "generate_inversion_attack",
+            {"attack_type": "confidence", "api_url": self.DN_URL,
+             "modality": "image", "num_classes": 10, "generate_only": True},
+        )
+        assert "error" in result

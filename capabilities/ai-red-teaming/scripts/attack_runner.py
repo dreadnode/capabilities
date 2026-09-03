@@ -6668,6 +6668,10 @@ _EVASION_ATTACK_MAP = {
     "deepwordbug": "deepwordbug_evasion",
     "textfooler": "textfooler_evasion",
 }
+_INVERSION_ATTACK_MAP = {
+    "confidence": "confidence_inversion",
+    "nes": "nes_inversion",
+}
 
 
 def _build_prediction_imports(func_names: list[str]) -> str:
@@ -7129,6 +7133,164 @@ except Exception:
     )
 
 
+def generate_inversion_attack(params: dict) -> dict:
+    """Generate a workflow that reconstructs a representative input per class (model inversion).
+
+    Requires: api_url (predict endpoint) and num_classes. For tabular targets give
+    input_dim (or pool_url to derive it); for image targets give input_shape.
+    """
+    attack_type = params.get("attack_type", "confidence")
+    api_url = params.get("api_url", "")
+    api_key = params.get("api_key", "")
+    request_template = params.get("request_template", '{"features": {input}}')
+    probabilities_path = params.get("probabilities_path", "$.probabilities")
+    input_format = params.get("input_format", "json_array")
+    num_classes = int(params.get("num_classes", 2))
+    input_dim = params.get("input_dim")
+    input_shape = params.get("input_shape")
+    pool_url = params.get("pool_url", "")
+    target_classes = params.get("target_classes")
+    max_queries = int(params.get("max_queries", 1200))
+    seed = int(params.get("seed", 0))
+    modality = params.get("modality", "tabular")
+    assessment_name = params.get("assessment_name", "")
+
+    if not api_url:
+        return {"error": "api_url is required (target classifier predict endpoint)"}
+    if modality == "image" and not input_shape:
+        return {"error": "input_shape (e.g. [8, 8]) is required for image model inversion"}
+    if modality != "image" and input_dim is None and not pool_url:
+        return {"error": "input_dim (or pool_url to derive it) is required for tabular model inversion"}
+
+    key = attack_type.strip().lower().replace("-", "_").replace(" ", "_")
+    func = _INVERSION_ATTACK_MAP.get(key)
+    if not func:
+        return {
+            "error": "Unknown inversion attack '{}'. Available: {}".format(
+                attack_type, ", ".join(sorted(_INVERSION_ATTACK_MAP))
+            )
+        }
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = "inversion_{}_{}.py".format(key, timestamp)
+    assessment_name = assessment_name or "Model Inversion ({})".format(key)
+    imports = _build_prediction_imports([func])
+    configure = _build_configure()
+    analytics_writer = _build_analytics_writer()
+
+    if modality == "image":
+        dim_kw = "input_shape=tuple(INPUT_SHAPE), "
+    else:
+        dim_kw = "input_dim=input_dim, "  # resolved local (INPUT_DIM or derived from POOL_URL)
+    tc_kw = "target_classes=TARGET_CLASSES, " if target_classes else ""
+
+    script = '''{imports}
+
+{configure}
+
+{analytics_writer}
+
+API_URL = "{api_url}"
+API_KEY = "{api_key}"
+POOL_URL = "{pool_url}"
+NUM_CLASSES = {num_classes}
+INPUT_DIM = {input_dim}
+INPUT_SHAPE = {input_shape}
+TARGET_CLASSES = {target_classes}
+MAX_QUERIES = {max_queries}
+SEED = {seed}
+
+if API_KEY:
+    os.environ["TARGET_API_KEY"] = API_KEY
+
+
+async def main():
+    input_dim = INPUT_DIM
+    if input_dim is None and POOL_URL:
+        async with httpx.AsyncClient(timeout=60) as _c:
+            pool = (await _c.get(POOL_URL)).json()["inputs"]
+        input_dim = len(pool[0])
+    print("Reconstructing {{}} class(es) from {{}}".format(NUM_CLASSES, API_URL))
+    sys.stdout.flush()
+
+    auth = (
+        TargetAuth(type="api_key", header="x-api-key", env_var="TARGET_API_KEY")
+        if API_KEY
+        else TargetAuth()
+    )
+    spec = PredictionTargetSpec(
+        endpoint=API_URL,
+        auth=auth,
+        request_template={request_template!r},
+        probabilities_path={probabilities_path!r},
+        input_format={input_format!r},
+        num_classes=NUM_CLASSES,
+        name="ml_classifier",
+    )
+
+    async with Assessment(
+        name="{assessment_name}",
+        description="Model inversion: {func} on {{}}".format(API_URL),
+        workflow_run_id="{filename}",
+        target_config={{"url": API_URL, "type": "ml_classifier"}},
+        attacker_config={{"attack": "{func}"}},
+        attack_manifest=[{{"attack": "{func}", "domain": "adversarial_ml", "input_modality": "{modality}"}}],
+    ) as assessment:
+        result = await {func}(
+            spec,
+            num_classes=NUM_CLASSES,
+            {dim_kw}modality="{modality}",
+            {tc_kw}max_queries=MAX_QUERIES,
+            seed=SEED,
+            airt_target_model="ml_classifier",
+        ).run()
+    print("--- RESULTS ---")
+    print("  Classes reconstructed: {{}}/{{}}".format(result.classes_reconstructed, result.num_classes))
+    for c in result.per_class:
+        print("  class {{}}: confidence={{:.3f}}  {{}}".format(
+            c.get("class"), c.get("achieved_confidence", 0.0), c.get("reconstruction_preview", "")))
+    print("--- end ---")
+    sys.stdout.flush()
+    _write_local_analytics(assessment)
+    print("Assessment complete.")
+    sys.stdout.flush()
+
+
+asyncio.run(main())
+
+try:
+    dn.shutdown()
+except Exception:
+    pass
+'''.format(
+        imports=imports,
+        configure=configure,
+        analytics_writer=analytics_writer,
+        api_url=_safe_str(api_url),
+        api_key=_safe_str(api_key),
+        pool_url=_safe_str(pool_url),
+        num_classes=num_classes,
+        input_dim=repr(int(input_dim)) if input_dim is not None else "None",
+        input_shape=repr(list(input_shape)) if input_shape else "None",
+        target_classes=repr(list(target_classes)) if target_classes else "None",
+        max_queries=max_queries,
+        seed=seed,
+        request_template=request_template,
+        probabilities_path=probabilities_path,
+        input_format=input_format,
+        dim_kw=dim_kw,
+        tc_kw=tc_kw,
+        modality=_safe_str(modality),
+        func=func,
+        assessment_name=_safe_str(assessment_name),
+        filename=_safe_str(filename),
+    )
+
+    return _finalize_prediction_workflow(
+        script, filename, params, "Model Inversion: {} vs {}".format(func, api_url)
+    )
+
+
 def _finalize_prediction_workflow(script: str, filename: str, params: dict, description: str) -> dict:
     """Syntax-check, persist, and (unless generate_only) execute a generated workflow."""
     try:
@@ -7184,6 +7346,7 @@ METHODS = {
     "generate_extraction_attack": generate_extraction_attack,
     "generate_membership_attack": generate_membership_attack,
     "generate_evasion_attack": generate_evasion_attack,
+    "generate_inversion_attack": generate_inversion_attack,
 }
 
 
