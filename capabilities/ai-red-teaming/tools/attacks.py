@@ -613,6 +613,69 @@ def generate_evasion_attack(
 
 
 @safe_tool
+def generate_inversion_attack(
+    attack_type: t.Annotated[
+        str, "Model-inversion attack: confidence (confidence-guided) or nes (NES gradient-free)."
+    ] = "confidence",
+    api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
+    api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
+    num_classes: t.Annotated[int, "Number of classes the target predicts."] = 2,
+    modality: t.Annotated[str, "tabular | image."] = "tabular",
+    input_dim: t.Annotated[
+        int, "Feature count for tabular targets (or leave 0 and pass pool_url to derive it)."
+    ] = 0,
+    input_shape: t.Annotated[
+        list, "Image shape as [H, W] (e.g. [8, 8]) - required for image targets."
+    ] = None,
+    pool_url: t.Annotated[
+        str, "GET endpoint returning {inputs: [...]} - used to derive input_dim for tabular."
+    ] = "",
+    target_classes: t.Annotated[
+        list, "Classes to reconstruct (default: all classes)."
+    ] = None,
+    max_queries: t.Annotated[int, "Max target queries."] = 1200,
+    seed: t.Annotated[int, "Random seed."] = 0,
+    request_template: t.Annotated[
+        str, "Request body with a single {input} placeholder."
+    ] = '{"features": {input}}',
+    probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
+    input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
+    assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
+) -> str:
+    """Reconstruct a representative input per class (model inversion / training-data leakage).
+
+    Queries the target's confidence scores to synthesize an input that maximizes each
+    class, exposing what a class 'looks like' to the model. For tabular targets pass
+    input_dim (or pool_url to derive it); for image targets pass input_shape. Results
+    appear in the platform under AI Red Teaming with per-class reconstruction metrics.
+    """
+    params: dict[str, t.Any] = {
+        "attack_type": attack_type,
+        "api_url": api_url,
+        "num_classes": num_classes,
+        "modality": modality,
+        "max_queries": max_queries,
+        "seed": seed,
+        "request_template": request_template,
+        "probabilities_path": probabilities_path,
+        "input_format": input_format,
+    }
+    if api_key:
+        params["api_key"] = api_key
+    if input_dim:
+        params["input_dim"] = input_dim
+    if input_shape:
+        params["input_shape"] = input_shape
+    if pool_url:
+        params["pool_url"] = pool_url
+    if target_classes:
+        params["target_classes"] = target_classes
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+    return _call_runner("generate_inversion_attack", params)
+
+
+@safe_tool
 def generate_multimodal_attack(
     goal: t.Annotated[
         str,

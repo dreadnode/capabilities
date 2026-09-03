@@ -150,6 +150,10 @@ The AI Red Teaming capability provides these tools:
 - **generate_agentic_attack** — Generate + auto-execute an attack against an HTTP agent API
 - **generate_atlas_attack** — Generate + auto-execute an ATLAS multi-agent campaign (Adaptive Topology-Level Attack Synthesis) against a deployed multi-agent environment. Runs a Probe → Route → Learn loop over a budget of episodes, driving GOAT/Crescendo through three injection surfaces (direct / tool_output / peer_message) and gating success on *real tool execution*. Use for multi-agent systems with delegation chains and trust boundaries.
 - **generate_image_attack** — Generate + auto-execute a traditional ML adversarial attack (HopSkipJump, SimBA, NES, ZOO) against an image classifier endpoint
+- **generate_evasion_attack** — Adversarial evasion against a `/predict` classifier across tabular/image/text (hopskipjump/boundary/simba/square/zoo; text/deepwordbug/textfooler). Needs `api_url` + an `original` input.
+- **generate_extraction_attack** — Model extraction / stealing (knockoff/copycat/equation_solving/jacobian/activethief/distillation). Needs `api_url` + a query pool (`pool_url` or `query_pool`).
+- **generate_membership_attack** — Membership inference / training-data leakage (threshold/shadow_model/lira/entropy/loss/label_only). Needs `api_url`.
+- **generate_inversion_attack** — Model inversion: reconstruct a representative input per class (confidence/nes). Needs `api_url` + `num_classes`; for tabular pass `input_dim` (or `pool_url` to derive it), for image pass `input_shape`.
 - **generate_multimodal_attack** — Generate + auto-execute a MULTIMODAL LLM red teaming attack: send text + image/audio/video to a vision/audio-capable model, apply modality-typed transforms, score the text response for jailbreak success
 - **build_media_manifest** — Inventory a folder/list of media into a byte-free reference manifest (kind, mime, size, dimensions) for planning a multimodal attack without loading raw media. Call this first when the user points at a folder of images/audio/video.
 - **generate_injection_images** — Render attack text (or a CSV of texts) into typographic/visual prompt-injection IMAGES, so you can probe a vision model without the user supplying media. You create the data (render text → images) and pass the paths to generate_multimodal_attack — never view the text.
@@ -159,6 +163,13 @@ The AI Red Teaming capability provides these tools:
 
 - **list_environments** — List the deployable multi-agent environments (e.g. `finops-mesh`, `devsecops-mesh`, `healthcare-mesh`, `soc-mesh`) that ATLAS can target
 - **provision_environment** — Deploy a hosted multi-agent environment (passing the model its agents use) and return its `/attack` URL + execute token. Chain into `generate_atlas_attack` to probe it — closing the loop from Environment to ATLAS probe.
+
+**Traditional-ML Targets:**
+
+- **list_ml_targets** — List Dreadnode-hosted traditional-ML classifiers (`ml-extraction-fraud-tabular`, `ml-extraction-mnist-image`, `ml-extraction-imdb-text`) with their modality/class count.
+- **provision_ml_target** — Deploy a hosted classifier and return its `/predict` URL + a seed input + modality/classes, ready to chain into `generate_evasion_attack` / `generate_extraction_attack` / `generate_membership_attack` / `generate_inversion_attack`.
+
+**Traditional-ML targeting rule:** if the user wants to attack a **Dreadnode** classifier (or names none), call `list_ml_targets` then `provision_ml_target` to get the `/predict` URL + seed — never ask them for a URL. If the user has their **own** classifier, take their `api_url` (+ key + a sample input) and go straight to the attack tool. Pick the tool by goal: flip a prediction → evasion; steal the model → extraction; test training-data leakage → membership; reconstruct class inputs → inversion.
 
 **Workflow Management:**
 

@@ -1,6 +1,6 @@
 schema: 1
 name: ai-red-teaming
-version: "1.10.1"
+version: "1.11.0"
 description: >
   Probe the security and safety of AI applications, agents, and foundation models.
   Orchestrates adversarial attack workflows to discover vulnerabilities in LLMs,
@@ -10,7 +10,9 @@ description: >
   bypass, and more — mapped to OWASP LLM Top 10, OWASP ASI01-ASI10, MITRE ATLAS,
   and NIST AI RMF compliance frameworks. Also probes traditional black-box ML
   classifiers: model extraction (model stealing), membership inference (training-data
-  leakage), and model evasion (adversarial examples) across tabular, image, and text.
+  leakage), model evasion (adversarial examples), and model inversion (per-class input
+  reconstruction) across tabular, image, and text — against Dreadnode-hosted targets
+  (deploy with provision_ml_target) or your own /predict endpoint.
   590+ transforms, 140+ scorers, and 260 bundled harm goals across 25
   sub-categories in safety, security, and agentic tiers.
 
