@@ -568,20 +568,29 @@ def generate_extraction_attack(
     input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
     num_classes: t.Annotated[int, "Number of classes."] = 2,
     query_budget: t.Annotated[int, "Max target queries."] = 1000,
+    measure_transfer: t.Annotated[
+        bool,
+        "Also craft adversarial examples on the stolen surrogate and test whether "
+        "they fool the real target (proves the boundary is genuinely useful). Costs "
+        "extra target queries.",
+    ] = True,
     modality: t.Annotated[str, "tabular | image | text."] = "tabular",
     assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
 ) -> str:
     """Steal a classifier's decision boundary via black-box queries.
 
-    Trains a surrogate on the target's predictions and reports fidelity/agreement.
-    Provide api_url and a query pool (pool_url or query_pool). Results appear in the
-    platform under AI Red Teaming with model-extraction metrics.
+    Trains a surrogate on the target's predictions and reports fidelity, agreement,
+    soft fidelity, KL divergence, per-class fidelity, a fidelity-vs-budget curve, and
+    (optionally) transfer success. Give api_url; if you omit pool_url/query_pool and
+    api_url ends in /predict, the query pool is derived from the target's /pool
+    endpoint. Results appear in the platform under AI Red Teaming.
     """
     params: dict[str, t.Any] = {
         "attack_type": attack_type,
         "api_url": api_url,
         "num_classes": num_classes,
         "query_budget": query_budget,
+        "measure_transfer": measure_transfer,
         "modality": modality,
         "request_template": request_template,
         "probabilities_path": probabilities_path,
@@ -652,6 +661,62 @@ def generate_membership_attack(
     if assessment_name:
         params["assessment_name"] = assessment_name
     return _call_runner("generate_membership_attack", params)
+
+
+@safe_tool
+def generate_inversion_attack(
+    attack_type: t.Annotated[
+        str, "Model-inversion attack: confidence (MI-Face hill-climb) or nes."
+    ] = "confidence",
+    api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
+    api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
+    num_classes: t.Annotated[int, "Number of classes."] = 2,
+    input_dim: t.Annotated[
+        int, "Feature-vector length (tabular). Inferred from the target's /pool if omitted."
+    ] = 0,
+    input_shape: t.Annotated[
+        str, "Image shape as 'H,W' (e.g. '8,8'). Inferred from /pool when square, if omitted."
+    ] = "",
+    target_classes: t.Annotated[
+        list | None, "Classes to reconstruct (default: all classes)."
+    ] = None,
+    max_queries: t.Annotated[int, "Max target queries."] = 1500,
+    request_template: t.Annotated[
+        str, "Request body with a single {input} placeholder."
+    ] = '{"features": {input}}',
+    probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
+    input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
+    modality: t.Annotated[str, "tabular | image | text."] = "tabular",
+    assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
+) -> str:
+    """Reconstruct a representative input for each class from the target's outputs.
+
+    Queries the target directly (no external dataset) and reports per-class
+    reconstruction confidence and how many classes were recovered. Give api_url and
+    num_classes; input_dim / input_shape are inferred from the target's /pool
+    endpoint when omitted. Results appear in the platform under AI Red Teaming.
+    """
+    params: dict[str, t.Any] = {
+        "attack_type": attack_type,
+        "api_url": api_url,
+        "num_classes": num_classes,
+        "max_queries": max_queries,
+        "modality": modality,
+        "request_template": request_template,
+        "probabilities_path": probabilities_path,
+        "input_format": input_format,
+    }
+    if api_key:
+        params["api_key"] = api_key
+    if input_dim:
+        params["input_dim"] = input_dim
+    if input_shape:
+        params["input_shape"] = input_shape
+    if target_classes:
+        params["target_classes"] = target_classes
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+    return _call_runner("generate_inversion_attack", params)
 
 
 @safe_tool

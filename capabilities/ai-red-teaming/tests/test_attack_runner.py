@@ -1161,3 +1161,103 @@ class TestAtlasDataset:
         script = Path(result["filepath"]).read_text()
         # 25 objective ids from the dataset should be embedded.
         assert script.count("'category':") >= 25 or script.count('"category":') >= 25
+
+
+class TestTraditionalMlDataDerivation:
+    """Traditional-ML extraction/membership must fetch a real dataset from the target.
+
+    Regression for the TUI bug where an extraction ran 0 queries (empty pool) and
+    reported a bogus 0% clone, while the SDK path (which fetches /pool) worked.
+    """
+
+    def _gen(self, tmp_path, monkeypatch, fn, params: dict) -> str:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        result = fn({**params, "generate_only": True})
+        assert "error" not in result, result
+        return Path(result["filepath"]).read_text()
+
+    def test_extraction_derives_pool_and_fails_loud(self, tmp_path, monkeypatch) -> None:
+        script = self._gen(
+            tmp_path,
+            monkeypatch,
+            runner.generate_extraction_attack,
+            {"attack_type": "knockoff", "api_url": "http://t/predict", "num_classes": 2},
+        )
+        compile(script, "extraction.py", "exec")
+        assert '/pool' in script and 'rsplit("/predict"' in script
+        assert "non-empty query pool" in script  # fail-loud guard
+        assert "measure_transfer=MEASURE_TRANSFER" in script
+
+    def test_extraction_surfaces_rich_metrics(self, tmp_path, monkeypatch) -> None:
+        script = self._gen(
+            tmp_path,
+            monkeypatch,
+            runner.generate_extraction_attack,
+            {"attack_type": "knockoff", "api_url": "http://t/predict", "num_classes": 2},
+        )
+        for metric in ("per_class_fidelity", "fidelity_vs_budget", "soft_fidelity", "kl_divergence"):
+            assert metric in script, "missing metric in output: " + metric
+
+    def test_extraction_errors_when_pool_underivable(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        result = runner.generate_extraction_attack(
+            {"attack_type": "knockoff", "api_url": "http://t/infer", "generate_only": True}
+        )
+        assert "error" in result and "pool" in result["error"].lower()
+
+    def test_membership_derives_member_sets_and_fails_loud(self, tmp_path, monkeypatch) -> None:
+        script = self._gen(
+            tmp_path,
+            monkeypatch,
+            runner.generate_membership_attack,
+            {"attack_type": "threshold", "api_url": "http://t/predict", "num_classes": 2},
+        )
+        compile(script, "membership.py", "exec")
+        assert "/members" in script and "/nonmembers" in script
+        assert "non-empty members and non-members" in script
+
+    def test_membership_errors_when_sets_underivable(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        result = runner.generate_membership_attack(
+            {"attack_type": "threshold", "api_url": "http://t/infer", "generate_only": True}
+        )
+        assert "error" in result
+
+
+class TestModelInversionTool:
+    """Model inversion must be available to the agent and turnkey against a target."""
+
+    def _gen(self, tmp_path, monkeypatch, params: dict) -> str:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        result = runner.generate_inversion_attack({**params, "generate_only": True})
+        assert "error" not in result, result
+        return Path(result["filepath"]).read_text()
+
+    def test_inversion_registered_in_dispatch(self) -> None:
+        assert "generate_inversion_attack" in runner.METHODS
+
+    def test_inversion_infers_shape_and_fails_loud(self, tmp_path, monkeypatch) -> None:
+        script = self._gen(
+            tmp_path, monkeypatch,
+            {"attack_type": "confidence", "api_url": "http://t/predict", "num_classes": 2},
+        )
+        compile(script, "inversion.py", "exec")
+        assert "math.isqrt" in script and "/pool" in script
+        assert "needs input_dim or input_shape" in script
+
+    def test_inversion_surfaces_per_class_confidence(self, tmp_path, monkeypatch) -> None:
+        script = self._gen(
+            tmp_path, monkeypatch,
+            {"attack_type": "confidence", "api_url": "http://t/predict", "num_classes": 10,
+             "input_shape": "8,8", "modality": "image", "target_classes": [0, 3, 7]},
+        )
+        assert "(8, 8)" in script and "[0, 3, 7]" in script
+        for metric in ("mean_confidence", "classes_reconstructed", "achieved_confidence"):
+            assert metric in script, "missing metric: " + metric
+
+    def test_inversion_unknown_attack_errors(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.setattr(runner, "WORKFLOWS_DIR", tmp_path)
+        result = runner.generate_inversion_attack(
+            {"attack_type": "bogus", "api_url": "http://t/predict", "generate_only": True}
+        )
+        assert "error" in result and "Unknown inversion" in result["error"]
