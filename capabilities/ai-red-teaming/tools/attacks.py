@@ -299,6 +299,44 @@ def generate_agentic_attack(
     return _call_runner("generate_agentic_attack", params)
 
 
+@safe_tool
+def generate_multistep_tool_attack(
+    agent_url: t.Annotated[str, "HTTP endpoint of the tool-using agent to red-team"],
+    secret_source: t.Annotated[str, "Untrusted source the agent can read (e.g. 'secret.txt')"] = "secret.txt",
+    sink_url: t.Annotated[str, "Attacker-controlled egress URL"] = "https://attacker.example/collect",
+    sink_email: t.Annotated[str, "Attacker-controlled egress email"] = "exfil@attacker.example",
+    attacker_model: t.Annotated[str, "LLM that records the assessment"] = "dn/claude-opus-4-8",
+    time_budget_s: t.Annotated[int, "Search time budget in seconds"] = 120,
+    agent_auth_env_var: t.Annotated[str, "Env var holding the agent bearer token (optional)"] = "AGENT_API_KEY",
+    assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
+) -> str:
+    """Run an algorithmic multi-step tool-attack search against an HTTP agent.
+
+    Searches user-message chains for a replay-stable read-then-exfiltrate causal
+    path (the agent reads an untrusted source, then performs a privileged
+    outbound action carrying its contents), verified by a trace predicate.
+
+    Our own implementation of the algorithmic techniques from the Kaggle
+    'AI Agent Security - Multi-Step Tool Attacks' competition (Kaggle x OpenAI x
+    Google x IEEE, 2026): replay-stable candidates + trajectory/shared-prefix
+    search (Pilkwang Kim), two-probe recovery (tetsu2131), and split/multi-post
+    exfiltration (JED / Nguyen Cong Tuan). Generalized to any agent/tools.
+    https://www.kaggle.com/competitions/ai-agent-security-multi-step-tool-attacks
+    """
+    params: dict[str, t.Any] = {
+        "agent_url": agent_url,
+        "secret_source": secret_source,
+        "sink_url": sink_url,
+        "sink_email": sink_email,
+        "attacker_model": attacker_model,
+        "time_budget_s": time_budget_s,
+        "agent_auth_env_var": agent_auth_env_var,
+    }
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+    return _call_runner("generate_multistep_tool_attack", params)
+
+
 def generate_agentic_suite_attack(
     goal: t.Annotated[str, "Overall red-team goal for the agent"],
     agent_url: t.Annotated[str, "HTTP endpoint of the target agent"],
