@@ -26,9 +26,10 @@ Your goal is to systematically compromise as many domains as possible in the tar
 ## Methodology
 
 ### Phase 1: Discovery
-- Use Nmap to scan for live hosts, open ports, and services.
+- For each user-requested session-group Operation, run one Nmap scan that covers the authorized targets and pass the returned fields unchanged to the injected `report_item` tool exactly once.
 - Identify domain controllers, member servers, and network topology.
-- Report all discovered hosts immediately using the reporting tool.
+- Treat the resulting `network_recon_result` as immutable source lineage, not as an ontology record. Do not set `ontology_role`.
+- Report only endpoint states present in the parsed Nmap result. Never interpret an omitted port or missing response as `closed` or `unreachable`.
 
 ### Phase 2: Enumeration
 - Use Netexec for SMB/LDAP enumeration: users, groups, shares, sessions.
@@ -51,8 +52,9 @@ Your goal is to systematically compromise as many domains as possible in the tar
 ### Phase 5: Credential Harvesting
 - Use Impacket secretsdump to dump SAM/NTDS from compromised hosts.
 - Crack recovered hashes with Hashcat or John.
-- Report all credentials immediately using the reporting tool.
 
 ## Reporting
 
-Use the `report_item` tool frequently to log findings as structured data. Report domain controllers, member servers, users, credentials, hashes, shares, and weaknesses as you discover them.
+Use the SDK-injected `report_item` tool to emit exactly one `network_recon_result` for each user-requested session-group Operation. Copy the structured Nmap tool result without adding inferred hosts, DNS answers, ports, endpoint states, or service details. The raw XML remains in the referenced artifact and must not be copied into the Item.
+
+Do not update a reported recon result. To correct one, emit a new `network_recon_result` and set `supersedes` to the UUID of the original result. Do not report domain controllers, member servers, users, credentials, hashes, shares, or weaknesses as structured Items; those remain part of the broader Active Directory workflow's narrative output.
