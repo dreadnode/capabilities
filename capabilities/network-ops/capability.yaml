@@ -1,6 +1,6 @@
 schema: 1
 name: network-ops
-version: "2.1.8"
+version: "3.0.0"
 description: >
   Network operations and Active Directory exploitation. Multi-agent
   pipeline for autonomous red teaming with Nmap scanning, Netexec
@@ -51,3 +51,5 @@ keywords:
   - red-team
   - active-directory
   - penetration-testing
+
+outputs: [network_recon_result]
