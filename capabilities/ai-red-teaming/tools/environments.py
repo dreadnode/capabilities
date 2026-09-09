@@ -235,6 +235,55 @@ def list_environments() -> str:
 
 
 @safe_tool
+def _resolve_task_owner(api: t.Any, caller_org: str, name: str) -> str | None:
+    """Resolve a bare task name to a qualified ``<org>/<name>`` the caller can reach.
+
+    Efficient by design: one ``list_tasks`` call (caller org + public catalog via
+    ``include_public``) covers the common case - public bundled targets and the
+    caller's own org - in a single request. Only if that misses do we fan out to
+    the user's other accessible orgs (covering a private task in an org the user
+    belongs to), stopping at the first exact match. Returns None if the name isn't
+    found or is ambiguous across orgs.
+    """
+    def _exact(payload: t.Any) -> list[dict]:
+        items = (payload or {}).get("tasks") or (payload or {}).get("items") or []
+        return [t_ for t_ in items if isinstance(t_, dict) and t_.get("name") == name]
+
+    hits: list[dict] = []
+    try:
+        hits = _exact(api.list_tasks(caller_org, search=name, include_public=True, limit=50))
+    except Exception:  # noqa: BLE001 - resolution is best-effort
+        hits = []
+
+    if not hits:
+        try:
+            orgs = [o.key for o in api.list_user_organizations()]
+        except Exception:  # noqa: BLE001
+            orgs = []
+        for o in orgs:
+            if o == caller_org:
+                continue
+            try:
+                found = _exact(api.list_tasks(o, search=name, limit=50))
+            except Exception:  # noqa: BLE001
+                continue
+            if found:
+                hits = found
+                break
+
+    if not hits:
+        return None
+    owners = {t_.get("org_key") for t_ in hits if t_.get("org_key")}
+    if len(owners) > 1:
+        # Ambiguous across orgs - prefer the public catalog if present, else bail
+        # so the caller qualifies it explicitly rather than us guessing wrong.
+        if "dreadnode" in owners:
+            return f"dreadnode/{name}"
+        return None
+    owner = next(iter(owners), None)
+    return f"{owner}/{name}" if owner else None
+
+
 def _target_kind(task_ref: str) -> str:
     """Classify a provisionable target so we return the right endpoint + guidance.
 
@@ -278,11 +327,30 @@ def provision_environment(
         return "Not configured for a platform org/workspace. Run `dreadnode login` first."
 
     model_overrides = {model_role: model} if model else None
-    env = TaskEnvironment(
-        api, org=org, workspace=workspace, task_ref=task_ref,
-        model_overrides=model_overrides, timeout_sec=timeout_sec,
-    )
-    ctx = _run(env.setup())
+
+    def _mk(ref: str) -> t.Any:
+        return TaskEnvironment(
+            api, org=org, workspace=workspace, task_ref=ref,
+            model_overrides=model_overrides, timeout_sec=timeout_sec,
+        )
+
+    # A bare name resolves only within the caller's org, so a target owned by
+    # another org (the public 'dreadnode/' catalog, or a private task in an org
+    # the user belongs to) 404s. On that 404, resolve the owning org and retry
+    # qualified as '<org>/<name>' (see _resolve_task_owner for the efficient
+    # one-call-then-fan-out lookup).
+    env = _mk(task_ref)
+    try:
+        ctx = _run(env.setup())
+    except Exception as exc:  # noqa: BLE001 - resolve owning org, then one retry
+        if "/" in task_ref or not _is_not_found(exc):
+            raise
+        resolved = _resolve_task_owner(api, org, task_ref)
+        if resolved is None:
+            raise
+        task_ref = resolved
+        env = _mk(task_ref)
+        ctx = _run(env.setup())
     svc = (ctx.get("service_urls") or {}).get("challenge")
     url = (svc.get("url") if isinstance(svc, dict) else svc) or ""
     token = env._execute_token or ""  # noqa: SLF001 - one-shot provision token
