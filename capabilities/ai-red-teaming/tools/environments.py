@@ -234,56 +234,6 @@ def list_environments() -> str:
     return "\n".join(lines)
 
 
-@safe_tool
-def _resolve_task_owner(api: t.Any, caller_org: str, name: str) -> str | None:
-    """Resolve a bare task name to a qualified ``<org>/<name>`` the caller can reach.
-
-    Efficient by design: one ``list_tasks`` call (caller org + public catalog via
-    ``include_public``) covers the common case - public bundled targets and the
-    caller's own org - in a single request. Only if that misses do we fan out to
-    the user's other accessible orgs (covering a private task in an org the user
-    belongs to), stopping at the first exact match. Returns None if the name isn't
-    found or is ambiguous across orgs.
-    """
-    def _exact(payload: t.Any) -> list[dict]:
-        items = (payload or {}).get("tasks") or (payload or {}).get("items") or []
-        return [t_ for t_ in items if isinstance(t_, dict) and t_.get("name") == name]
-
-    hits: list[dict] = []
-    try:
-        hits = _exact(api.list_tasks(caller_org, search=name, include_public=True, limit=50))
-    except Exception:  # noqa: BLE001 - resolution is best-effort
-        hits = []
-
-    if not hits:
-        try:
-            orgs = [o.key for o in api.list_user_organizations()]
-        except Exception:  # noqa: BLE001
-            orgs = []
-        for o in orgs:
-            if o == caller_org:
-                continue
-            try:
-                found = _exact(api.list_tasks(o, search=name, limit=50))
-            except Exception:  # noqa: BLE001
-                continue
-            if found:
-                hits = found
-                break
-
-    if not hits:
-        return None
-    owners = {t_.get("org_key") for t_ in hits if t_.get("org_key")}
-    if len(owners) > 1:
-        # Ambiguous across orgs - prefer the public catalog if present, else bail
-        # so the caller qualifies it explicitly rather than us guessing wrong.
-        if "dreadnode" in owners:
-            return f"dreadnode/{name}"
-        return None
-    owner = next(iter(owners), None)
-    return f"{owner}/{name}" if owner else None
-
-
 def _target_kind(task_ref: str) -> str:
     """Classify a provisionable target so we return the right endpoint + guidance.
 
@@ -334,23 +284,22 @@ def provision_environment(
             model_overrides=model_overrides, timeout_sec=timeout_sec,
         )
 
-    # A bare name resolves only within the caller's org, so a target owned by
-    # another org (the public 'dreadnode/' catalog, or a private task in an org
-    # the user belongs to) 404s. On that 404, resolve the owning org and retry
-    # qualified as '<org>/<name>' (see _resolve_task_owner for the efficient
-    # one-call-then-fan-out lookup).
+    # A bare name resolves to a task in the caller's org or any public task
+    # (server-side visibility rule), so bundled public targets work by bare name.
+    # A task owned by another org resolves only when it is public or owned by the
+    # caller - a private cross-org task 404s the same way whether or not it is
+    # qualified, so there is no client-side retry that helps; just add a hint.
     env = _mk(task_ref)
     try:
         ctx = _run(env.setup())
-    except Exception as exc:  # noqa: BLE001 - resolve owning org, then one retry
-        if "/" in task_ref or not _is_not_found(exc):
+    except Exception as exc:  # noqa: BLE001 - add a resolution hint on not-found
+        if not _is_not_found(exc):
             raise
-        resolved = _resolve_task_owner(api, org, task_ref)
-        if resolved is None:
-            raise
-        task_ref = resolved
-        env = _mk(task_ref)
-        ctx = _run(env.setup())
+        raise RuntimeError(
+            f"Task '{task_ref}' not found. A bare name resolves to a task in your org "
+            f"or any public task; a task owned by another org must be public or owned "
+            f"by you. Check the name and version, or qualify it as <org>/<name>."
+        ) from exc
     svc = (ctx.get("service_urls") or {}).get("challenge")
     url = (svc.get("url") if isinstance(svc, dict) else svc) or ""
     token = env._execute_token or ""  # noqa: SLF001 - one-shot provision token

@@ -14,14 +14,14 @@ How to provision a hosted target, run against the right endpoint, and tear it do
 - User gives an HTTP URL -> skip provisioning; go straight to `generate_agentic_attack` / `generate_atlas_attack`.
 - NEVER run `dreadnode env ...` in a shell, and NEVER guess a `provision`/`create` subcommand. `provision_environment` is the only supported path and it resolves the catalog for you.
 
-## 2. Task-ref resolution (fixes the bare-name 404)
+## 2. Task-ref resolution
 
-Bare names resolve in your org first, then the public `dreadnode/` catalog, then other orgs you belong to (covers a private task in a member org). You do NOT qualify manually - `provision_environment` catches the 404 and retries as `<org>/<name>` internally.
+A bare name resolves server-side to a task in your org OR any public task, so bundled public targets (`ml-extraction-*`, `*-mesh`) work by bare name with no extra qualification.
 
-- Prefer the BARE name (`ml-extraction-fraud-tabular`). It auto-resolves.
-- If you must qualify, use `dreadnode/<name>` for bundled tasks.
-- Do NOT qualify a bundled task with the caller's own org (e.g. `aisf-learner-aug-2026/ml-extraction-imdb-text`) - the task does not live there and it will 404 with no fallback.
-- If it still fails, the returned message is authoritative: report it. Do not invent qualification syntax or retry random forms.
+- Prefer the BARE name (`ml-extraction-fraud-tabular`). It resolves to the public catalog automatically.
+- A task owned by another org resolves only when it is public or owned by you. If a bare name 404s, the task is private to another org (or the name/version is wrong) - qualifying it as `<org>/<name>` will NOT help, because the same visibility rule applies.
+- Do NOT qualify a bundled task with the caller's own org (e.g. `aisf-learner-aug-2026/ml-extraction-imdb-text`) - it does not live there.
+- If provisioning fails, the returned message is authoritative: report it. Do not invent qualification syntax or retry random forms.
 
 ## 3. Endpoint-per-target map (fixes /attack on a /predict classifier)
 
