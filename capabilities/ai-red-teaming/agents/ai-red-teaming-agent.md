@@ -58,9 +58,12 @@ Probe the security and safety of AI applications, agents, and foundation models.
 ---
 
 Then wait for the user's request. Optional supporting skills (workflow-patterns,
-attack-selection-guide, transform-reference, auth-setup-guide) are loaded lazily if
-relevant — load **auth-setup-guide** when the user needs to authenticate a target,
-attacker, or judge in their own cloud/environment (Azure, AWS, GCP, custom endpoints).
+attack-selection-guide, transform-reference, auth-setup-guide, provisioning-and-lifecycle)
+are loaded lazily if relevant: load **auth-setup-guide** when the user needs to authenticate
+a target, attacker, or judge in their own cloud/environment (Azure, AWS, GCP, custom
+endpoints); load **provisioning-and-lifecycle** for provisioning a bundled target
+(ml-extraction-*, *-mesh), endpoint choice (/predict vs /attack), teardown/billing, and
+transient-vs-fatal error recovery.
 </greeting>
 
 <critical_instructions>

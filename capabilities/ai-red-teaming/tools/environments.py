@@ -370,7 +370,10 @@ def provision_environment(
     )
     teardown_note = (
         "\n>>> WHEN DONE: this sandbox bills for its whole lifetime - it is torn down "
-        "automatically when the assessment completes, or call teardown_environment() now."
+        "automatically once every planned attack is recorded (pass or fail). If you abandon "
+        "the run without recording all attacks, call teardown_environment() now so it does not "
+        "bill until its TTL. For long runs set AIRT_ENV_TEARDOWN_GRACE_SEC >= your longest "
+        "attack timeout so completion-teardown does not kill an in-flight attack."
     )
 
     if kind == "classifier":

@@ -115,6 +115,31 @@ Common errors and fixes for AIRT attack workflows.
 - **Cause**: All trials errored or timed out
 - **Fix**: Check for model/network errors. Reduce complexity (fewer transforms, simpler attack).
 
+## Provisioning & Sandbox Errors
+
+For the full lifecycle, load the `provisioning-and-lifecycle` skill.
+
+### "Task not found" / 404 provisioning a bundled target
+- **Cause**: A bare task name resolves only within the caller's org, but bundled targets (`ml-extraction-*`, `*-mesh`) live in the public `dreadnode/` catalog.
+- **Fix**: Use `provision_environment` with the BARE name - it catches the 404 and retries as `<org>/<name>` automatically. Never shell out to `dreadnode env`.
+- **Do NOT**: qualify a bundled task with your own org (e.g. `aisf-learner-aug-2026/ml-extraction-imdb-text`) - it is not there and there is no fallback. Use the bare name or `dreadnode/<name>`.
+
+### "404" on GET environments/<id>/status
+- **Cause**: The sandbox is already torn down or expired - you are polling a dead environment.
+- **Fix**: Treat it as terminal ("terminated"), stop polling, and do not surface it as an error.
+
+### Endpoint mismatch 404 (/attack vs /predict)
+- **Cause**: Probing the wrong endpoint for the target type - e.g. fetching `/attack` on an ML classifier that only serves `/predict`.
+- **Fix**: Read the `>>> NEXT STEP` line from `provision_environment`. Classifier -> `/predict`; mesh -> `/attack`. Never probe both.
+
+### Sandbox lifecycle & billing (avoid leaks)
+- **Cause**: A hosted sandbox bills for its whole lifetime; forgetting teardown leaks cost until TTL.
+- **Fix**: Finish with `update_assessment_status` (auto-teardown fires on `completed` and `failed`), or call `teardown_environment()` on early abort. Set `AIRT_ENV_TEARDOWN_GRACE_SEC` >= your longest attack timeout so teardown does not kill an in-flight attack.
+
+### Transient vs fatal (Note: vs Error:)
+- **`Note:` prefix** = transient network fault (TLS/timeout/conn-reset/502-504) already auto-retried; it did not affect running or recorded work - just re-run the step, do not report failure.
+- **`Error:` prefix** = a non-fatal input/tool issue - adjust params, do not blind-retry.
+
 ## Retry Strategy
 
 1. **First failure**: Read the error message, adjust the specific parameter that failed
