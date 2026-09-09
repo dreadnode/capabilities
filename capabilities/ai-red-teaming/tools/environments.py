@@ -234,7 +234,6 @@ def list_environments() -> str:
     return "\n".join(lines)
 
 
-@safe_tool
 def _target_kind(task_ref: str) -> str:
     """Classify a provisionable target so we return the right endpoint + guidance.
 
@@ -278,11 +277,29 @@ def provision_environment(
         return "Not configured for a platform org/workspace. Run `dreadnode login` first."
 
     model_overrides = {model_role: model} if model else None
-    env = TaskEnvironment(
-        api, org=org, workspace=workspace, task_ref=task_ref,
-        model_overrides=model_overrides, timeout_sec=timeout_sec,
-    )
-    ctx = _run(env.setup())
+
+    def _mk(ref: str) -> t.Any:
+        return TaskEnvironment(
+            api, org=org, workspace=workspace, task_ref=ref,
+            model_overrides=model_overrides, timeout_sec=timeout_sec,
+        )
+
+    # A bare name resolves to a task in the caller's org or any public task
+    # (server-side visibility rule), so bundled public targets work by bare name.
+    # A task owned by another org resolves only when it is public or owned by the
+    # caller - a private cross-org task 404s the same way whether or not it is
+    # qualified, so there is no client-side retry that helps; just add a hint.
+    env = _mk(task_ref)
+    try:
+        ctx = _run(env.setup())
+    except Exception as exc:  # noqa: BLE001 - add a resolution hint on not-found
+        if not _is_not_found(exc):
+            raise
+        raise RuntimeError(
+            f"Task '{task_ref}' not found. A bare name resolves to a task in your org "
+            f"or any public task; a task owned by another org must be public or owned "
+            f"by you. Check the name and version, or qualify it as <org>/<name>."
+        ) from exc
     svc = (ctx.get("service_urls") or {}).get("challenge")
     url = (svc.get("url") if isinstance(svc, dict) else svc) or ""
     token = env._execute_token or ""  # noqa: SLF001 - one-shot provision token
@@ -302,7 +319,10 @@ def provision_environment(
     )
     teardown_note = (
         "\n>>> WHEN DONE: this sandbox bills for its whole lifetime - it is torn down "
-        "automatically when the assessment completes, or call teardown_environment() now."
+        "automatically once every planned attack is recorded (pass or fail). If you abandon "
+        "the run without recording all attacks, call teardown_environment() now so it does not "
+        "bill until its TTL. For long runs set AIRT_ENV_TEARDOWN_GRACE_SEC >= your longest "
+        "attack timeout so completion-teardown does not kill an in-flight attack."
     )
 
     if kind == "classifier":
