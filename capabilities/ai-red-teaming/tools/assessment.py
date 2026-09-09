@@ -21,6 +21,7 @@ _spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
 _errors_mod = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_errors_mod)
 safe_tool = _errors_mod.safe_tool
+fmt_asr = _errors_mod.fmt_asr
 
 ASSESSMENT_PATH = Path(os.environ.get("AIRT_ASSESSMENT_PATH", "/tmp/airt_assessment.json"))
 
@@ -96,8 +97,7 @@ def get_assessment_status() -> str:
         for c in completed:
             # ASR is the attack success probability (how often the attack
             # worked). Shown as a percentage; that *is* the probability metric.
-            asr = c.get("asr")
-            asr_str = f"{asr}%" if asr is not None else "N/A"
+            asr_str = fmt_asr(c.get("asr"))
             line = f"  - {c['attack_name']}: success rate (ASR)={asr_str}"
             if c.get("notes"):
                 line += f" — {c['notes']}"
@@ -113,7 +113,7 @@ def get_assessment_status() -> str:
 def update_assessment_status(
     attack_name: t.Annotated[str, "Name of the completed attack"],
     status: t.Annotated[str, "Attack status (e.g., 'completed', 'failed', 'skipped')"] = "completed",
-    asr: t.Annotated[float | None, "Attack success rate as percentage (0-100)"] = None,
+    asr: t.Annotated[float | None, "Attack success rate, either a 0-1 fraction (e.g. 1.0 = 100%) or a 0-100 percentage; displayed consistently as a percentage"] = None,
     risk_score: t.Annotated[
         float | None,
         "Optional severity-weighted risk (0-10), stored for platform parity but "
@@ -166,7 +166,7 @@ def update_assessment_status(
 
     total = len(planned)
     done = len(completed)
-    asr_str = f" (ASR={asr}%)" if asr is not None else ""
+    asr_str = f" (ASR={fmt_asr(asr)})" if asr is not None else ""
     return f"Recorded {attack_name}: {status}{asr_str}. Progress: {done}/{total}.{teardown_note}"
 
 

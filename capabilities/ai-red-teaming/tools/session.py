@@ -23,6 +23,7 @@ _spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
 _errors_mod = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_errors_mod)
 safe_tool = _errors_mod.safe_tool
+fmt_asr = _errors_mod.fmt_asr
 
 SESSION_PATH = Path(
     os.environ.get(
@@ -143,7 +144,7 @@ def get_session_context() -> str:
         lines.append("")
         lines.append("Attack History ({} runs):".format(len(history)))
         for h in history[-5:]:  # Show last 5
-            score_str = "ASR={}%".format(h["best_score"]) if h.get("best_score") is not None else "no score"
+            score_str = "ASR={}".format(fmt_asr(h["best_score"])) if h.get("best_score") is not None else "no score"
             tx_str = "+{}".format(",".join(h["transforms"])) if h.get("transforms") else ""
             lines.append(
                 "  - {} {}: {} ({})".format(h.get("attack_type", "?"), tx_str, h.get("goal", "")[:40], score_str)

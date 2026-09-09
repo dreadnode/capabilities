@@ -241,3 +241,24 @@ class TestAssessmentCompletionHook:
         # platform call and returns "" (no note appended).
         monkeypatch.setenv("AIRT_ENV_REGISTRY_PATH", str(Path("/nonexistent/dir/registry.json")))
         assert assessment._teardown_on_complete() == ""
+
+
+class TestTargetKind:
+    """provision_environment must return the right endpoint per target type
+    (ENG-8427: a classifier was steered to /attack and 404'd)."""
+
+    @pytest.mark.parametrize("ref", [
+        "ml-extraction-mnist-image", "ml-extraction-fraud-tabular",
+        "ml-extraction-imdb-text", "some-classifier", "mnist-demo",
+    ])
+    def test_classifier_targets(self, ref):
+        assert env._target_kind(ref) == "classifier"
+
+    @pytest.mark.parametrize("ref", [
+        "finops-mesh", "devsecops-mesh", "healthcare-mesh", "soc-mesh",
+    ])
+    def test_mesh_targets(self, ref):
+        assert env._target_kind(ref) == "mesh"
+
+    def test_unknown_target(self):
+        assert env._target_kind("totally-custom-thing") == "unknown"
