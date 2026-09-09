@@ -21,6 +21,7 @@ _spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
 _errors_mod = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_errors_mod)
 safe_tool = _errors_mod.safe_tool
+fmt_asr = _errors_mod.fmt_asr
 
 
 def _resolve_workspace_dir() -> Path:
@@ -205,15 +206,10 @@ def get_analytics_summary(
         # surfaced to users (kept in the raw data for platform parity only).
         exec_stats = data.get("execution_stats", {}) if isinstance(data.get("execution_stats"), dict) else {}
         if "asr" in data:
-            _asr_pct = data["asr"]
-            lines.append(f"Success rate (ASR): {_asr_pct}%  (probability {round(_asr_pct / 100, 3)})")
+            lines.append(f"Success rate (ASR): {fmt_asr(data['asr'])}")
         elif "overall_asr" in exec_stats:
             # SDK stores ASR as a 0-1 fraction under execution_stats.
-            _asr_frac = exec_stats["overall_asr"]
-            lines.append(
-                f"Success rate (ASR): {round(_asr_frac * 100, 1)}%  "
-                f"(probability {round(_asr_frac, 3)})"
-            )
+            lines.append(f"Success rate (ASR): {fmt_asr(exec_stats['overall_asr'])}")
 
         severity = data.get("severity_breakdown", data.get("severity", {}))
         if severity:

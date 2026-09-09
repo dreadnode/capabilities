@@ -235,21 +235,41 @@ def list_environments() -> str:
 
 
 @safe_tool
+def _target_kind(task_ref: str) -> str:
+    """Classify a provisionable target so we return the right endpoint + guidance.
+
+    - 'classifier': black-box ML target that serves /predict (+ /pool, /members,
+      /nonmembers) - evasion / extraction / membership / inversion.
+    - 'mesh': multi-agent environment that serves /attack - ATLAS.
+    - 'unknown': fall back to a non-prescriptive message.
+    """
+    ref = (task_ref or "").lower()
+    if ref.endswith("-mesh") or "mesh" in ref:
+        return "mesh"
+    if ("ml-extraction" in ref or "classifier" in ref or "extraction" in ref
+            or any(k in ref for k in ("mnist", "fraud", "imdb", "tabular", "image", "text"))):
+        return "classifier"
+    return "unknown"
+
+
 def provision_environment(
-    task_ref: t.Annotated[str, "Environment/task to deploy, e.g. 'finops-mesh'"],
+    task_ref: t.Annotated[str, "Environment/task to deploy, e.g. 'finops-mesh' or 'ml-extraction-mnist-image'"],
     model: t.Annotated[
         str, "Model the environment's agents use (e.g. 'dn/claude-haiku-4-5', 'groq/llama-3.3-70b-versatile')"
     ] = "",
     model_role: t.Annotated[str, "Role key to override with the model (default 'agent')"] = "agent",
     timeout_sec: t.Annotated[int, "Provision + run budget in seconds"] = 1800,
 ) -> str:
-    """Provision a hosted multi-agent environment and return its attack URL.
+    """Provision a hosted target environment and return the correct endpoint for it.
 
-    Deploys the environment via the platform sandbox provider, passing ``model``
-    to the environment's agents (task-environment model capability). Returns the
-    ``/attack`` base URL and the bearer execute token — pass the URL to
-    ``generate_atlas_attack`` (``agent_url=<url>/attack``) with
-    ``agent_auth_type='bearer'`` and the token via the ``AGENT_API_KEY`` env.
+    Deploys the environment via the platform sandbox provider. The next step
+    depends on the target type:
+    - a black-box ML classifier (e.g. ``ml-extraction-mnist-image``) serves
+      ``/predict`` - use ``generate_evasion_attack`` / ``generate_extraction_attack``
+      / ``generate_membership_attack`` / ``generate_inversion_attack``.
+    - a multi-agent mesh (e.g. ``finops-mesh``) serves ``/attack`` - use
+      ``generate_atlas_attack``.
+    Do not probe ``/attack`` on a classifier target; it does not serve it.
     """
     from dreadnode.core.environment import TaskEnvironment
 
@@ -267,24 +287,56 @@ def provision_environment(
     url = (svc.get("url") if isinstance(svc, dict) else svc) or ""
     token = env._execute_token or ""  # noqa: SLF001 - one-shot provision token
     # Record the sandbox so it is torn down at assessment completion even if the
-    # attack path forgets — a hosted sandbox bills for its whole lifetime.
+    # attack path forgets - a hosted sandbox bills for its whole lifetime.
     env_id = _register_provisioned(env, task_ref, org, workspace)
     if not url:
         return f"Environment '{task_ref}' provisioned but exposed no 'challenge' URL: {ctx.get('service_urls')}"
 
-    return (
+    url = url.rstrip("/")
+    kind = _target_kind(task_ref)
+    header = (
         f"Environment '{task_ref}' is ready.\n"
         f"  Environment id: {env_id}\n"
-        f"  Attack URL: {url}/attack\n"
-        f"  Auth: bearer (execute token below)\n"
-        f"  Execute token: {token}\n"
-        f"  Model: {model or '(env default)'}\n\n"
-        f">>> NEXT STEP: run ATLAS against it — call generate_atlas_attack("
-        f"agent_url=\"{url}/attack\", agent_auth_type=\"bearer\", "
-        f"scenario_name=\"{task_ref.replace('-mesh', '')}\", attacker_model=\"groq scout\") "
-        f"and set AGENT_API_KEY to the execute token above.\n"
-        f">>> WHEN DONE: this sandbox bills for its whole lifetime — it is torn down "
-        f"automatically when the assessment completes, or call teardown_environment() now."
+        f"  Base URL: {url}\n"
+        f"  Model: {model or '(env default)'}\n"
+    )
+    teardown_note = (
+        "\n>>> WHEN DONE: this sandbox bills for its whole lifetime - it is torn down "
+        "automatically when the assessment completes, or call teardown_environment() now."
+    )
+
+    if kind == "classifier":
+        return (
+            header
+            + f"  Predict endpoint: {url}/predict   (dataset helpers: {url}/pool, /members, /nonmembers)\n\n"
+            + ">>> NEXT STEP: this is a black-box ML classifier. Do NOT fetch /attack - it does not "
+              "serve it. Run the matching attack with the predict endpoint, e.g.:\n"
+            + f'    generate_evasion_attack(attack_type="hopskipjump", api_url="{url}/predict", ...)\n'
+            + "    (or generate_extraction_attack / generate_membership_attack / generate_inversion_attack)\n"
+            + "    These tools query /predict and pull data from /pool, /members, /nonmembers automatically."
+            + teardown_note
+        )
+    if kind == "mesh":
+        return (
+            header
+            + f"  Attack URL: {url}/attack\n"
+            + f"  Auth: bearer (execute token below)\n"
+            + f"  Execute token: {token}\n\n"
+            + ">>> NEXT STEP: run ATLAS against it - call generate_atlas_attack("
+            + f'agent_url="{url}/attack", agent_auth_type="bearer", '
+            + f'scenario_name="{task_ref.replace("-mesh", "")}", attacker_model="groq scout") '
+            + "and set AGENT_API_KEY to the execute token above."
+            + teardown_note
+        )
+    # unknown: describe both without prescribing a wrong endpoint
+    return (
+        header
+        + f"  Execute token: {token}\n\n"
+        + ">>> NEXT STEP: inspect the target before attacking. A black-box ML classifier "
+          f"serves {url}/predict (use generate_evasion_attack / extraction / membership / "
+          f"inversion); a multi-agent mesh serves {url}/attack (use generate_atlas_attack). "
+          "Do not assume /attack exists."
+        + teardown_note
     )
 
 
