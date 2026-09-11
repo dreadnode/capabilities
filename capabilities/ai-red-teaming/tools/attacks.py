@@ -337,6 +337,7 @@ def generate_multistep_tool_attack(
     return _call_runner("generate_multistep_tool_attack", params)
 
 
+@safe_tool
 def generate_agentic_suite_attack(
     goal: t.Annotated[str, "Overall red-team goal for the agent"],
     agent_url: t.Annotated[str, "HTTP endpoint of the target agent"],
