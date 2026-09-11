@@ -121,8 +121,8 @@ For the full lifecycle, load the `provisioning-and-lifecycle` skill.
 
 ### "Task not found" / 404 provisioning a bundled target
 - **Cause**: A bare task name resolves only within the caller's org, but bundled targets (`ml-extraction-*`, `*-mesh`) live in the public `dreadnode/` catalog.
-- **Fix**: Use `provision_environment` with the BARE name - it catches the 404 and retries as `<org>/<name>` automatically. Never shell out to `dreadnode env`.
-- **Do NOT**: qualify a bundled task with your own org (e.g. `aisf-learner-aug-2026/ml-extraction-imdb-text`) - it is not there and there is no fallback. Use the bare name or `dreadnode/<name>`.
+- **Fix**: Use `provision_environment` with the BARE name. If the task is not found it returns an `Error:` message explaining the resolution rule — there is no automatic `<org>/<name>` retry, and qualifying a name does not bypass the visibility check. Never shell out to `dreadnode env`.
+- **Do NOT**: qualify a bundled task with your own org (e.g. `aisf-learner-aug-2026/ml-extraction-imdb-text`) — it is not there and there is no fallback. A bare name resolves to your org or any public task; a task owned by another org works only when public or owned by you.
 
 ### "404" on GET environments/<id>/status
 - **Cause**: The sandbox is already torn down or expired - you are polling a dead environment.

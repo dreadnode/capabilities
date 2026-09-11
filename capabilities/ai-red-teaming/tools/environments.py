@@ -170,7 +170,12 @@ def teardown_session_environments(
     older_than_sec: float = 0.0, registry_path: _Path = REGISTRY_PATH
 ) -> dict:
     """Reap every environment in the session registry. Used by the assessment
-    completion hook. Short-circuits (no platform call) when nothing is registered."""
+    completion hook. Short-circuits (no platform call) when nothing is registered.
+
+    Deliberately NOT a tool (no @safe_tool): this is a shared helper, invoked
+    directly by assessment.py's completion teardown and by tests. Adding @tool
+    would expose a user-callable teardown that bypasses assessment lifecycle.
+    """
     if not _registry_load(registry_path):
         return {"torn_down": [], "skipped": [], "errors": {}}
     _inst, api, org, workspace = _configured()
@@ -251,6 +256,7 @@ def _target_kind(task_ref: str) -> str:
     return "unknown"
 
 
+@safe_tool
 def provision_environment(
     task_ref: t.Annotated[str, "Environment/task to deploy, e.g. 'finops-mesh' or 'ml-extraction-mnist-image'"],
     model: t.Annotated[
@@ -271,6 +277,10 @@ def provision_environment(
     Do not probe ``/attack`` on a classifier target; it does not serve it.
     """
     from dreadnode.core.environment import TaskEnvironment
+    # NOTE: tests/test_tool_surface.py (TestProvisionErrorContract) monkeypatches
+    # `dreadnode.core.environment.TaskEnvironment` and relies on this lazy import
+    # to take effect. If this import is ever hoisted to module level, update those
+    # tests to patch the module-level binding instead.
 
     _inst, api, org, workspace = _configured()
     if not org or not workspace:
@@ -295,11 +305,17 @@ def provision_environment(
     except Exception as exc:  # noqa: BLE001 - add a resolution hint on not-found
         if not _is_not_found(exc):
             raise
-        raise RuntimeError(
-            f"Task '{task_ref}' not found. A bare name resolves to a task in your org "
-            f"or any public task; a task owned by another org must be public or owned "
-            f"by you. Check the name and version, or qualify it as <org>/<name>."
-        ) from exc
+        # A user-input error, not an internal fault: return a plain "Error:"
+        # string (per the skill contract, "Error:" = adjust params, don't
+        # blind-retry) instead of raising, so safe_tool does not mislabel it
+        # as an internal tool issue.
+        return (
+            f"Error: Task '{task_ref}' not found. A bare name resolves to a task "
+            "in your org or any public task, so a not-found here means the task is "
+            "private to another org (no <org>/<name> qualification can bypass that "
+            "visibility rule) or the name/version is wrong - check the name and "
+            "version."
+        )
     svc = (ctx.get("service_urls") or {}).get("challenge")
     url = (svc.get("url") if isinstance(svc, dict) else svc) or ""
     token = env._execute_token or ""  # noqa: SLF001 - one-shot provision token
