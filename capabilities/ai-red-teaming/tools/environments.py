@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path as _Path
 
 # Load the shared safe_tool wrapper by file path (flat-module loading).
-_errors_path = _Path(__file__).resolve().parent / "errors.py"
+_errors_path = _Path(__file__).resolve().parent / "_errors.py"
 _spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
 _errors_mod = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_errors_mod)
