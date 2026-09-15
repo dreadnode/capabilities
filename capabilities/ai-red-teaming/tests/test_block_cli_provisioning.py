@@ -5,12 +5,16 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 _HOOK_PATH = Path(__file__).resolve().parents[1] / "hooks" / "block_cli_provisioning.py"
 _spec = importlib.util.spec_from_file_location("airt_block_cli_provisioning", _HOOK_PATH)
 assert _spec and _spec.loader
 _mod = importlib.util.module_from_spec(_spec)
+# Register before exec so dataclasses can resolve the module namespace under
+# `from __future__ import annotations` (dataclasses looks the module up in sys.modules).
+sys.modules[_spec.name] = _mod
 _spec.loader.exec_module(_mod)
 
 
@@ -51,8 +55,17 @@ def test_blocks_dn_env_and_environment_variants() -> None:
     assert _run("python", json.dumps({"code": "os.system('dreadnode env provision m')"})) is not None
 
 
+def test_blocks_teardown_via_cli_and_redirects_to_teardown_tool() -> None:
+    r = _run("bash", json.dumps({"command": "dreadnode env teardown finops-mesh"}))
+    assert r is not None
+    assert "teardown_environment" in r.feedback
+    # destroy/delete variants also redirect to the teardown tool
+    assert "teardown_environment" in _run("bash", json.dumps({"command": "dn env delete soc-mesh"})).feedback
+
+
 def test_allows_non_provisioning_shell_commands() -> None:
     assert _run("bash", json.dumps({"command": "ls -la /home/user"})) is None
+    # dn airt run is a permitted CLI (no skill forbids it) - must not be blocked
     assert _run("bash", json.dumps({"command": "dn airt run --goal x --attack tap"})) is None
     assert _run("bash", json.dumps({"command": "python attack.py"})) is None
 
