@@ -1,4 +1,4 @@
-"""Tests for tools/errors.py - safe_tool retry/classification + fmt_asr.
+"""Tests for tools/_errors.py - safe_tool retry/classification + fmt_asr.
 
 Regression for ENG-8427: transient network faults (TLS handshake timeout, etc.)
 should be retried and surfaced as an explicitly non-fatal Note, and ASR should
@@ -15,7 +15,7 @@ import pytest
 
 pytest.importorskip("dreadnode.agents.tools")
 
-ERRORS_PATH = Path(__file__).resolve().parents[1] / "tools" / "errors.py"
+ERRORS_PATH = Path(__file__).resolve().parents[1] / "tools" / "_errors.py"
 
 
 def _load():

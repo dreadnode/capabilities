@@ -18,7 +18,7 @@ from pathlib import Path
 # loaded as flat modules (no parent package), so relative imports do not work.
 import importlib.util as _ilu
 from pathlib import Path as _Path
-_errors_path = _Path(__file__).resolve().parent / "errors.py"
+_errors_path = _Path(__file__).resolve().parent / "_errors.py"
 _spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
 _errors_mod = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_errors_mod)
