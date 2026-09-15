@@ -1,6 +1,6 @@
 schema: 1
 name: ai-red-teaming
-version: "1.16.1"
+version: "1.16.2"
 description: >
   Probe the security and safety of AI applications, agents, and foundation models.
   Orchestrates adversarial attack workflows to discover vulnerabilities in LLMs,
@@ -20,6 +20,8 @@ skills:
   - skills/
 tools:
   - tools/
+hooks:
+  - hooks/block_cli_provisioning.py
 
 author:
   name: Dreadnode
