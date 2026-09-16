@@ -408,6 +408,18 @@ _ATTACK_DEFS: dict[str, dict] = {
             "context_depth": 5,
         },
     },
+    "iterinject_attack": {
+        "module": "iterinject",
+        "function": "iterinject_attack",
+        "has_attacker": True,
+        "default_iterations": 60,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 6,
+            "branching_factor": 3,
+            "context_depth": 5,
+        },
+    },
     "rainbow_attack": {
         "module": "rainbow",
         "function": "rainbow_attack",
@@ -2331,6 +2343,50 @@ _TRANSFORM_DEFS: dict[str, dict] = {
         "code": "framing_effect()",
     },
     "false_dilemma": {"module": "dreadnode.transforms.persuasion", "name": "false_dilemma", "code": "false_dilemma()"},
+    # Tool-misuse -> RCE (agentic-probes 2026)
+    "yolo_mode_overwrite": {
+        "module": "dreadnode.transforms.tool_misuse_rce",
+        "name": "yolo_mode_overwrite",
+        "code": "yolo_mode_overwrite()",
+    },
+    "arg_flag_injection": {
+        "module": "dreadnode.transforms.tool_misuse_rce",
+        "name": "arg_flag_injection",
+        "code": "arg_flag_injection()",
+    },
+    "metachar_escape": {
+        "module": "dreadnode.transforms.tool_misuse_rce",
+        "name": "metachar_escape",
+        "code": "metachar_escape()",
+    },
+    "deser_payload": {
+        "module": "dreadnode.transforms.tool_misuse_rce",
+        "name": "deser_payload",
+        "code": "deser_payload()",
+    },
+    # Advanced exfiltration (agentic-probes 2026)
+    "trusted_proxy_char_exfil": {
+        "module": "dreadnode.transforms.exfil_advanced",
+        "name": "trusted_proxy_char_exfil",
+        "code": "trusted_proxy_char_exfil()",
+    },
+    "tool_arg_covert_channel": {
+        "module": "dreadnode.transforms.exfil_advanced",
+        "name": "tool_arg_covert_channel",
+        "code": "tool_arg_covert_channel()",
+    },
+    # MCP line-jumping (agentic-probes 2026)
+    "line_jump_injection": {
+        "module": "dreadnode.transforms.mcp_lifecycle",
+        "name": "line_jump_injection",
+        "code": "line_jump_injection()",
+    },
+    # Retrieval-optimized RAG poisoning (agentic-probes 2026)
+    "optimized_rag_poison": {
+        "module": "dreadnode.transforms.rag_optimization",
+        "name": "optimized_rag_poison",
+        "code": "optimized_rag_poison()",
+    },
 }
 
 # Short aliases -> canonical transform name
@@ -2580,6 +2636,20 @@ SCORER_REGISTRY: dict[str, dict] = {
     "rubric_judge": {"type": "builtin", "code": "dn.scorers.rubric_judge()"},
     # Data exfiltration (text-based)
     "data_exfil": {"type": "builtin", "code": "dn.scorers.data_exfil_detected()"},
+    # Agentic-probes 2026 evidence-gate scorers
+    "rce_evidence_gate": {"type": "builtin", "code": "dn.scorers.rce_evidence_gate()"},
+    "approval_bypassed": {"type": "builtin", "code": "dn.scorers.approval_bypassed()"},
+    "trusted_proxy_exfil_detected": {
+        "type": "builtin",
+        "code": "dn.scorers.trusted_proxy_exfil_detected()",
+    },
+    "covert_channel_capacity": {"type": "builtin", "code": "dn.scorers.covert_channel_capacity()"},
+    "minja_activation_detected": {"type": "builtin", "code": "dn.scorers.minja_activation_detected()"},
+    "line_jump_fired": {"type": "builtin", "code": "dn.scorers.line_jump_fired()"},
+    "poison_retrieved_and_steered": {
+        "type": "builtin",
+        "code": "dn.scorers.poison_retrieved_and_steered()",
+    },
 }
 
 GOAL_CATEGORY_ALIASES: dict[str, str] = {
