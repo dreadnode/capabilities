@@ -225,6 +225,7 @@ The capability ships 70+ attack strategies covering traditional ML and generativ
 | `crescendo` | Multi-turn conversation weaknesses | ~200-500 |
 | `goat` | Graph of Attacks with Pruning | ~200-500 |
 | `prompt` | Simple single-prompt baseline | ~10-50 |
+| `iterinject` | Indirect prompt injection with four-class diagnosis (payload in a tool result / document, not a chat turn) | ~60-200 |
 | `rainbow` | Broad risk coverage (MAP-Elites) | ~500-2000 |
 | `gptfuzzer` | Template-based fuzzing | ~200-500 |
 | `autodan` | Automated adversarial suffix | ~500-2000 |
@@ -237,7 +238,7 @@ The capability ships 70+ attack strategies covering traditional ML and generativ
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| attack_type | Yes | Attack name(s). Short: tap, pair, crescendo, goat, prompt, rainbow, fuzzer, autodan, renellm, beast, drattack, inception. Campaign: "tap,pair,crescendo" |
+| attack_type | Yes | Attack name(s). Short: tap, pair, crescendo, goat, prompt, iterinject, rainbow, fuzzer, autodan, renellm, beast, drattack, inception. Campaign: "tap,pair,crescendo" |
 | goal | Yes | Assessment goal text (pass through exactly as the user provides it) |
 | target_model | Yes | Target model — any provider. Use aliases or full litellm path (e.g. "openai/gpt-4o", "bedrock/anthropic.claude-sonnet-4-20250514-v1:0", "azure/gpt-4o", "ollama/llama3.3") |
 | attacker_model | No | Attacker model (defaults to target). Same aliases. |
