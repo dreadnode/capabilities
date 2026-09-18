@@ -43,6 +43,32 @@ class TestVersionsArePinned:
         ]
         assert not unpinned, f"unpinned installs: {unpinned}"
 
+    def test_projectdiscovery_tools_use_explicit_versions(self) -> None:
+        pins = {
+            "nuclei": "v3.11.1",
+            "httpx": "v1.12.0",
+            "subfinder": "v2.16.0",
+            "naabu": "v2.6.1",
+            "dnsx": "v1.3.1",
+            "uncover": "v1.2.1",
+            "alterx": "v0.1.0",
+            "tlsx": "v1.4.0",
+            "asnmap": "v1.1.1",
+        }
+        for tool, version in pins.items():
+            assert re.search(
+                rf"install_pd_tool {tool} \S+ {re.escape(version)}$",
+                INSTALL_SCRIPT,
+                re.MULTILINE,
+            ), f"missing {tool} pin {version}"
+
+        assert "pdtm -install" not in INSTALL_SCRIPT
+
+    def test_toolchain_and_kiterunner_versions_are_pinned(self) -> None:
+        assert 'GO_VERSION="1.26.6"' in INSTALL_SCRIPT
+        assert 'KITERUNNER_VERSION="v1.0.2"' in INSTALL_SCRIPT
+        assert 'git clone --depth 1 --branch "$KITERUNNER_VERSION"' in INSTALL_SCRIPT
+
 
 class TestFetchesAreGuarded:
     def test_every_go_install_is_guarded(self) -> None:
@@ -94,11 +120,12 @@ class TestFetchesAreGuarded:
                 unguarded.append(stripped)
         assert not unguarded, f"unguarded py_install: {unguarded}"
 
-    def test_pdtm_only_installs_missing_tools(self) -> None:
-        # `pdtm -install <full list>` re-fetches every tool in the list. The
-        # set has to be narrowed to what is actually absent first.
+    def test_only_missing_projectdiscovery_tools_are_installed(self) -> None:
         assert "$missing_pd_tools" in INSTALL_SCRIPT
-        assert "-install nuclei,httpx" not in INSTALL_SCRIPT
+        assert 'have_pd_tool "$tool" || missing_pd_tools=' in INSTALL_SCRIPT
+
+    def test_httpx_guard_rejects_the_python_cli(self) -> None:
+        assert "httpx -version >/dev/null 2>&1" in INSTALL_SCRIPT
 
     def test_katana_download_is_guarded(self) -> None:
         idx = next(
@@ -161,6 +188,12 @@ class TestFetchesAreGuarded:
     def test_go_cache_cleanup_only_runs_when_go_was_used(self) -> None:
         idx = next(i for i, line in enumerate(LINES) if "go clean -cache" in line)
         assert "need_go" in _preceding_context(idx, span=3)
+
+    def test_node_24_floor_and_sealed_browser_guard(self) -> None:
+        assert "setup_24.x" in INSTALL_SCRIPT
+        assert "setup_22.x" not in INSTALL_SCRIPT
+        assert "${DREADNODE_CAPABILITY_INSTALL:-}" in INSTALL_SCRIPT
+        assert '!= "sealed"' in INSTALL_SCRIPT
 
 
 class TestRootEscalation:
