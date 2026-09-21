@@ -338,6 +338,43 @@ def generate_multistep_tool_attack(
 
 
 @safe_tool
+def generate_agentvigil_attack(
+    agent_url: t.Annotated[str, "HTTP endpoint of the tool-using agent to red-team"],
+    instructed_tool: t.Annotated[str, "Tool whose firing counts as injection success"] = "send_email",
+    tasks: t.Annotated[
+        list[str] | None, "Benign tasks to compute ASR over; payload is planted in each"
+    ] = None,
+    seed_payload: t.Annotated[str, "Initial injection payload (MCTS root)"] = "",
+    attacker_model: t.Annotated[str, "LLM that mutates payloads (five operators)"] = "dn/claude-opus-4-8",
+    n_iterations: t.Annotated[int, "MCTS rollouts"] = 30,
+    agent_auth_env_var: t.Annotated[str, "Env var holding the agent bearer token (optional)"] = "AGENT_API_KEY",
+    assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
+) -> str:
+    """Run an AgentVigil MCTS indirect-injection search against an HTTP agent.
+
+    Monte-Carlo Tree Search over injection payloads planted in the agent's input
+    for a set of benign tasks: UCB1 selection, reward = ASR + C*(coverage/N), and an
+    attacker LLM mutating payloads with five operators. Success is evidence-gated on
+    the instructed tool actually firing. Our implementation of AgentVigil
+    (arXiv:2505.05849).
+    """
+    params: dict[str, t.Any] = {
+        "agent_url": agent_url,
+        "instructed_tool": instructed_tool,
+        "attacker_model": attacker_model,
+        "n_iterations": n_iterations,
+        "agent_auth_env_var": agent_auth_env_var,
+    }
+    if tasks:
+        params["tasks"] = tasks
+    if seed_payload:
+        params["seed_payload"] = seed_payload
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+    return _call_runner("generate_agentvigil_attack", params)
+
+
+@safe_tool
 def generate_agentic_suite_attack(
     goal: t.Annotated[str, "Overall red-team goal for the agent"],
     agent_url: t.Annotated[str, "HTTP endpoint of the target agent"],
