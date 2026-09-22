@@ -96,7 +96,7 @@ EXPECTED_SURFACE = {
     # Same root cause: generate_agentic_suite_attack is documented as a tool in
     # agents/ai-red-teaming-agent.md but was never decorated, so the "run all
     # possible attacks" path shipped with no executable tool.
-    "attacks.py": {"generate_agentic_suite_attack", "generate_agentvigil_attack"},
+    "attacks.py": {"generate_agentic_suite_attack", "generate_agentvigil_attack", "generate_eva_attack"},
 }
 
 

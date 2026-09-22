@@ -133,3 +133,7 @@ Pair with `line_jump_fired`.
 Pair with `poison_retrieved_and_steered` (requires BOTH retrieval and steer).
 
 **For low-resource language transforms, always use `adapt_language(LanguageName)` syntax.**
+
+## Agentic-probes 2026 (multi-agent / GUI / compaction)
+
+`self_replicating_peer_payload` (mesh worm), `popup_overlay` (GUI overlay - trust/urgency), `cometjacking_url` (URL-param injection), `compaction_summary_injection` (context-compaction boundary)

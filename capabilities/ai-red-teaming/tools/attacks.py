@@ -375,6 +375,34 @@ def generate_agentvigil_attack(
 
 
 @safe_tool
+def generate_eva_attack(
+    agent_url: t.Annotated[str, "HTTP endpoint of the GUI/computer-use agent to red-team"],
+    instructed_tool: t.Annotated[str, "Action/tool whose firing counts as the injected action"] = "click",
+    k_max: t.Annotated[int, "Max evolution iterations"] = 5,
+    attacker_model: t.Annotated[str, "LLM that mutates the overlay + judges intent"] = "dn/claude-opus-4-8",
+    agent_auth_env_var: t.Annotated[str, "Env var holding the agent bearer token (optional)"] = "AGENT_API_KEY",
+    assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
+) -> str:
+    """Run an EVA evolving environmental-injection search against a GUI/CUA agent.
+
+    Seeds a pop-up/overlay in the agent's observation and evolves it (Trust/Urgency,
+    up to k_max iterations) with the paper's two-stage evaluator: an action-region
+    check, then an LLM intent-disambiguation judge (both must pass). Our implementation
+    of EVA (arXiv:2505.14289).
+    """
+    params: dict[str, t.Any] = {
+        "agent_url": agent_url,
+        "instructed_tool": instructed_tool,
+        "k_max": k_max,
+        "attacker_model": attacker_model,
+        "agent_auth_env_var": agent_auth_env_var,
+    }
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+    return _call_runner("generate_eva_attack", params)
+
+
+@safe_tool
 def generate_agentic_suite_attack(
     goal: t.Annotated[str, "Overall red-team goal for the agent"],
     agent_url: t.Annotated[str, "HTTP endpoint of the target agent"],
