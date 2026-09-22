@@ -3266,7 +3266,7 @@ def _build_custom_http_target(custom: dict) -> str:
         '    headers = {"Content-Type": "application/json"}',
         auth_lines,
         "",
-        "    body_str = {}.replace('{{prompt}}', prompt.replace('\"', '\\\\\"'))".format(
+        "    body_str = {}.replace('{{prompt}}', json.dumps(prompt)[1:-1])".format(
             repr(request_template)
         ),
         "    body = json.loads(body_str)",
@@ -4415,7 +4415,7 @@ def _build_agent_target_code(agent_config: dict) -> str:
         auth_lines,
         "",
         "    # Build request body from template",
-        "    body_str = {}.replace('{{prompt}}', prompt.replace('\"', '\\\\\"'))".format(repr(request_template)),
+        "    body_str = {}.replace('{{prompt}}', json.dumps(prompt)[1:-1])".format(repr(request_template)),
         "    body = json.loads(body_str)",
         "",
         "    async with httpx.AsyncClient(timeout=120.0) as client:",
