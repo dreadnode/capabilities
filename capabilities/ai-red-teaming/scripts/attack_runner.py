@@ -4330,6 +4330,33 @@ def generate_attack(params: dict) -> dict:
 
 # Agentic attack generation — targets HTTP agent APIs
 
+# Emitted into generated workflow scripts. Normalizes agent tool_calls to the
+# {name, arguments:str} shape the SDK scorers expect, regardless of whether the
+# agent returns {"tool": ..., "arguments": {dict}} or OpenAI-style nested
+# {"function": {"name": ..., "arguments": "<str>"}}. Without this, dict arguments
+# and the "tool" alias make _extract_tool_calls return [] and every agentic
+# tool scorer silently reads no tool calls.
+_NORMALIZE_TOOL_CALLS_SRC = [
+    "def _normalize_tool_calls(raw):",
+    '    """Coerce agent tool_calls to [{name, arguments:str}] for SDK scorers."""',
+    "    out = []",
+    "    for tc in raw or []:",
+    "        if not isinstance(tc, dict):",
+    "            continue",
+    '        fn = tc.get("function") if isinstance(tc.get("function"), dict) else tc',
+    '        name = fn.get("name") or fn.get("tool") or ""',
+    '        args = fn.get("arguments", fn.get("args", ""))',
+    "        if not isinstance(args, str):",
+    "            try:",
+    "                args = json.dumps(args)",
+    "            except Exception:",
+    "                args = str(args)",
+    '        out.append({"name": name, "arguments": args})',
+    "    return out",
+    "",
+    "",
+]
+
 # Response extraction presets for common agent API formats
 _AGENT_PRESETS: dict[str, dict[str, str]] = {
     "openai_assistants": {
@@ -4377,6 +4404,7 @@ def _build_agent_target_code(agent_config: dict) -> str:
     escaped_tc_path = _safe_str(tool_calls_path)
 
     lines = [
+        *_NORMALIZE_TOOL_CALLS_SRC,
         "@task",
         "async def target(prompt: str) -> dict:",
         '    """Call external agent API and extract text + tool_calls."""',
@@ -4406,6 +4434,7 @@ def _build_agent_target_code(agent_config: dict) -> str:
         "    tool_calls = tc_matches[0] if tc_matches else []",
         "    if not isinstance(tool_calls, list):",
         "        tool_calls = [tool_calls] if tool_calls else []",
+        "    tool_calls = _normalize_tool_calls(tool_calls)",
         "",
         '    return {"content": content, "tool_calls": tool_calls}',
         "",
@@ -4836,6 +4865,7 @@ def _build_atlas_target_code(agent_config: dict) -> str:
 
     escaped_url = _safe_str(agent_url)
     lines = [
+        *_NORMALIZE_TOOL_CALLS_SRC,
         "async def target(prompt: str, *, surface: str = \"direct\", injection: str | None = None) -> dict:",
         '    """POST to the ATLAS multi-agent environment and return content + tool calls."""',
         "    import httpx",
@@ -4855,6 +4885,7 @@ def _build_atlas_target_code(agent_config: dict) -> str:
         '    tool_calls = data.get("tool_calls") or []',
         "    if not isinstance(tool_calls, list):",
         "        tool_calls = [tool_calls] if tool_calls else []",
+        "    tool_calls = _normalize_tool_calls(tool_calls)",
         "    return {",
         '        "content": content,',
         '        "tool_calls": tool_calls,',
