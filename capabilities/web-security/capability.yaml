@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.15.1"
+version: "2.0.0"
 description: >
   Web application penetration testing with 83 attack technique playbooks
   covering HTTP desync/request smuggling, cache poisoning, SSRF, SSTI, DOM
