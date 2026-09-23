@@ -40,8 +40,7 @@
 #               as a cold-start aid.
 #
 # Tools NOT included (require external setup):
-#   - Burp    — set burp MCP url to a running instance
-#   - jxscout — commercial binary, requires license activation
+#   - Burp — set burp MCP url to a running instance
 
 FROM python:3.12-slim
 

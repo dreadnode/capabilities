@@ -348,12 +348,6 @@ axios.get(`/api/v1/${resource}/${id}`)          // resource + id from URL
 $.get(`/data/${window.location.hash.slice(1)}`) // hash fragment
 ```
 
-**Detection with jxscout:**
-```bash
-jxscout-pro-v2 -c get-matches --kind fetch-url-injection
-jxscout-pro-v2 -c get-matches --kind dynamic-api-path
-```
-
 **Manual grep patterns:**
 ```bash
 # In downloaded JS bundles

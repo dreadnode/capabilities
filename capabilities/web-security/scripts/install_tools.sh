@@ -219,18 +219,6 @@ BURPEOF
   fi
 fi
 
-# -- jxscout ----------------------------------------------------------------
-# Commercial binary — if JXSCOUT_BINARY_URL is set, download from there.
-# Otherwise skip; the MCP server falls back to PATH / ~/go/bin / ~/bin.
-if ! command -v jxscout-pro-v2 &>/dev/null && [ -n "${JXSCOUT_BINARY_URL:-}" ]; then
-  curl -fsSL "$JXSCOUT_BINARY_URL" -o /tmp/jxscout-pro-v2 \
-    && as_root install -m 0755 /tmp/jxscout-pro-v2 /usr/local/bin/jxscout-pro-v2
-  rm -f /tmp/jxscout-pro-v2
-  echo "jxscout installed from JXSCOUT_BINARY_URL"
-elif ! command -v jxscout-pro-v2 &>/dev/null; then
-  echo "WARN: jxscout-pro-v2 not found. Set JXSCOUT_BINARY_URL to install, or place binary on PATH."
-fi
-
 # -- exiftool (EXIF metadata manipulation) ---------------------------------
 if ! command -v exiftool &>/dev/null; then
   as_root apt-get install -y --no-install-recommends libimage-exiftool-perl \
