@@ -74,7 +74,7 @@ Highest-value technique. Detect proxy endpoints routing to internal services -- 
 Once scoped proxy is confirmed via timing:
 1. Feed it your subdomain list -- timing reveals which resolve internally
 2. Test RFC1918 ranges on common ports (80, 443, 8080, 8443)
-3. Pre-filter candidates: `surf -l hosts.txt`
+3. Pre-filter candidates: probe the range with `naabu`/`httpx` for live hosts
 
 ### Front-End Impersonation
 If the proxy respects forwarded headers:

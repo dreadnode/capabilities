@@ -62,13 +62,12 @@ GO_TOOL_VERSIONS_pdtm="v0.1.5"
 GO_TOOL_VERSIONS_protoscope="v0.0.0-20221109213918-8e7a6aafa2c9"
 GO_TOOL_VERSIONS_interactsh="v1.3.1"
 GO_TOOL_VERSIONS_2fa="v1.2.0"
-GO_TOOL_VERSIONS_surf="v0.0.5"
 
 PD_TOOLS="nuclei httpx subfinder naabu dnsx uncover alterx tlsx asnmap"
 
 # What is actually missing, before anything is fetched.
 missing_go_tools=""
-for tool in protoscope interactsh-client 2fa surf; do
+for tool in protoscope interactsh-client 2fa; do
   have "$tool" || missing_go_tools="$missing_go_tools $tool"
 done
 missing_pd_tools=""
@@ -127,8 +126,8 @@ have interactsh-client || \
 # -- 2fa (TOTP generator) --------------------------------------------------
 have 2fa || go install "rsc.io/2fa@${GO_TOOL_VERSIONS_2fa}"
 
-# -- surf (SSRF target identification) ------------------------------------
-have surf || go install "github.com/assetnote/surf/cmd/surf@${GO_TOOL_VERSIONS_surf}"
+# surf is not installed: upstream grants no licence, so we have no right to use
+# or redistribute it (ADM-447).
 
 # -- kiterunner (API content discovery) ------------------------------------
 if ! have kr; then

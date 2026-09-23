@@ -20,7 +20,6 @@
 #   - 2fa                 (TOTP code generation)
 #   - agent-browser       (headless Chromium for DOM interaction)
 #   - kiterunner          (API-aware content discovery)
-#   - surf                (SSRF target identification)
 #   - wrangler            (Cloudflare Workers CLI for custom OAST endpoints)
 #   - pacu                (AWS exploitation framework)
 #   - ast-grep            (AST-based code pattern search via tree-sitter)
@@ -108,8 +107,7 @@ RUN git clone --depth 1 https://github.com/assetnote/kiterunner /tmp/kiterunner 
  && rm -rf /tmp/kiterunner \
  || echo "WARN: kiterunner build failed, skipping"
 
-# ── surf (SSRF target identification) ────────────────────────────
-RUN go install github.com/assetnote/surf/cmd/surf@latest
+# surf is not installed: upstream grants no licence (ADM-447).
 
 # ── protoscope ──────────────────────────────────────────────────────
 RUN go install github.com/protocolbuffers/protoscope/cmd/protoscope@latest
