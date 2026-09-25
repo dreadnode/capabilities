@@ -67,8 +67,11 @@ KITERUNNER_VERSION="v1.0.2"
 
 have_pd_tool() {
   if [ "$1" = "httpx" ]; then
-    command -v httpx >/dev/null 2>&1 && httpx -version >/dev/null 2>&1 \
-      || [ -x "$HOME/.pdtm/go/bin/httpx" ] && "$HOME/.pdtm/go/bin/httpx" -version >/dev/null 2>&1
+    # Python's httpx package also installs an `httpx` CLI; only
+    # ProjectDiscovery's answers `-version`.
+    { command -v httpx >/dev/null 2>&1 && httpx -version >/dev/null 2>&1; } \
+      || { [ -x "$HOME/.pdtm/go/bin/httpx" ] && "$HOME/.pdtm/go/bin/httpx" -version >/dev/null 2>&1; } \
+      || { [ -x "$HOME/go/bin/httpx" ] && "$HOME/go/bin/httpx" -version >/dev/null 2>&1; }
   else
     have "$1"
   fi

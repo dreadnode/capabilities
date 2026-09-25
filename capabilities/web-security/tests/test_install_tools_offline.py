@@ -12,7 +12,9 @@ guarded on the artefact it produces, and every version is pinned.
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +30,33 @@ def _preceding_context(index: int, span: int = 6) -> str:
 def _surrounding_context(index: int, span: int = 4) -> str:
     """Lines around a match — useful for checking as_root wrapping."""
     return "\n".join(LINES[max(0, index - span) : min(len(LINES), index + span + 1)])
+
+
+def _shell_function(name: str) -> str:
+    match = re.search(rf"^{name}\(\) \{{\n.*?^\}}\n", INSTALL_SCRIPT, re.M | re.S)
+    assert match, f"{name}() not found in install_tools.sh"
+    return match.group(0)
+
+
+def _stub(path: Path, exit_code: int) -> None:
+    """An executable whose `-version` succeeds only for ProjectDiscovery httpx."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"#!/bin/sh\nexit {exit_code}\n", encoding="utf-8")
+    path.chmod(0o755)
+
+
+def _have_pd_httpx(tmp_path: Path) -> bool:
+    (tmp_path / "home").mkdir(exist_ok=True)
+    script = (
+        _shell_function("have")
+        + _shell_function("have_pd_tool")
+        + "have_pd_tool httpx\n"
+    )
+    env = {
+        "HOME": str(tmp_path / "home"),
+        "PATH": f"{tmp_path / 'bin'}:{os.environ['PATH']}",
+    }
+    return subprocess.run(["bash", "-c", script], env=env, check=False).returncode == 0
 
 
 class TestVersionsArePinned:
@@ -124,8 +153,22 @@ class TestFetchesAreGuarded:
         assert "$missing_pd_tools" in INSTALL_SCRIPT
         assert 'have_pd_tool "$tool" || missing_pd_tools=' in INSTALL_SCRIPT
 
-    def test_httpx_guard_rejects_the_python_cli(self) -> None:
-        assert "httpx -version >/dev/null 2>&1" in INSTALL_SCRIPT
+    def test_httpx_guard_accepts_projectdiscovery_httpx_on_path(
+        self, tmp_path: Path
+    ) -> None:
+        _stub(tmp_path / "bin" / "httpx", exit_code=0)
+        assert _have_pd_httpx(tmp_path)
+
+    def test_httpx_guard_rejects_the_python_cli(self, tmp_path: Path) -> None:
+        _stub(tmp_path / "bin" / "httpx", exit_code=2)
+        assert not _have_pd_httpx(tmp_path)
+
+    def test_httpx_guard_accepts_pdtm_httpx_behind_the_python_cli(
+        self, tmp_path: Path
+    ) -> None:
+        _stub(tmp_path / "bin" / "httpx", exit_code=2)
+        _stub(tmp_path / "home" / ".pdtm" / "go" / "bin" / "httpx", exit_code=0)
+        assert _have_pd_httpx(tmp_path)
 
     def test_katana_download_is_guarded(self) -> None:
         idx = next(
