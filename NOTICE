@@ -1,0 +1,24 @@
+Dreadnode Capabilities
+Copyright (c) 2026 Dreadnode, Inc.
+
+This repository is licensed under the MIT License in LICENSE, except for the
+third-party material listed below. That material is not covered by the MIT
+grant. Each item keeps its upstream owner's copyright and license.
+
+capabilities/bloodhound/docs/
+  BloodHound documentation by SpecterOps.
+  License: Apache-2.0. See capabilities/bloodhound/docs/LICENSE.
+
+capabilities/mythic-c2/docs/apollo/
+  Apollo agent documentation from MythicAgents/Apollo.
+  Copyright (c) 2022, Dwight Hohnstein.
+  License: BSD-3-Clause. See capabilities/mythic-c2/docs/apollo/LICENSE.
+
+capabilities/sliver-c2/docs/sliver/
+  Sliver documentation by Bishop Fox.
+  License: GPL-3.0. See capabilities/sliver-c2/docs/sliver/LICENSE.
+
+capabilities/binary-analysis/skills/binary-analysis/references/external/
+  Point-in-time snapshots of third-party reference material. Each file keeps
+  its upstream owner's terms. Sources are listed in
+  capabilities/binary-analysis/skills/binary-analysis/references/SOURCES.md.
