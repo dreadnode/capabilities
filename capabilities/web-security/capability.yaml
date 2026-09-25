@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "1.15.1"
+version: "2.0.1"
 description: >
   Web application penetration testing with 83 attack technique playbooks
   covering HTTP desync/request smuggling, cache poisoning, SSRF, SSTI, DOM
@@ -18,7 +18,7 @@ description: >
   @caido/sdk-client / caido-ts) for curl-through-Caido
   testing, match & replace rules, and replay handoffs; Burp proxy
   integration via MCP, browser automation via
-  agent-browser, JS static analysis via jxscout, AST-based code pattern
+  agent-browser, AST-based code pattern
   search via ast-grep, protobuf inspection via
   protoscope, credential management, DNS rebinding, HTTP desync
   fingerprinting with byte-exact smuggling payload construction, blind
@@ -62,12 +62,6 @@ mcp:
         CAIDO_URL: "${CAIDO_URL:-http://127.0.0.1:8080}"
         CAIDO_ACCESS_TOKEN: "${CAIDO_ACCESS_TOKEN:-}"
         CAIDO_ALLOW_SENSITIVE_HEADERS: "${CAIDO_ALLOW_SENSITIVE_HEADERS:-}"
-      init_timeout: 60
-    jxscout:
-      command: "uv"
-      args:
-        - "run"
-        - "${CAPABILITY_ROOT}/mcp/jxscout.py"
       init_timeout: 60
     thermoptic:
       command: "uv"
@@ -204,8 +198,6 @@ checks:
     command: command -v ast-grep
   - name: wrangler
     command: command -v wrangler
-  - name: jxscout
-    command: command -v jxscout-pro-v2
 
 author:
   name: Dreadnode
@@ -252,7 +244,6 @@ keywords:
   - agent-browser
   - browser-automation
   - burp-suite
-  - jxscout
   - ast-grep
   - interactsh
   - oob-callbacks

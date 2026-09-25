@@ -57,9 +57,6 @@ If CSP whitelists a domain that has a JSONP endpoint, inject a `<script>` tag po
 
 **To find JSONP endpoints on any whitelisted domain**:
 ```bash
-# Search for JSONP patterns in JS files via jxscout
-jxscout-pro-v2 -c get-matches --kind jsonp-endpoint
-
 # Probe common JSONP paths
 for p in "/api?callback=test" "/?callback=test" "/search?jsonp=test" \
          "/v1/endpoint?cb=test" "/?_jsonp=test"; do
@@ -248,9 +245,6 @@ for p in "?callback=alert" "?cb=alert" "?jsonp=alert" "?_callback=alert" \
          "?onload=alert" "?_jsonp=alert" "?func=alert"; do
   curl -sk "https://whitelisted-domain.com/api${p}" | head -1
 done
-
-# Check jxscout for JSONP patterns in target JS
-jxscout-pro-v2 -c get-matches --kind jsonp-endpoint
 ```
 
 ### Philosophy

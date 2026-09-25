@@ -66,6 +66,5 @@ kr brute https://target.com -A=aspx-260227:10000 -x 5
 
 ## Chain With
 
-- **jxscout** -- extract Swagger/OpenAPI specs from source maps, convert to .kite
 - **Caido** -- replay findings via `kb replay --proxy` for evidence capture
 - **vulnx** -- discovered endpoints reveal technology versions for CVE lookup

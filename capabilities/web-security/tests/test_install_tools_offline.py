@@ -36,11 +36,7 @@ class TestVersionsArePinned:
         # run, so it reaches the network even when the binary is already
         # present — and produces a different tool set on different days, which
         # no SBOM can describe.
-        unpinned = [
-            line.strip()
-            for line in LINES
-            if "@latest" in line and not line.strip().startswith("#")
-        ]
+        unpinned = [line.strip() for line in LINES if "@latest" in line and not line.strip().startswith("#")]
         assert not unpinned, f"unpinned installs: {unpinned}"
 
     def test_projectdiscovery_tools_use_explicit_versions(self) -> None:
@@ -83,9 +79,7 @@ class TestFetchesAreGuarded:
     def test_global_npm_install_is_guarded(self) -> None:
         for i, line in enumerate(LINES):
             if re.search(r"^\s*(as_root\s+)?npm install -g", line):
-                assert "have " in _preceding_context(
-                    i
-                ), f"unguarded global npm install at line {i + 1}: {line.strip()}"
+                assert "have " in _preceding_context(i), f"unguarded global npm install at line {i + 1}: {line.strip()}"
 
     def test_npm_installs_are_version_pinned(self) -> None:
         # Same SBOM argument as the go pins: an unpinned `npm install -g`
@@ -110,11 +104,7 @@ class TestFetchesAreGuarded:
                 continue
             # Skip the py_install function definition and requirement file
             # installs (guarded by their parent clone check).
-            if (
-                stripped.startswith(("if", "elif", "def", "#"))
-                or "-r " in stripped
-                or "py_install()" in stripped
-            ):
+            if stripped.startswith(("if", "elif", "def", "#")) or "-r " in stripped or "py_install()" in stripped:
                 continue
             if "have " not in _preceding_context(i):
                 unguarded.append(stripped)
@@ -128,21 +118,15 @@ class TestFetchesAreGuarded:
         assert "httpx -version >/dev/null 2>&1" in INSTALL_SCRIPT
 
     def test_katana_download_is_guarded(self) -> None:
-        idx = next(
-            i for i, line in enumerate(LINES) if "katana_${KATANA_VERSION}" in line
-        )
+        idx = next(i for i, line in enumerate(LINES) if "katana_${KATANA_VERSION}" in line)
         assert "have katana" in _preceding_context(idx, span=8)
 
     def test_caido_cli_download_is_guarded(self) -> None:
-        idx = next(
-            i for i, line in enumerate(LINES) if "caido.download/releases" in line
-        )
+        idx = next(i for i, line in enumerate(LINES) if "caido.download/releases" in line)
         assert "command -v caido-cli" in _preceding_context(idx, span=10)
 
     def test_caido_mcp_server_download_is_guarded(self) -> None:
-        idx = next(
-            i for i, line in enumerate(LINES) if "caido-mcp-server-linux" in line
-        )
+        idx = next(i for i, line in enumerate(LINES) if "caido-mcp-server-linux" in line)
         assert "command -v caido-mcp-server" in _preceding_context(idx, span=15)
 
     def test_kiterunner_build_is_guarded(self) -> None:
@@ -153,13 +137,9 @@ class TestFetchesAreGuarded:
         # wrangler is fetched from npm, so the guard-and-pin discipline applies
         # exactly as it does to the go installs: present binary -> no registry
         # request; absent binary -> the pinned version, not @latest.
-        idx = next(
-            i for i, line in enumerate(LINES) if "wrangler@${WRANGLER_VERSION}" in line
-        )
+        idx = next(i for i, line in enumerate(LINES) if "wrangler@${WRANGLER_VERSION}" in line)
         assert "have wrangler" in _preceding_context(idx, span=6)
-        pin = next(
-            i for i, line in enumerate(LINES) if line.startswith("WRANGLER_VERSION=")
-        )
+        pin = next(i for i, line in enumerate(LINES) if line.startswith("WRANGLER_VERSION="))
         assert re.fullmatch(
             r"WRANGLER_VERSION=\"[0-9]+\.[0-9]+\.[0-9]+\"",
             LINES[pin].strip(),
@@ -201,34 +181,17 @@ class TestRootEscalation:
 
     def test_caido_cli_tar_uses_as_root(self) -> None:
         idx = next(
-            i
-            for i, line in enumerate(LINES)
-            if "tar" in line and "caido-cli" in line and "/usr/local/bin" in line
+            i for i, line in enumerate(LINES) if "tar" in line and "caido-cli" in line and "/usr/local/bin" in line
         )
         assert "as_root" in LINES[idx]
 
     def test_caido_mcp_server_install_uses_as_root(self) -> None:
-        idx = next(
-            i
-            for i, line in enumerate(LINES)
-            if "install -m" in line and "caido-mcp-server" in line
-        )
+        idx = next(i for i, line in enumerate(LINES) if "install -m" in line and "caido-mcp-server" in line)
         assert "as_root" in LINES[idx]
 
     def test_kiterunner_mv_uses_as_root(self) -> None:
         idx = next(
-            i
-            for i, line in enumerate(LINES)
-            if "/usr/local/bin/kr" in line and ("mv " in line or "install " in line)
-        )
-        assert "as_root" in LINES[idx]
-
-    def test_jxscout_install_uses_as_root(self) -> None:
-        idx = next(
-            i
-            for i, line in enumerate(LINES)
-            if "/usr/local/bin/jxscout" in line
-            and ("install " in line or "curl " not in line)
+            i for i, line in enumerate(LINES) if "/usr/local/bin/kr" in line and ("mv " in line or "install " in line)
         )
         assert "as_root" in LINES[idx]
 
@@ -237,17 +200,11 @@ class TestRootEscalation:
         assert "as_root" in LINES[idx]
 
     def test_exiftool_apt_uses_as_root(self) -> None:
-        idx = next(
-            i
-            for i, line in enumerate(LINES)
-            if "apt-get" in line and "exiftool" in line
-        )
+        idx = next(i for i, line in enumerate(LINES) if "apt-get" in line and "exiftool" in line)
         assert "as_root" in LINES[idx]
 
     def test_nodejs_apt_uses_as_root(self) -> None:
-        idx = next(
-            i for i, line in enumerate(LINES) if "apt-get" in line and "nodejs" in line
-        )
+        idx = next(i for i, line in enumerate(LINES) if "apt-get" in line and "nodejs" in line)
         assert "as_root" in LINES[idx]
 
 

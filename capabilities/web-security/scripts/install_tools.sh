@@ -61,7 +61,6 @@ py_install() {
 GO_TOOL_VERSIONS_protoscope="v0.0.0-20221109213918-8e7a6aafa2c9"
 GO_TOOL_VERSIONS_interactsh="v1.3.1"
 GO_TOOL_VERSIONS_2fa="v1.2.0"
-GO_TOOL_VERSIONS_surf="v0.0.5"
 GO_VERSION="1.26.6"
 KATANA_VERSION="1.7.0"
 KITERUNNER_VERSION="v1.0.2"
@@ -84,7 +83,7 @@ install_pd_tool() {
 
 # What is actually missing, before anything is fetched.
 missing_go_tools=""
-for tool in protoscope interactsh-client 2fa surf; do
+for tool in protoscope interactsh-client 2fa; do
   have "$tool" || missing_go_tools="$missing_go_tools $tool"
 done
 missing_pd_tools=""
@@ -144,8 +143,8 @@ have interactsh-client || \
 # -- 2fa (TOTP generator) --------------------------------------------------
 have 2fa || go install "rsc.io/2fa@${GO_TOOL_VERSIONS_2fa}"
 
-# -- surf (SSRF target identification) ------------------------------------
-have surf || go install "github.com/assetnote/surf/cmd/surf@${GO_TOOL_VERSIONS_surf}"
+# surf is not installed: upstream grants no licence, so we have no right to use
+# or redistribute it (ADM-447).
 
 # -- kiterunner (API content discovery) ------------------------------------
 if ! have kr; then
@@ -235,18 +234,6 @@ BURPEOF
   else
     echo "WARN: cannot create /opt/burp (requires root); skipping Burp Suite"
   fi
-fi
-
-# -- jxscout ----------------------------------------------------------------
-# Commercial binary — if JXSCOUT_BINARY_URL is set, download from there.
-# Otherwise skip; the MCP server falls back to PATH / ~/go/bin / ~/bin.
-if ! command -v jxscout-pro-v2 &>/dev/null && [ -n "${JXSCOUT_BINARY_URL:-}" ]; then
-  curl -fsSL "$JXSCOUT_BINARY_URL" -o /tmp/jxscout-pro-v2 \
-    && as_root install -m 0755 /tmp/jxscout-pro-v2 /usr/local/bin/jxscout-pro-v2
-  rm -f /tmp/jxscout-pro-v2
-  echo "jxscout installed from JXSCOUT_BINARY_URL"
-elif ! command -v jxscout-pro-v2 &>/dev/null; then
-  echo "WARN: jxscout-pro-v2 not found. Set JXSCOUT_BINARY_URL to install, or place binary on PATH."
 fi
 
 # -- exiftool (EXIF metadata manipulation) ---------------------------------
