@@ -58,12 +58,31 @@ py_install() {
   fi
 }
 
-GO_TOOL_VERSIONS_pdtm="v0.1.5"
 GO_TOOL_VERSIONS_protoscope="v0.0.0-20221109213918-8e7a6aafa2c9"
 GO_TOOL_VERSIONS_interactsh="v1.3.1"
 GO_TOOL_VERSIONS_2fa="v1.2.0"
+GO_VERSION="1.26.6"
+KATANA_VERSION="1.7.0"
+KITERUNNER_VERSION="v1.0.2"
 
-PD_TOOLS="nuclei httpx subfinder naabu dnsx uncover alterx tlsx asnmap"
+have_pd_tool() {
+  if [ "$1" = "httpx" ]; then
+    # Python's httpx package also installs an `httpx` CLI; only
+    # ProjectDiscovery's answers `-version`.
+    { command -v httpx >/dev/null 2>&1 && httpx -version >/dev/null 2>&1; } \
+      || { [ -x "$HOME/.pdtm/go/bin/httpx" ] && "$HOME/.pdtm/go/bin/httpx" -version >/dev/null 2>&1; } \
+      || { [ -x "$HOME/go/bin/httpx" ] && "$HOME/go/bin/httpx" -version >/dev/null 2>&1; }
+  else
+    have "$1"
+  fi
+}
+
+install_pd_tool() {
+  local tool="$1" package="$2" version="$3"
+  have_pd_tool "$tool" && return
+  mkdir -p "$HOME/.pdtm/go/bin"
+  GOBIN="$HOME/.pdtm/go/bin" go install "${package}@${version}"
+}
 
 # What is actually missing, before anything is fetched.
 missing_go_tools=""
@@ -71,10 +90,9 @@ for tool in protoscope interactsh-client 2fa; do
   have "$tool" || missing_go_tools="$missing_go_tools $tool"
 done
 missing_pd_tools=""
-for tool in $PD_TOOLS; do
-  have "$tool" || missing_pd_tools="$missing_pd_tools,$tool"
+for tool in nuclei httpx subfinder naabu dnsx uncover alterx tlsx asnmap; do
+  have_pd_tool "$tool" || missing_pd_tools="$missing_pd_tools $tool"
 done
-missing_pd_tools="${missing_pd_tools#,}"
 
 # -- Go toolchain (only when something still has to be built) --------------
 # Deliberately last in the decision order: the toolchain is a ~150 MB download
@@ -82,9 +100,8 @@ missing_pd_tools="${missing_pd_tools#,}"
 # never needed, so it is never requested.
 need_go=false
 [ -n "$missing_go_tools" ] && need_go=true
-[ -n "$missing_pd_tools" ] && ! have pdtm && need_go=true
+[ -n "$missing_pd_tools" ] && need_go=true
 if [ "$need_go" = true ] && ! command -v go &>/dev/null; then
-  GO_VERSION="1.24.3"
   case "$ARCH" in
     aarch64|arm64) GOARCH="arm64" ;;
     *)             GOARCH="amd64" ;;
@@ -93,18 +110,21 @@ if [ "$need_go" = true ] && ! command -v go &>/dev/null; then
   export PATH="/usr/local/go/bin:$PATH"
 fi
 
-# -- PDTM + ProjectDiscovery tools ----------------------------------------
+# -- ProjectDiscovery tools ------------------------------------------------
 if [ -n "$missing_pd_tools" ]; then
-  if ! have pdtm; then
-    go install "github.com/projectdiscovery/pdtm/cmd/pdtm@${GO_TOOL_VERSIONS_pdtm}"
-  fi
-  PDTM_BIN="$(command -v pdtm || echo "$(go env GOPATH)/bin/pdtm")"
-  "$PDTM_BIN" -install "$missing_pd_tools"
+  install_pd_tool nuclei github.com/projectdiscovery/nuclei/v3/cmd/nuclei v3.11.1
+  install_pd_tool httpx github.com/projectdiscovery/httpx/cmd/httpx v1.12.0
+  install_pd_tool subfinder github.com/projectdiscovery/subfinder/v2/cmd/subfinder v2.16.0
+  install_pd_tool naabu github.com/projectdiscovery/naabu/v2/cmd/naabu v2.6.1
+  install_pd_tool dnsx github.com/projectdiscovery/dnsx/cmd/dnsx v1.3.1
+  install_pd_tool uncover github.com/projectdiscovery/uncover/cmd/uncover v1.2.1
+  install_pd_tool alterx github.com/projectdiscovery/alterx/cmd/alterx v0.1.0
+  install_pd_tool tlsx github.com/projectdiscovery/tlsx/cmd/tlsx v1.4.0
+  install_pd_tool asnmap github.com/projectdiscovery/asnmap/cmd/asnmap v1.1.1
 fi
 
 # -- katana (pre-built binary, go-tree-sitter build issue) -----------------
 if ! have katana; then
-  KATANA_VERSION="1.5.0"
   DEB_ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
   mkdir -p "$HOME/.pdtm/go/bin"
   curl -fsSL "https://github.com/projectdiscovery/katana/releases/download/v${KATANA_VERSION}/katana_${KATANA_VERSION}_linux_${DEB_ARCH}.zip" \
@@ -131,7 +151,7 @@ have 2fa || go install "rsc.io/2fa@${GO_TOOL_VERSIONS_2fa}"
 
 # -- kiterunner (API content discovery) ------------------------------------
 if ! have kr; then
-  if git clone --depth 1 https://github.com/assetnote/kiterunner /tmp/kiterunner; then
+  if git clone --depth 1 --branch "$KITERUNNER_VERSION" https://github.com/assetnote/kiterunner /tmp/kiterunner; then
     ( cd /tmp/kiterunner && make build ) \
       && as_root mv /tmp/kiterunner/dist/kr /usr/local/bin/kr
     rm -rf /tmp/kiterunner
@@ -226,8 +246,9 @@ if ! command -v exiftool &>/dev/null; then
 fi
 
 # -- Node.js + agent-browser -----------------------------------------------
-if ! command -v node &>/dev/null; then
-  curl -fsSL https://deb.nodesource.com/setup_22.x | as_root bash - \
+NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+if [ "$NODE_MAJOR" -lt 24 ]; then
+  curl -fsSL https://deb.nodesource.com/setup_24.x | as_root bash - \
     && as_root apt-get install -y --no-install-recommends nodejs \
     || echo "WARN: Node.js install failed, skipping"
 fi
@@ -243,7 +264,7 @@ fi
 # non-fatal because a disconnected deployment that cannot fetch a browser
 # should still get the rest of this capability's tooling.
 AGENT_BROWSER_CACHE="${AGENT_BROWSER_CACHE_DIR:-$HOME/.cache/agent-browser}"
-if [ ! -d "$AGENT_BROWSER_CACHE" ]; then
+if [ "${DREADNODE_CAPABILITY_INSTALL:-}" != "sealed" ] && [ ! -d "$AGENT_BROWSER_CACHE" ]; then
   agent-browser install || echo "WARN: agent-browser browser download failed, skipping"
 fi
 
