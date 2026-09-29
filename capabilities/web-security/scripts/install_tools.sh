@@ -14,7 +14,7 @@ case "$OS" in
     ;;
 esac
 
-export PATH="$HOME/.pdtm/go/bin:$HOME/go/bin:$PATH"
+export PATH="$HOME/.pdtm/go/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/go/bin:$PATH"
 
 # `have <tool>` — is this already on PATH, or in one of the two directories the
 # tools below install into?
@@ -106,8 +106,7 @@ if [ "$need_go" = true ] && ! command -v go &>/dev/null; then
     aarch64|arm64) GOARCH="arm64" ;;
     *)             GOARCH="amd64" ;;
   esac
-  curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" | tar -xz -C /usr/local
-  export PATH="/usr/local/go/bin:$PATH"
+  curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" | as_root tar -xz -C /usr/local
 fi
 
 # -- ProjectDiscovery tools ------------------------------------------------

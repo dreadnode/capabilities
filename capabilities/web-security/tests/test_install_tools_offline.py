@@ -59,6 +59,59 @@ def _have_pd_httpx(tmp_path: Path) -> bool:
     return subprocess.run(["bash", "-c", script], env=env, check=False).returncode == 0
 
 
+def test_existing_go_outside_initial_path_is_reused(tmp_path: Path) -> None:
+    local = tmp_path / "usr-local"
+    _stub(local / "go/bin/go", exit_code=0)
+    result = _run_go_setup(tmp_path, local)
+    assert result.returncode == 0, result.stderr
+    assert not (tmp_path / "sudo.log").exists()
+    assert result.stdout.strip() == str(local / "go/bin/go")
+
+
+def test_missing_go_extracts_with_noninteractive_sudo(tmp_path: Path) -> None:
+    local = tmp_path / "usr-local"
+    result = _run_go_setup(tmp_path, local)
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "sudo.log").read_text().strip() == f"-n tar -xz -C {local}"
+
+
+def _run_go_setup(tmp_path: Path, local: Path) -> subprocess.CompletedProcess[str]:
+    """Run Go setup with temporary paths and stubbed system commands."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    commands = {
+        "id": "printf '1000\\n'",
+        "curl": "printf 'archive\\n'",
+        "sudo": 'printf "%s\\n" "$*" > "$HOME/sudo.log"; shift; exec "$@"',
+        "tar": 'read -r archive; test "$archive" = archive',
+    }
+    for name, body in commands.items():
+        executable = bindir / name
+        executable.write_text(f"#!/bin/bash\n{body}\n")
+        executable.chmod(0o755)
+    path_line = next(line for line in LINES if line.startswith("export PATH="))
+    go_setup = INSTALL_SCRIPT.split("need_go=false", 1)[1].split(
+        "# -- ProjectDiscovery tools", 1
+    )[0]
+    script = (
+        "set -euo pipefail\n"
+        + path_line
+        + "\n"
+        + _shell_function("as_root")
+        + "missing_go_tools=protoscope; missing_pd_tools=''; ARCH=x86_64; GO_VERSION=test\n"
+        + "need_go=false"
+        + go_setup
+        + "\ncommand -v go || true\n"
+    ).replace("/usr/local", str(local))
+    return subprocess.run(
+        ["/bin/bash", "-c", script],
+        env={"HOME": str(tmp_path), "PATH": str(bindir)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 class TestVersionsArePinned:
     def test_no_unpinned_go_installs(self) -> None:
         # `go install ...@latest` re-resolves against the module proxy every
