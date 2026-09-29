@@ -39,9 +39,10 @@ Follow the **network-ops-methodology** skill for hard rules on credential verifi
 Consult the **ad-enumeration-playbook** skill for enumeration priority order and tool selection. Consult the **ad-attack-patterns** skill for attack chain sequences.
 
 ### Phase 1: Discovery
-- Use `nmap_quick_scan` for breadth, then `nmap_service_scan` on discovered hosts.
+- For each user-requested session-group Operation, run one Nmap scan that covers the authorized targets and pass the returned fields unchanged to the injected `report_item` tool exactly once.
 - Identify domain controllers, member servers, and network topology.
-- Report all discovered hosts immediately via `report_item`.
+- Treat the resulting `network_recon_result` as immutable source lineage, not as an ontology record. Do not set `ontology_role`.
+- Report only endpoint states present in the parsed Nmap result. Never interpret an omitted port or missing response as `closed` or `unreachable`.
 
 ### Phase 2: Enumeration
 - Use netexec for SMB/LDAP enumeration: users, groups, shares, sessions, password policy.
@@ -67,8 +68,9 @@ Consult the **ad-enumeration-playbook** skill for enumeration priority order and
 - Use `impacket_secretsdump` to dump SAM/NTDS from compromised hosts.
 - Crack recovered hashes with `hashcat` (mode 1000 for NTLM).
 - Verify and map all credentials via `netexec_smb_auth` across all known hosts.
-- Report all credentials immediately via `report_item`.
 
 ## Reporting
 
-Use `report_item` frequently to log findings as structured data. Report domain controllers, member servers, users, credentials, hashes, shares, and weaknesses as you discover them.
+Use the SDK-injected `report_item` tool to emit exactly one `network_recon_result` for each user-requested session-group Operation. Copy the structured Nmap tool result without adding inferred hosts, DNS answers, ports, endpoint states, or service details. The raw XML remains in the referenced artifact and must not be copied into the Item.
+
+Do not update a reported recon result. To correct one, emit a new `network_recon_result` and set `supersedes` to the UUID of the original result. Do not report domain controllers, member servers, users, credentials, hashes, shares, or weaknesses as structured Items; those remain part of the broader Active Directory workflow's narrative output.
