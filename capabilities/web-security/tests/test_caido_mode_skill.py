@@ -226,13 +226,10 @@ class TestCaidoModeInstall:
         )
 
     def test_install_is_guarded_on_package_json_and_installed_deps(self) -> None:
-        # Guarded on both: package.json alone re-runs `npm install` on every
-        # boot, which reaches the registry even when the dependencies are
-        # already present — an outbound attempt a disconnected deployment
-        # cannot satisfy and does not need.
+        # Check declared dependencies locally before invoking npm install.
         assert (
             'if [ -f "$CAIDO_MODE_DIR/package.json" ] '
-            '&& [ ! -d "$CAIDO_MODE_DIR/node_modules" ]; then'
+            '&& ! ( cd "$CAIDO_MODE_DIR" && npm ls --depth=0 >/dev/null 2>&1 ); then'
         ) in INSTALL_SCRIPT
 
     def test_install_failure_is_non_fatal(self) -> None:
