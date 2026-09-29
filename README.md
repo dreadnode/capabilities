@@ -64,4 +64,4 @@ This repo is published for reference, not as a contribution target — we don't 
 
 ## License
 
-Each capability declares its license in its `capability.yaml`.
+This repository is licensed under the [MIT License](LICENSE). Third-party material listed in [NOTICE](NOTICE) keeps its own license and is not covered by the MIT grant.
