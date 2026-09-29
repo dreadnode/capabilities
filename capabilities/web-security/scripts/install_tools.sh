@@ -88,13 +88,32 @@ as_root() {
   fi
 }
 
-# Target the selected Python interpreter. Virtualenv installs run as the
-# current user; system installs use root privileges and system-package flags.
+# Target the selected interpreter. Elevate only for non-virtualenv installs
+# whose package or script directories are not writable by the current user.
 py_install() {
-  local python in_venv uv
+  local python install_access uv
   local -a command system_flags
   python="$(command -v python3)" || return
-  in_venv="$("$python" -c 'import sys; print(int(sys.prefix != sys.base_prefix))')" || return
+  install_access="$("$python" -c '
+import os
+from pathlib import Path
+import sys
+import sysconfig
+
+if sys.prefix != sys.base_prefix:
+    print("venv")
+else:
+    paths = sysconfig.get_paths()
+    writable = True
+    for key in ("purelib", "platlib", "scripts", "data"):
+        target = Path(paths[key])
+        while not target.exists() and target != target.parent:
+            target = target.parent
+        if not target.is_dir() or not os.access(target, os.W_OK | os.X_OK):
+            writable = False
+            break
+    print("writable" if writable else "privileged")
+')" || return
   if uv="$(command -v uv)"; then
     command=("$uv" pip install --python "$python")
     system_flags=(--system --break-system-packages)
@@ -102,8 +121,10 @@ py_install() {
     command=("$python" -m pip install)
     system_flags=(--break-system-packages)
   fi
-  if [ "$in_venv" = 1 ]; then
+  if [ "$install_access" = venv ]; then
     "${command[@]}" "$@"
+  elif [ "$install_access" = writable ]; then
+    "${command[@]}" "${system_flags[@]}" "$@"
   else
     as_root "${command[@]}" "${system_flags[@]}" "$@"
   fi
@@ -346,14 +367,11 @@ install_browser() {
     retry as_root npm install -g "agent-browser@${AGENT_BROWSER_VERSION}" \
       || { echo "WARN: agent-browser install failed, skipping" >&2; return 1; }
   fi
-  # `agent-browser install` downloads the browser binaries themselves. Guarded on
-  # a completion marker so a failed download that creates the cache directory
-  # is retried on the next pass. Sealed deployments still skip browser downloads.
+  # Reuse browser caches supplied by the image. Browser downloads are optional
+  # and are skipped entirely in sealed deployments.
   AGENT_BROWSER_CACHE="${AGENT_BROWSER_CACHE_DIR:-$HOME/.cache/agent-browser}"
-  if [ "${DREADNODE_CAPABILITY_INSTALL:-}" != "sealed" ] && [ ! -f "$AGENT_BROWSER_CACHE/.dreadnode-installed" ]; then
-    retry agent-browser install || { echo "WARN: agent-browser browser download failed, skipping" >&2; return 1; }
-    mkdir -p "$AGENT_BROWSER_CACHE"
-    touch "$AGENT_BROWSER_CACHE/.dreadnode-installed"
+  if [ "${DREADNODE_CAPABILITY_INSTALL:-}" != "sealed" ] && [ ! -d "$AGENT_BROWSER_CACHE" ]; then
+    retry agent-browser install || echo "WARN: agent-browser browser download failed, skipping" >&2
   fi
 }
 run_stage browser install_browser

@@ -7,6 +7,8 @@ No system packages or network access are needed.
 import os
 import re
 import subprocess
+import sys
+import shlex
 
 import pytest
 from pathlib import Path
@@ -532,19 +534,17 @@ def test_zero_exit_without_required_binary_is_not_success(tmp_path: Path) -> Non
     assert "Missing required tool: nuclei" in result.stderr
 
 
-def test_partial_browser_and_npm_directories_do_not_prevent_repair(
+def test_partial_npm_directory_does_not_prevent_repair(
     tmp_path: Path,
 ) -> None:
     script = _installer_fixture(tmp_path)
-    (tmp_path / ".cache/agent-browser/.dreadnode-installed").unlink()
     (tmp_path / "skills/caido-mode/node_modules/complete").unlink()
-    first = _run_installer(script, BROWSER_FAIL="1", NPM_FAIL="1")
+    first = _run_installer(script, NPM_FAIL="1")
     assert first.returncode == 1
-    assert "failed stages: browser caido_mode" in first.stderr
+    assert "failed stages: caido_mode" in first.stderr
     second = _run_installer(script)
     assert second.returncode == 0, second.stderr
     assert (tmp_path / "skills/caido-mode/node_modules/complete").is_file()
-    assert (tmp_path / ".cache/agent-browser/.dreadnode-installed").is_file()
 
 
 def test_fireprox_requirements_retry_after_successful_clone(tmp_path: Path) -> None:
@@ -584,7 +584,7 @@ exit "${DOWNLOAD_FAIL:-0}"
 
 def test_sealed_install_does_not_download_missing_browser(tmp_path: Path) -> None:
     script = _installer_fixture(tmp_path)
-    (tmp_path / ".cache/agent-browser/.dreadnode-installed").unlink()
+    (tmp_path / ".cache/agent-browser").rename(tmp_path / "saved-browser")
     result = _run_installer(script, DREADNODE_CAPABILITY_INSTALL="sealed")
     assert result.returncode == 0, result.stderr
     assert "browser-install" not in (tmp_path / "commands").read_text()
@@ -615,16 +615,17 @@ echo source > "$1/fire.py"
 
 @pytest.mark.parametrize("with_uv", [True, False])
 @pytest.mark.parametrize("in_venv", [True, False])
+@pytest.mark.parametrize("writable", [True, False])
 @pytest.mark.parametrize("uid", [0, 1000])
 def test_python_install_targets_interpreter_with_required_privileges(
-    tmp_path: Path, with_uv: bool, in_venv: bool, uid: int
+    tmp_path: Path, with_uv: bool, in_venv: bool, writable: bool, uid: int
 ) -> None:
     bindir = tmp_path / "bin"
     python = bindir / "python3"
     _command(
         python,
         """
-if [ "$1" = -c ]; then echo "$TEST_IN_VENV"; exit 0; fi
+if [ "$1" = -c ]; then echo "$TEST_INSTALL_ACCESS"; exit 0; fi
 printf '%s\\n' "$0" "$@" > "$HOME/install-args"
 """,
     )
@@ -649,7 +650,11 @@ PATH=/unavailable exec "$@"
         env={
             "HOME": str(tmp_path),
             "PATH": str(bindir),
-            "TEST_IN_VENV": str(int(in_venv)),
+            "TEST_INSTALL_ACCESS": "venv"
+            if in_venv
+            else "writable"
+            if writable
+            else "privileged",
         },
         capture_output=True,
         text=True,
@@ -668,7 +673,7 @@ PATH=/unavailable exec "$@"
     expected.append("example>=1")
     assert (tmp_path / "install-args").read_text().splitlines() == expected
     sudo_args = tmp_path / "sudo-args"
-    if uid != 0 and not in_venv:
+    if uid != 0 and not in_venv and not writable:
         assert sudo_args.read_text().splitlines() == ["-n", *expected]
     else:
         assert not sudo_args.exists()
@@ -687,3 +692,83 @@ def test_python_probe_failure_does_not_attempt_install(tmp_path: Path) -> None:
     )
     assert result.returncode == 42
     assert not (tmp_path / "attempted").exists()
+
+
+@pytest.mark.parametrize("sealed", [True, False])
+def test_existing_browser_cache_needs_no_marker(tmp_path: Path, sealed: bool) -> None:
+    script = _installer_fixture(tmp_path)
+    (tmp_path / ".cache/agent-browser/.dreadnode-installed").unlink()
+    result = _run_installer(
+        script,
+        BROWSER_FAIL="1",
+        DREADNODE_CAPABILITY_INSTALL="sealed" if sealed else "",
+    )
+    assert result.returncode == 0, result.stderr
+    assert "browser-install" not in (tmp_path / "commands").read_text()
+
+
+def test_optional_browser_download_failure_does_not_fail_install(
+    tmp_path: Path,
+) -> None:
+    script = _installer_fixture(tmp_path)
+    (tmp_path / ".cache/agent-browser").rename(tmp_path / "saved-browser")
+    result = _run_installer(script, BROWSER_FAIL="1")
+    assert result.returncode == 0, result.stderr
+    assert "WARN: agent-browser browser download failed" in result.stderr
+    assert (tmp_path / "commands").read_text().splitlines().count(
+        "browser-install"
+    ) == 3
+
+
+@pytest.mark.parametrize("blocked", [None, "purelib", "platlib", "scripts", "data"])
+def test_python_probe_checks_install_destinations(
+    tmp_path: Path, blocked: str | None
+) -> None:
+    # Execute the actual interpreter probe with isolated installation paths.
+    # Package directories may not exist yet; their parent must be writable.
+    paths = {
+        key: str(tmp_path / key / "new")
+        for key in ("purelib", "platlib", "scripts", "data")
+    }
+    for key in paths:
+        (tmp_path / key).mkdir()
+    probe_setup = (
+        "import os, sys, sysconfig; "
+        "sys.prefix = sys.base_prefix; "
+        f"sysconfig.get_paths = lambda: {paths!r}; "
+    )
+    if blocked is not None:
+        probe_setup += (
+            "original_access = os.access; "
+            f"os.access = lambda p, mode: str(p) != {str(tmp_path / blocked)!r} and original_access(p, mode); "
+        )
+    probe_setup += "exec(sys.argv[1])"
+    bindir = tmp_path / "bin"
+    _command(
+        bindir / "python3",
+        "\n".join(
+            [
+                'if [ "$1" = -c ]; then',
+                f'  exec {shlex.quote(sys.executable)} -c {shlex.quote(probe_setup)} "$2"',
+                "fi",
+                "exit 98",
+            ]
+        ),
+    )
+    _command(bindir / "uv", "echo installed")
+    _command(bindir / "id", "echo 1000")
+    # No sudo is available in this environment.
+    script = _shell_function("as_root") + _shell_function("py_install")
+    result = subprocess.run(
+        ["/bin/bash", "-c", script + "\npy_install example\n"],
+        env={"HOME": str(tmp_path), "PATH": str(bindir)},
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if blocked is None:
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == "installed"
+    else:
+        assert result.returncode != 0
+        assert "installed" not in result.stdout
