@@ -9,7 +9,7 @@
 #   "bbot",
 #   "aiosqlite>=0.21.0",
 #   "extractous~=0.3.0",
-#   "pyOpenSSL~=25.3.0",
+#   "pyOpenSSL>=25.3.0,<27",
 # ]
 # ///
 """BBOT reconnaissance and Neo4j graph query tools exposed as an MCP server.
