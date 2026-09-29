@@ -7,6 +7,8 @@ No system packages or network access are needed.
 import os
 import re
 import subprocess
+
+import pytest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -609,3 +611,79 @@ echo source > "$1/fire.py"
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "clones").read_text().splitlines() == ["clone", "clone"]
     assert (tmp_path / "git/fireprox/.dreadnode-deps-installed").exists()
+
+
+@pytest.mark.parametrize("with_uv", [True, False])
+@pytest.mark.parametrize("in_venv", [True, False])
+@pytest.mark.parametrize("uid", [0, 1000])
+def test_python_install_targets_interpreter_with_required_privileges(
+    tmp_path: Path, with_uv: bool, in_venv: bool, uid: int
+) -> None:
+    bindir = tmp_path / "bin"
+    python = bindir / "python3"
+    _command(
+        python,
+        """
+if [ "$1" = -c ]; then echo "$TEST_IN_VENV"; exit 0; fi
+printf '%s\\n' "$0" "$@" > "$HOME/install-args"
+""",
+    )
+    _command(bindir / "id", f"echo {uid}")
+    _command(
+        bindir / "sudo",
+        """
+printf '%s\\n' "$@" > "$HOME/sudo-args"
+test "$1" = -n
+shift
+# Model sudo's restricted PATH: the selected executable must be absolute.
+PATH=/unavailable exec "$@"
+""",
+    )
+    # A separate pip executable must not override the selected interpreter.
+    _command(bindir / "pip", "exit 99")
+    if with_uv:
+        _command(bindir / "uv", 'printf \'%s\\n\' "$0" "$@" > "$HOME/install-args"')
+    script = _shell_function("as_root") + _shell_function("py_install")
+    result = subprocess.run(
+        ["/bin/bash", "-c", script + "\npy_install 'example>=1'\n"],
+        env={
+            "HOME": str(tmp_path),
+            "PATH": str(bindir),
+            "TEST_IN_VENV": str(int(in_venv)),
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    expected = (
+        [str(bindir / "uv"), "pip", "install", "--python", str(python)]
+        if with_uv
+        else [str(python), "-m", "pip", "install"]
+    )
+    if not in_venv:
+        if with_uv:
+            expected.append("--system")
+        expected.append("--break-system-packages")
+    expected.append("example>=1")
+    assert (tmp_path / "install-args").read_text().splitlines() == expected
+    sudo_args = tmp_path / "sudo-args"
+    if uid != 0 and not in_venv:
+        assert sudo_args.read_text().splitlines() == ["-n", *expected]
+    else:
+        assert not sudo_args.exists()
+
+
+def test_python_probe_failure_does_not_attempt_install(tmp_path: Path) -> None:
+    bindir = tmp_path / "bin"
+    _command(bindir / "python3", "exit 42")
+    _command(bindir / "uv", ': > "$HOME/attempted"')
+    _command(bindir / "sudo", ': > "$HOME/attempted"')
+    script = _shell_function("as_root") + _shell_function("py_install")
+    result = subprocess.run(
+        ["/bin/bash", "-c", script + "\npy_install example\n"],
+        env={"HOME": str(tmp_path), "PATH": str(bindir)},
+        check=False,
+    )
+    assert result.returncode == 42
+    assert not (tmp_path / "attempted").exists()

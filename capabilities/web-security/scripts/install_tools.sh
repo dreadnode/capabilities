@@ -88,14 +88,24 @@ as_root() {
   fi
 }
 
-# Install Python packages using uv when available, then pip or python3 -m pip.
+# Target the selected Python interpreter. Virtualenv installs run as the
+# current user; system installs use root privileges and system-package flags.
 py_install() {
-  if command -v uv >/dev/null 2>&1; then
-    uv pip install --python "$(command -v python3)" "$@"
-  elif command -v pip >/dev/null 2>&1; then
-    pip install --break-system-packages "$@"
+  local python in_venv uv
+  local -a command system_flags
+  python="$(command -v python3)" || return
+  in_venv="$("$python" -c 'import sys; print(int(sys.prefix != sys.base_prefix))')" || return
+  if uv="$(command -v uv)"; then
+    command=("$uv" pip install --python "$python")
+    system_flags=(--system --break-system-packages)
   else
-    python3 -m pip install --break-system-packages "$@"
+    command=("$python" -m pip install)
+    system_flags=(--break-system-packages)
+  fi
+  if [ "$in_venv" = 1 ]; then
+    "${command[@]}" "$@"
+  else
+    as_root "${command[@]}" "${system_flags[@]}" "$@"
   fi
 }
 
