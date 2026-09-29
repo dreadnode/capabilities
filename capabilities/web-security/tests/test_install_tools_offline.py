@@ -469,7 +469,7 @@ if [ "${BROWSER_FAIL:-0}" = 1 ]; then exit 1; fi
         "git/archivealchemist/archive-alchemist.py",
         "skills/caido-mode/package.json",
         "skills/caido-mode/node_modules/complete",
-        ".cache/agent-browser/.dreadnode-installed",
+        ".cache/agent-browser/chromium",
     ):
         path = tmp_path / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -697,7 +697,6 @@ def test_python_probe_failure_does_not_attempt_install(tmp_path: Path) -> None:
 @pytest.mark.parametrize("sealed", [True, False])
 def test_existing_browser_cache_needs_no_marker(tmp_path: Path, sealed: bool) -> None:
     script = _installer_fixture(tmp_path)
-    (tmp_path / ".cache/agent-browser/.dreadnode-installed").unlink()
     result = _run_installer(
         script,
         BROWSER_FAIL="1",
