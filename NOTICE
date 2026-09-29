@@ -18,6 +18,12 @@ capabilities/sliver-c2/docs/sliver/
   Sliver documentation by Bishop Fox.
   License: GPL-3.0. See capabilities/sliver-c2/docs/sliver/LICENSE.
 
+capabilities/web-security/skills/agent-browser/
+  Skill documentation ported from the agent-browser CLI by Vercel Labs
+  (https://github.com/vercel-labs/agent-browser).
+  Copyright 2025 Vercel Inc.
+  License: Apache-2.0. See capabilities/web-security/skills/agent-browser/LICENSE.
+
 capabilities/binary-analysis/skills/binary-analysis/references/external/
   Point-in-time snapshots of third-party reference material. Each file keeps
   its upstream owner's terms. Sources are listed in
