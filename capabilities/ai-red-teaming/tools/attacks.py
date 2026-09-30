@@ -21,6 +21,7 @@ from pathlib import Path
 # loaded as flat modules (no parent package), so relative imports do not work.
 import importlib.util as _ilu
 from pathlib import Path as _Path
+
 _errors_path = _Path(__file__).resolve().parent / "_errors.py"
 _spec = _ilu.spec_from_file_location("airt_tools_errors", _errors_path)
 _errors_mod = _ilu.module_from_spec(_spec)
@@ -316,12 +317,10 @@ def generate_multistep_tool_attack(
     path (the agent reads an untrusted source, then performs a privileged
     outbound action carrying its contents), verified by a trace predicate.
 
-    Our own implementation of the algorithmic techniques from the Kaggle
-    'AI Agent Security - Multi-Step Tool Attacks' competition (Kaggle x OpenAI x
-    Google x IEEE, 2026): replay-stable candidates + trajectory/shared-prefix
-    search (Pilkwang Kim), two-probe recovery (tetsu2131), and split/multi-post
-    exfiltration (JED / Nguyen Cong Tuan). Generalized to any agent/tools.
-    https://www.kaggle.com/competitions/ai-agent-security-multi-step-tool-attacks
+    Algorithmic techniques: replay-stable candidates, trajectory / shared-prefix
+    search, a calibrated two-probe recovery step, and split / multi-post
+    exfiltration. Black-box and generalized to any agent/tools; for a white-box
+    target, swap in a gradient-guided proposer (GCG / HotFlip).
     """
     params: dict[str, t.Any] = {
         "agent_url": agent_url,
@@ -341,9 +340,7 @@ def generate_multistep_tool_attack(
 def generate_agentvigil_attack(
     agent_url: t.Annotated[str, "HTTP endpoint of the tool-using agent to red-team"],
     instructed_tool: t.Annotated[str, "Tool whose firing counts as injection success"] = "send_email",
-    tasks: t.Annotated[
-        list[str] | None, "Benign tasks to compute ASR over; payload is planted in each"
-    ] = None,
+    tasks: t.Annotated[list[str] | None, "Benign tasks to compute ASR over; payload is planted in each"] = None,
     seed_payload: t.Annotated[str, "Initial injection payload (MCTS root)"] = "",
     attacker_model: t.Annotated[str, "LLM that mutates payloads (five operators)"] = "dn/claude-opus-4-8",
     n_iterations: t.Annotated[int, "MCTS rollouts"] = 30,
@@ -621,15 +618,9 @@ def generate_extraction_attack(
     ] = "knockoff",
     api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
     api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
-    pool_url: t.Annotated[
-        str, "GET endpoint returning {inputs: [...]} — the unlabeled query pool."
-    ] = "",
-    query_pool: t.Annotated[
-        list | None, "Inline query pool (used if pool_url is not given)."
-    ] = None,
-    request_template: t.Annotated[
-        str, "Request body with a single {input} placeholder."
-    ] = '{"features": {input}}',
+    pool_url: t.Annotated[str, "GET endpoint returning {inputs: [...]} — the unlabeled query pool."] = "",
+    query_pool: t.Annotated[list | None, "Inline query pool (used if pool_url is not given)."] = None,
+    request_template: t.Annotated[str, "Request body with a single {input} placeholder."] = '{"features": {input}}',
     probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
     input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
     num_classes: t.Annotated[int, "Number of classes."] = 2,
@@ -682,15 +673,11 @@ def generate_membership_attack(
     ] = "threshold",
     api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
     api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
-    members_url: t.Annotated[
-        str, "GET endpoint returning {records: [...], labels: [...]} for training members."
-    ] = "",
+    members_url: t.Annotated[str, "GET endpoint returning {records: [...], labels: [...]} for training members."] = "",
     nonmembers_url: t.Annotated[str, "GET endpoint for held-out non-members."] = "",
     members: t.Annotated[list | None, "Inline member records (if no members_url)."] = None,
     nonmembers: t.Annotated[list | None, "Inline non-member records (if no nonmembers_url)."] = None,
-    request_template: t.Annotated[
-        str, "Request body with a single {input} placeholder."
-    ] = '{"features": {input}}',
+    request_template: t.Annotated[str, "Request body with a single {input} placeholder."] = '{"features": {input}}',
     probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
     input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
     num_classes: t.Annotated[int, "Number of classes."] = 2,
@@ -731,25 +718,17 @@ def generate_membership_attack(
 
 @safe_tool
 def generate_inversion_attack(
-    attack_type: t.Annotated[
-        str, "Model-inversion attack: confidence (MI-Face hill-climb) or nes."
-    ] = "confidence",
+    attack_type: t.Annotated[str, "Model-inversion attack: confidence (MI-Face hill-climb) or nes."] = "confidence",
     api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
     api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
     num_classes: t.Annotated[int, "Number of classes."] = 2,
-    input_dim: t.Annotated[
-        int, "Feature-vector length (tabular). Inferred from the target's /pool if omitted."
-    ] = 0,
+    input_dim: t.Annotated[int, "Feature-vector length (tabular). Inferred from the target's /pool if omitted."] = 0,
     input_shape: t.Annotated[
         str, "Image shape as 'H,W' (e.g. '8,8'). Inferred from /pool when square, if omitted."
     ] = "",
-    target_classes: t.Annotated[
-        list | None, "Classes to reconstruct (default: all classes)."
-    ] = None,
+    target_classes: t.Annotated[list | None, "Classes to reconstruct (default: all classes)."] = None,
     max_queries: t.Annotated[int, "Max target queries."] = 1500,
-    request_template: t.Annotated[
-        str, "Request body with a single {input} placeholder."
-    ] = '{"features": {input}}',
+    request_template: t.Annotated[str, "Request body with a single {input} placeholder."] = '{"features": {input}}',
     probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
     input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
     modality: t.Annotated[str, "tabular | image | text."] = "tabular",
@@ -794,15 +773,9 @@ def generate_evasion_attack(
     ] = "boundary",
     api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
     api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
-    sample_url: t.Annotated[
-        str, "GET endpoint returning {inputs: [...]} - the first input is perturbed."
-    ] = "",
-    original: t.Annotated[
-        object, "Inline original input to perturb (if no sample_url)."
-    ] = None,
-    request_template: t.Annotated[
-        str, "Request body with a single {input} placeholder."
-    ] = '{"features": {input}}',
+    sample_url: t.Annotated[str, "GET endpoint returning {inputs: [...]} - the first input is perturbed."] = "",
+    original: t.Annotated[object, "Inline original input to perturb (if no sample_url)."] = None,
+    request_template: t.Annotated[str, "Request body with a single {input} placeholder."] = '{"features": {input}}',
     probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
     input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
     num_classes: t.Annotated[int, "Number of classes."] = 2,
@@ -933,9 +906,7 @@ def generate_multimodal_attack(
     custom_region: t.Annotated[
         str, "AWS region for a streaming (Nova Sonic) or aws_sigv4 target (default us-east-1)."
     ] = "",
-    custom_service: t.Annotated[
-        str, "AWS service for an aws_sigv4 HTTP target (default 'sagemaker')."
-    ] = "",
+    custom_service: t.Annotated[str, "AWS service for an aws_sigv4 HTTP target (default 'sagemaker')."] = "",
     custom_request_format: t.Annotated[
         str,
         "Request body encoding for custom_url: 'json' (default, renders the request "
@@ -947,9 +918,7 @@ def generate_multimodal_attack(
     ] = "",
     custom_voice: t.Annotated[str, "Voice id for a Nova Sonic streaming target (default matthew)."] = "",
     custom_system_prompt: t.Annotated[str, "System prompt for a streaming S2S target."] = "",
-    custom_model_id: t.Annotated[
-        str, "Model id for a streaming target (default amazon.nova-sonic-v1:0)."
-    ] = "",
+    custom_model_id: t.Annotated[str, "Model id for a streaming target (default amazon.nova-sonic-v1:0)."] = "",
     score_media_output: t.Annotated[
         bool,
         "Score the target's GENERATED media (image-out / speech-to-speech), not just its "
@@ -1139,8 +1108,7 @@ def generate_multimodal_category_attack(
 def build_media_manifest(
     directory: t.Annotated[
         str,
-        "Directory of media files to inventory (recursively). Use this for "
-        '"the images in ./imgs" style requests.',
+        "Directory of media files to inventory (recursively). Use this for " '"the images in ./imgs" style requests.',
     ] = "",
     paths: t.Annotated[
         list[str] | None,
@@ -1196,12 +1164,8 @@ def generate_injection_images(
         "Path to a CSV whose first column is the attack text (one image per row). "
         "Use when the user hands you a CSV of prompts to render as images.",
     ] = "",
-    output_dir: t.Annotated[
-        str, "Directory to write the images into (default ./injection_images)."
-    ] = "",
-    base_image: t.Annotated[
-        str, "Optional base image path to overlay the text onto (else a plain canvas)."
-    ] = "",
+    output_dir: t.Annotated[str, "Directory to write the images into (default ./injection_images)."] = "",
+    base_image: t.Annotated[str, "Optional base image path to overlay the text onto (else a plain canvas)."] = "",
     font_size: t.Annotated[int, "Font size for the rendered text (default 40)."] = 40,
 ) -> str:
     """Render attack text into typographic/visual prompt-injection IMAGES.
