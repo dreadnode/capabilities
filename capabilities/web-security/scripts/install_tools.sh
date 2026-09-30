@@ -14,7 +14,51 @@ case "$OS" in
     ;;
 esac
 
-export PATH="$HOME/.pdtm/go/bin:$HOME/go/bin:$PATH"
+export PATH="$HOME/.pdtm/go/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/go/bin:$PATH"
+
+# Keep errexit inside each stage, but let independent stages finish. Do not
+# invoke the subshell in an `if` or `||`: bash would disable errexit inside it.
+failed_stages=()
+run_stage() {
+  local name="$1" status
+  shift
+  echo "web-security: starting $name" >&2
+  set +e
+  ( set -e; "$@" )
+  status=$?
+  set -e
+  if [ "$status" -ne 0 ]; then
+    failed_stages+=("$name")
+    echo "web-security: $name failed (exit $status)" >&2
+  fi
+}
+
+# Retry commands that fetch dependencies, at most three times. The SDK's
+# aggregate install deadline still bounds the entire pass.
+retry() {
+  local attempt status
+  for attempt in 1 2 3; do
+    if "$@"; then
+      return 0
+    else
+      status=$?
+    fi
+    [ "$attempt" -eq 3 ] && return "$status"
+    echo "web-security: retrying $1 after attempt $attempt" >&2
+    sleep "$attempt"
+  done
+}
+
+# Stage downloads and clones in an invocation-local temporary directory.
+INSTALL_TMP="$(mktemp -d)"
+trap 'rm -rf "$INSTALL_TMP"' EXIT
+
+clone_repo() {
+  local url="$1" target="$2" staging
+  shift 2
+  staging="$(mktemp -d "$INSTALL_TMP/clone.XXXXXX")" || return
+  git clone --depth 1 "$@" "$url" "$staging" && mv "$staging" "$target"
+}
 
 # `have <tool>` — is this already on PATH, or in one of the two directories the
 # tools below install into?
@@ -44,17 +88,45 @@ as_root() {
   fi
 }
 
-# Install a Python package into whatever interpreter this runtime uses.
-# `pip` is not always on PATH — a uv-managed virtualenv has no pip binary at
-# all, which made the bare `pip install` calls below abort the run with
-# "command not found" on exactly the images the SDK ships.
+# Target the selected interpreter. Elevate only for non-virtualenv installs
+# whose package or script directories are not writable by the current user.
 py_install() {
-  if command -v uv >/dev/null 2>&1; then
-    uv pip install --python "$(command -v python3)" "$@"
-  elif command -v pip >/dev/null 2>&1; then
-    pip install --break-system-packages "$@"
+  local python install_access uv
+  local -a command system_flags
+  python="$(command -v python3)" || return
+  install_access="$("$python" -c '
+import os
+from pathlib import Path
+import sys
+import sysconfig
+
+if sys.prefix != sys.base_prefix:
+    print("venv")
+else:
+    paths = sysconfig.get_paths()
+    writable = True
+    for key in ("purelib", "platlib", "scripts", "data"):
+        target = Path(paths[key])
+        while not target.exists() and target != target.parent:
+            target = target.parent
+        if not target.is_dir() or not os.access(target, os.W_OK | os.X_OK):
+            writable = False
+            break
+    print("writable" if writable else "privileged")
+')" || return
+  if uv="$(command -v uv)"; then
+    command=("$uv" pip install --python "$python")
+    system_flags=(--system --break-system-packages)
   else
-    python3 -m pip install --break-system-packages "$@"
+    command=("$python" -m pip install)
+    system_flags=(--break-system-packages)
+  fi
+  if [ "$install_access" = venv ]; then
+    "${command[@]}" "$@"
+  elif [ "$install_access" = writable ]; then
+    "${command[@]}" "${system_flags[@]}" "$@"
+  else
+    as_root "${command[@]}" "${system_flags[@]}" "$@"
   fi
 }
 
@@ -81,7 +153,8 @@ install_pd_tool() {
   local tool="$1" package="$2" version="$3"
   have_pd_tool "$tool" && return
   mkdir -p "$HOME/.pdtm/go/bin"
-  GOBIN="$HOME/.pdtm/go/bin" go install "${package}@${version}"
+  GOBIN="$HOME/.pdtm/go/bin" retry go install "${package}@${version}"
+  have_pd_tool "$tool"
 }
 
 # What is actually missing, before anything is fetched.
@@ -101,64 +174,85 @@ done
 need_go=false
 [ -n "$missing_go_tools" ] && need_go=true
 [ -n "$missing_pd_tools" ] && need_go=true
-if [ "$need_go" = true ] && ! command -v go &>/dev/null; then
-  case "$ARCH" in
-    aarch64|arm64) GOARCH="arm64" ;;
-    *)             GOARCH="amd64" ;;
-  esac
-  curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" | tar -xz -C /usr/local
-  export PATH="/usr/local/go/bin:$PATH"
-fi
+have kr || need_go=true
+install_go() {
+  if [ "$need_go" = true ] && ! command -v go &>/dev/null; then
+    case "$ARCH" in
+      aarch64|arm64) GOARCH="arm64" ;;
+      *)             GOARCH="amd64" ;;
+    esac
+    retry curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" -o "$INSTALL_TMP/go.tar.gz"
+    as_root tar -xzf "$INSTALL_TMP/go.tar.gz" -C /usr/local
+    go version
+  fi
+}
+run_stage go install_go
 
 # -- ProjectDiscovery tools ------------------------------------------------
 if [ -n "$missing_pd_tools" ]; then
-  install_pd_tool nuclei github.com/projectdiscovery/nuclei/v3/cmd/nuclei v3.11.1
-  install_pd_tool httpx github.com/projectdiscovery/httpx/cmd/httpx v1.12.0
-  install_pd_tool subfinder github.com/projectdiscovery/subfinder/v2/cmd/subfinder v2.16.0
-  install_pd_tool naabu github.com/projectdiscovery/naabu/v2/cmd/naabu v2.6.1
-  install_pd_tool dnsx github.com/projectdiscovery/dnsx/cmd/dnsx v1.3.1
-  install_pd_tool uncover github.com/projectdiscovery/uncover/cmd/uncover v1.2.1
-  install_pd_tool alterx github.com/projectdiscovery/alterx/cmd/alterx v0.1.0
-  install_pd_tool tlsx github.com/projectdiscovery/tlsx/cmd/tlsx v1.4.0
-  install_pd_tool asnmap github.com/projectdiscovery/asnmap/cmd/asnmap v1.1.1
+  run_stage nuclei install_pd_tool nuclei github.com/projectdiscovery/nuclei/v3/cmd/nuclei v3.11.1
+  run_stage httpx install_pd_tool httpx github.com/projectdiscovery/httpx/cmd/httpx v1.12.0
+  run_stage subfinder install_pd_tool subfinder github.com/projectdiscovery/subfinder/v2/cmd/subfinder v2.16.0
+  run_stage naabu install_pd_tool naabu github.com/projectdiscovery/naabu/v2/cmd/naabu v2.6.1
+  run_stage dnsx install_pd_tool dnsx github.com/projectdiscovery/dnsx/cmd/dnsx v1.3.1
+  run_stage uncover install_pd_tool uncover github.com/projectdiscovery/uncover/cmd/uncover v1.2.1
+  run_stage alterx install_pd_tool alterx github.com/projectdiscovery/alterx/cmd/alterx v0.1.0
+  run_stage tlsx install_pd_tool tlsx github.com/projectdiscovery/tlsx/cmd/tlsx v1.4.0
+  run_stage asnmap install_pd_tool asnmap github.com/projectdiscovery/asnmap/cmd/asnmap v1.1.1
 fi
 
-# -- katana (pre-built binary, go-tree-sitter build issue) -----------------
-if ! have katana; then
-  DEB_ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
-  mkdir -p "$HOME/.pdtm/go/bin"
-  curl -fsSL "https://github.com/projectdiscovery/katana/releases/download/v${KATANA_VERSION}/katana_${KATANA_VERSION}_linux_${DEB_ARCH}.zip" \
-    -o /tmp/katana.zip
-  unzip -o /tmp/katana.zip -d /tmp/katana_extract
-  mv /tmp/katana_extract/katana "$HOME/.pdtm/go/bin/katana"
-  chmod +x "$HOME/.pdtm/go/bin/katana"
-  rm -rf /tmp/katana.zip /tmp/katana_extract
-fi
+# -- katana (pre-built binary) --------------------------------------------
+install_katana() {
+  if ! have katana; then
+    DEB_ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
+    mkdir -p "$HOME/.pdtm/go/bin"
+    retry curl -fsSL "https://github.com/projectdiscovery/katana/releases/download/v${KATANA_VERSION}/katana_${KATANA_VERSION}_linux_${DEB_ARCH}.zip" \
+      -o "${INSTALL_TMP}/katana.zip"
+    unzip -o "${INSTALL_TMP}/katana.zip" -d "${INSTALL_TMP}/katana_extract"
+    mv "${INSTALL_TMP}/katana_extract/katana" "$HOME/.pdtm/go/bin/katana"
+    chmod +x "$HOME/.pdtm/go/bin/katana"
+    rm -rf "${INSTALL_TMP}/katana.zip" "${INSTALL_TMP}/katana_extract"
+  fi
+}
+run_stage katana install_katana
 
 # -- protoscope ------------------------------------------------------------
-have protoscope || \
-  go install "github.com/protocolbuffers/protoscope/cmd/protoscope@${GO_TOOL_VERSIONS_protoscope}"
+install_protoscope() {
+  have protoscope || \
+    retry go install "github.com/protocolbuffers/protoscope/cmd/protoscope@${GO_TOOL_VERSIONS_protoscope}"
+}
+run_stage protoscope install_protoscope
 
 # -- interactsh-client -----------------------------------------------------
-have interactsh-client || \
-  go install "github.com/projectdiscovery/interactsh/cmd/interactsh-client@${GO_TOOL_VERSIONS_interactsh}"
+install_interactsh() {
+  have interactsh-client || \
+    retry go install "github.com/projectdiscovery/interactsh/cmd/interactsh-client@${GO_TOOL_VERSIONS_interactsh}"
+}
+run_stage interactsh install_interactsh
 
 # -- 2fa (TOTP generator) --------------------------------------------------
-have 2fa || go install "rsc.io/2fa@${GO_TOOL_VERSIONS_2fa}"
+install_twofa() {
+  have 2fa || retry go install "rsc.io/2fa@${GO_TOOL_VERSIONS_2fa}"
+}
+run_stage twofa install_twofa
 
 # surf is not installed: upstream grants no licence, so we have no right to use
 # or redistribute it (ADM-447).
 
 # -- kiterunner (API content discovery) ------------------------------------
-if ! have kr; then
-  if git clone --depth 1 --branch "$KITERUNNER_VERSION" https://github.com/assetnote/kiterunner /tmp/kiterunner; then
-    ( cd /tmp/kiterunner && make build ) \
-      && as_root mv /tmp/kiterunner/dist/kr /usr/local/bin/kr
-    rm -rf /tmp/kiterunner
-  else
-    echo "WARN: kiterunner clone failed, skipping"
+install_kiterunner() {
+  if ! have kr; then
+    if retry clone_repo https://github.com/assetnote/kiterunner "${INSTALL_TMP}/kiterunner" --branch "$KITERUNNER_VERSION"; then
+      ( cd "${INSTALL_TMP}/kiterunner" && retry make build )
+      as_root mv "${INSTALL_TMP}/kiterunner/dist/kr" /usr/local/bin/kr
+      rm -rf "${INSTALL_TMP}/kiterunner"
+    else
+      echo "WARN: kiterunner clone failed, skipping" >&2
+      return 1
+    fi
   fi
-fi
+}
+run_stage kiterunner install_kiterunner
 
 # -- Caido CLI -------------------------------------------------------------
 # Pinned Caido CLI (headless server) release. Auth is handled at runtime via
@@ -170,117 +264,134 @@ fi
 # task-based sending via startReplayTask). Pinning an older server here puts
 # the client and server on opposite sides of that schema break.
 # tests/test_caido_mode_skill.py enforces the floor.
-if ! command -v caido-cli &>/dev/null; then
-  CAIDO_VERSION="0.57.1"
-  case "$ARCH" in
-    aarch64|arm64) CAIDO_ARCH="aarch64" ;;
-    *)             CAIDO_ARCH="x86_64" ;;
-  esac
-  curl -fsSL "https://caido.download/releases/v${CAIDO_VERSION}/caido-cli-v${CAIDO_VERSION}-linux-${CAIDO_ARCH}.tar.gz" \
-    -o /tmp/caido-cli.tar.gz \
-  && as_root tar -xzf /tmp/caido-cli.tar.gz -C /usr/local/bin/ \
-  && rm /tmp/caido-cli.tar.gz \
-  || echo "WARN: Caido CLI install failed (check version), skipping"
-fi
+install_caido_cli() {
+  if ! command -v caido-cli &>/dev/null; then
+    CAIDO_VERSION="0.57.1"
+    case "$ARCH" in
+      aarch64|arm64) CAIDO_ARCH="aarch64" ;;
+      *)             CAIDO_ARCH="x86_64" ;;
+    esac
+    retry curl -fsSL "https://caido.download/releases/v${CAIDO_VERSION}/caido-cli-v${CAIDO_VERSION}-linux-${CAIDO_ARCH}.tar.gz" \
+      -o "${INSTALL_TMP}/caido-cli.tar.gz" \
+    && as_root tar -xzf "${INSTALL_TMP}/caido-cli.tar.gz" -C /usr/local/bin/ \
+    && rm "${INSTALL_TMP}/caido-cli.tar.gz" \
+    || { echo "WARN: Caido CLI install failed (check version), skipping" >&2; return 1; }
+  fi
+}
+run_stage caido_cli install_caido_cli
 
 # -- Caido MCP server (Go, c0tton-fluff/caido-mcp-server) -------------------
 # Full-surface Caido MCP server wired into capability.yaml as `caido-go`.
 # Pinned to a release with SHA-256 verification. Installed to /usr/local/bin
 # so it resolves on PATH for the MCP `command: caido-mcp-server`.
-if ! command -v caido-mcp-server &>/dev/null; then
-  CAIDO_MCP_VERSION="4.3.0"
-  case "$ARCH" in
-    aarch64|arm64)
-      CAIDO_MCP_ARCH="arm64"
-      CAIDO_MCP_SHA256="7b8d6a89f6b404345715a25d8201a0fbe37db9a0f23b8b1868d01c68b110071b"
-      ;;
-    *)
-      CAIDO_MCP_ARCH="amd64"
-      CAIDO_MCP_SHA256="5236620c693f973d5725133c660ca0ac852796dd75e02ce1993bd66202d0b04c"
-      ;;
-  esac
-  CAIDO_MCP_URL="https://github.com/c0tton-fluff/caido-mcp-server/releases/download/v${CAIDO_MCP_VERSION}/caido-mcp-server-linux-${CAIDO_MCP_ARCH}"
-  if curl -fsSL "$CAIDO_MCP_URL" -o /tmp/caido-mcp-server; then
-    if echo "${CAIDO_MCP_SHA256}  /tmp/caido-mcp-server" | sha256sum -c - >/dev/null 2>&1; then
-      as_root install -m 0755 /tmp/caido-mcp-server /usr/local/bin/caido-mcp-server
-      echo "caido-mcp-server v${CAIDO_MCP_VERSION} installed"
+install_caido_mcp() {
+  if ! command -v caido-mcp-server &>/dev/null; then
+    CAIDO_MCP_VERSION="4.3.0"
+    case "$ARCH" in
+      aarch64|arm64)
+        CAIDO_MCP_ARCH="arm64"
+        CAIDO_MCP_SHA256="7b8d6a89f6b404345715a25d8201a0fbe37db9a0f23b8b1868d01c68b110071b"
+        ;;
+      *)
+        CAIDO_MCP_ARCH="amd64"
+        CAIDO_MCP_SHA256="5236620c693f973d5725133c660ca0ac852796dd75e02ce1993bd66202d0b04c"
+        ;;
+    esac
+    CAIDO_MCP_URL="https://github.com/c0tton-fluff/caido-mcp-server/releases/download/v${CAIDO_MCP_VERSION}/caido-mcp-server-linux-${CAIDO_MCP_ARCH}"
+    if retry curl -fsSL "$CAIDO_MCP_URL" -o "${INSTALL_TMP}/caido-mcp-server"; then
+      if echo "${CAIDO_MCP_SHA256}  ${INSTALL_TMP}/caido-mcp-server" | sha256sum -c - >/dev/null 2>&1; then
+        as_root install -m 0755 "${INSTALL_TMP}/caido-mcp-server" /usr/local/bin/caido-mcp-server
+        echo "caido-mcp-server v${CAIDO_MCP_VERSION} installed"
+      else
+        echo "WARN: caido-mcp-server checksum mismatch, skipping install" >&2
+        return 1
+      fi
+      rm -f "${INSTALL_TMP}/caido-mcp-server"
     else
-      echo "WARN: caido-mcp-server checksum mismatch, skipping install" >&2
+      echo "WARN: caido-mcp-server download failed (check version), skipping" >&2
+      return 1
     fi
-    rm -f /tmp/caido-mcp-server
-  else
-    echo "WARN: caido-mcp-server download failed (check version), skipping" >&2
   fi
-fi
+}
+run_stage caido_mcp install_caido_mcp
 
 # -- Burp Suite Community (headless) ----------------------------------------
-# Downloads the Burp Suite Community JAR for headless scanning.
-# Pro features require BURP_LICENSE_KEY at runtime.
-if [ ! -f /opt/burp/burpsuite.jar ]; then
-  BURP_VERSION="2025.5"
-  # /opt and /usr/local/bin are root-owned, and this script does not always run
-  # as root. Previously the unguarded `mkdir` aborted the entire provision under
-  # `set -e` on a non-root runtime, taking every tool below it down with it.
-  if as_root mkdir -p /opt/burp; then
-    as_root curl -fsSL "https://portswigger-cdn.net/burp/releases/download?product=community&version=${BURP_VERSION}&type=Jar" \
-      -o /opt/burp/burpsuite.jar \
-    || echo "WARN: Burp Suite download failed (check version), skipping"
-    # Only wrap a jar that actually arrived — a `burp` on PATH pointing at
-    # nothing is worse than no `burp` at all.
-    if [ -f /opt/burp/burpsuite.jar ]; then
-      as_root tee /usr/local/bin/burp >/dev/null <<'BURPEOF'
+# Install the Burp Suite Community JAR and command-line launcher.
+install_burp() {
+  if [ ! -s /opt/burp/burpsuite.jar ]; then
+    BURP_VERSION="2025.5"
+    # Use root privileges for the installation directory and published artifacts.
+    if as_root mkdir -p /opt/burp; then
+      retry curl -fsSL "https://portswigger-cdn.net/burp/releases/download?product=community&version=${BURP_VERSION}&type=Jar" \
+        -o "$INSTALL_TMP/burpsuite.jar" \
+      || { echo "WARN: Burp Suite download failed (check version), skipping" >&2; return 1; }
+      as_root install -m 0644 "$INSTALL_TMP/burpsuite.jar" /opt/burp/burpsuite.jar.tmp
+      as_root mv /opt/burp/burpsuite.jar.tmp /opt/burp/burpsuite.jar
+    else
+      echo "WARN: cannot create /opt/burp (requires root); skipping Burp Suite" >&2
+      return 1
+    fi
+  fi
+  # Retry wrapper creation even when the JAR arrived on an earlier pass.
+  if ! command -v burp >/dev/null 2>&1; then
+    as_root tee /usr/local/bin/burp >/dev/null <<'BURPEOF'
 #!/usr/bin/env bash
 exec java -jar /opt/burp/burpsuite.jar "$@"
 BURPEOF
-      as_root chmod +x /usr/local/bin/burp
-    fi
-  else
-    echo "WARN: cannot create /opt/burp (requires root); skipping Burp Suite"
+    as_root chmod +x /usr/local/bin/burp
   fi
-fi
+}
+run_stage burp install_burp
 
 # -- exiftool (EXIF metadata manipulation) ---------------------------------
-if ! command -v exiftool &>/dev/null; then
-  as_root apt-get install -y --no-install-recommends libimage-exiftool-perl \
-    || echo "WARN: exiftool install failed, skipping"
-fi
+install_exiftool() {
+  if ! command -v exiftool &>/dev/null; then
+    retry as_root apt-get install -y --no-install-recommends libimage-exiftool-perl \
+      || { echo "WARN: exiftool install failed, skipping" >&2; return 1; }
+  fi
+}
+run_stage exiftool install_exiftool
 
 # -- Node.js + agent-browser -----------------------------------------------
-NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
-if [ "$NODE_MAJOR" -lt 24 ]; then
-  curl -fsSL https://deb.nodesource.com/setup_24.x | as_root bash - \
-    && as_root apt-get install -y --no-install-recommends nodejs \
-    || echo "WARN: Node.js install failed, skipping"
-fi
-# agent-browser pinned to the current latest — an unpinned install resolves
-# to a different tool on different days, which no SBOM can describe.
-AGENT_BROWSER_VERSION="0.35.1"
-if ! have agent-browser; then
-  as_root npm install -g "agent-browser@${AGENT_BROWSER_VERSION}" \
-    || echo "WARN: agent-browser install failed, skipping"
-fi
-# `agent-browser install` downloads the browser binaries themselves. Guarded on
-# its cache so a runtime that already has them makes no request, and left
-# non-fatal because a disconnected deployment that cannot fetch a browser
-# should still get the rest of this capability's tooling.
-AGENT_BROWSER_CACHE="${AGENT_BROWSER_CACHE_DIR:-$HOME/.cache/agent-browser}"
-if [ "${DREADNODE_CAPABILITY_INSTALL:-}" != "sealed" ] && [ ! -d "$AGENT_BROWSER_CACHE" ]; then
-  agent-browser install || echo "WARN: agent-browser browser download failed, skipping"
-fi
+install_browser() {
+  NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+  if [ "$NODE_MAJOR" -lt 24 ]; then
+    retry curl -fsSL https://deb.nodesource.com/setup_24.x -o "$INSTALL_TMP/node-setup.sh"
+    as_root bash "$INSTALL_TMP/node-setup.sh"
+    retry as_root apt-get install -y --no-install-recommends nodejs \
+      || { echo "WARN: Node.js install failed, skipping" >&2; return 1; }
+  fi
+  # Pin the agent-browser package version for repeatable installs.
+  AGENT_BROWSER_VERSION="0.35.1"
+  if ! have agent-browser; then
+    retry as_root npm install -g "agent-browser@${AGENT_BROWSER_VERSION}" \
+      || { echo "WARN: agent-browser install failed, skipping" >&2; return 1; }
+  fi
+  # Reuse browser caches supplied by the image. Browser downloads are optional
+  # and are skipped entirely in sealed deployments.
+  AGENT_BROWSER_CACHE="${AGENT_BROWSER_CACHE_DIR:-$HOME/.cache/agent-browser}"
+  if [ "${DREADNODE_CAPABILITY_INSTALL:-}" != "sealed" ] && [ ! -d "$AGENT_BROWSER_CACHE" ]; then
+    retry agent-browser install || echo "WARN: agent-browser browser download failed, skipping" >&2
+  fi
+}
+run_stage browser install_browser
 
 # -- caido-mode skill deps (Caido TypeScript SDK CLI) -----------------------
 # The caido-mode skill bundles a tsx CLI built on @caido/sdk-client (caido-ts).
 # Pre-install its node_modules so `npx tsx caido-client.ts` resolves offline at
 # runtime. Path is relative to the capability root (CAPABILITY_ROOT if exported,
 # else the script's own location, which is <root>/scripts).
-CAIDO_MODE_DIR="${CAPABILITY_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/skills/caido-mode"
-# Guarded on node_modules: without it this reaches the npm registry on every
-# boot even when the dependencies are already installed.
-if [ -f "$CAIDO_MODE_DIR/package.json" ] && [ ! -d "$CAIDO_MODE_DIR/node_modules" ]; then
-  ( cd "$CAIDO_MODE_DIR" && npm install --no-audit --no-fund ) \
-    && echo "caido-mode skill deps installed (@caido/sdk-client / caido-ts)" \
-    || echo "WARN: caido-mode npm install failed, skipping"
-fi
+install_caido_mode() {
+  CAIDO_MODE_DIR="${CAPABILITY_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/skills/caido-mode"
+  # npm ls checks installed dependencies locally, including incomplete node_modules
+  # left by a failed install, without contacting the registry.
+  if [ -f "$CAIDO_MODE_DIR/package.json" ] && ! ( cd "$CAIDO_MODE_DIR" && npm ls --depth=0 >/dev/null 2>&1 ); then
+    ( cd "$CAIDO_MODE_DIR" && retry npm install --no-audit --no-fund ) \
+      && echo "caido-mode skill deps installed (@caido/sdk-client / caido-ts)" \
+      || { echo "WARN: caido-mode npm install failed, skipping" >&2; return 1; }
+  fi
+}
+run_stage caido_mode install_caido_mode
 
 # -- wrangler (Cloudflare Workers CLI for OAST endpoints) ------------------
 # Deploys Cloudflare Workers as custom OAST endpoints (blind XSS payload
@@ -289,48 +400,85 @@ fi
 # CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID (CF_* aliases accepted).
 # Pinned: an unpinned npm install re-resolves against the registry even when
 # the binary is already present, which a sealed deployment must never do.
-WRANGLER_VERSION="4.127.0"
-have wrangler || \
-  as_root npm install -g "wrangler@${WRANGLER_VERSION}" \
-  || echo "WARN: wrangler install failed, skipping"
+install_wrangler() {
+  WRANGLER_VERSION="4.127.0"
+  have wrangler || \
+    retry as_root npm install -g "wrangler@${WRANGLER_VERSION}" \
+    || { echo "WARN: wrangler install failed, skipping" >&2; return 1; }
+}
+run_stage wrangler install_wrangler
 
 # -- ast-grep (AST-based code pattern search) ---------------------------------
 # Tree-sitter based structural code matching for JS/TS/HTML. Lightweight
 # alternative to semgrep for pattern matching (no taint analysis).
-have ast-grep || py_install ast-grep-cli || echo "WARN: ast-grep install failed, skipping"
+install_ast_grep() {
+  have ast-grep || retry py_install ast-grep-cli || { echo "WARN: ast-grep install failed, skipping" >&2; return 1; }
+}
+run_stage ast_grep install_ast_grep
 
 # -- waymore (Wayback Machine recon) -----------------------------------------
-have waymore || py_install waymore || echo "WARN: waymore install failed, skipping"
+install_waymore() {
+  have waymore || retry py_install waymore || { echo "WARN: waymore install failed, skipping" >&2; return 1; }
+}
+run_stage waymore install_waymore
 
 # -- Pacu (AWS exploitation framework) ----------------------------------------
-have pacu || py_install pacu || echo "WARN: pacu install failed, skipping"
+install_pacu() {
+  have pacu || retry py_install pacu || { echo "WARN: pacu install failed, skipping" >&2; return 1; }
+}
+run_stage pacu install_pacu
 
 # -- fireprox (AWS API Gateway IP rotation) ---------------------------------
 # Requires AWS credentials at runtime. Cloned to a predictable path so the
 # ip-rotation skill can reference it directly.
-FIREPROX_DIR="$HOME/git/fireprox"
-if [ ! -d "$FIREPROX_DIR" ]; then
-  # Requirements are installed only alongside a fresh clone. Re-running them on
-  # every boot re-resolves against PyPI for an environment that already
-  # satisfies them.
-  if git clone --depth 1 https://github.com/ustayready/fireprox "$FIREPROX_DIR"; then
-    py_install -r "$FIREPROX_DIR/requirements.txt" \
-      || echo "WARN: fireprox requirements install failed, skipping"
-  else
-    echo "WARN: fireprox clone failed, skipping"
+install_fireprox() {
+  FIREPROX_DIR="$HOME/git/fireprox"
+  if [ ! -d "$FIREPROX_DIR" ]; then
+    mkdir -p "$HOME/git"
+    retry clone_repo https://github.com/ustayready/fireprox "$FIREPROX_DIR"
   fi
-fi
+  if [ ! -f "$FIREPROX_DIR/.dreadnode-deps-installed" ]; then
+    retry py_install -r "$FIREPROX_DIR/requirements.txt"
+    touch "$FIREPROX_DIR/.dreadnode-deps-installed"
+  fi
+}
+run_stage fireprox install_fireprox
 
 # -- archivealchemist (malicious archive crafter) ---------------------------
 # Pure Python CLI for crafting Zip Slip, symlink, polyglot, and Unicode path
 # confusion archives. Cloned to a predictable path for the agent prompt.
-ARCHIVEALCHEMIST_DIR="$HOME/git/archivealchemist"
-if [ ! -d "$ARCHIVEALCHEMIST_DIR" ]; then
-  git clone --depth 1 https://github.com/avlidienbrunn/archivealchemist "$ARCHIVEALCHEMIST_DIR" \
-    || echo "WARN: archivealchemist clone failed, skipping"
-fi
+install_archivealchemist() {
+  ARCHIVEALCHEMIST_DIR="$HOME/git/archivealchemist"
+  if [ ! -d "$ARCHIVEALCHEMIST_DIR" ]; then
+    mkdir -p "$HOME/git"
+    retry clone_repo https://github.com/avlidienbrunn/archivealchemist "$ARCHIVEALCHEMIST_DIR" \
+      || { echo "WARN: archivealchemist clone failed, skipping" >&2; return 1; }
+  fi
+}
+run_stage archivealchemist install_archivealchemist
 
-# -- Clean up Go build cache -----------------------------------------------
+validate_tools() {
+  local tool missing=0
+  for tool in nuclei httpx subfinder naabu dnsx uncover alterx tlsx asnmap; do
+    have_pd_tool "$tool" || { echo "Missing required tool: $tool" >&2; missing=1; }
+  done
+  for tool in katana protoscope interactsh-client 2fa kr caido-cli caido-mcp-server \
+      burp exiftool agent-browser wrangler ast-grep waymore pacu; do
+    have "$tool" || { echo "Missing required tool: $tool" >&2; missing=1; }
+  done
+  for artifact in /opt/burp/burpsuite.jar "$HOME/git/fireprox/fire.py" \
+      "$HOME/git/archivealchemist/archive-alchemist.py"; do
+    [ -s "$artifact" ] || { echo "Missing required artifact: $artifact" >&2; missing=1; }
+  done
+  return "$missing"
+}
+run_stage validation validate_tools
+
+if [ "${#failed_stages[@]}" -gt 0 ]; then
+  echo "web-security installation incomplete; failed stages: ${failed_stages[*]}" >&2
+  exit 1
+fi
+# Retain downloaded modules after a failed pass so the next pass can reuse them.
 if [ "$need_go" = true ]; then
   go clean -cache -modcache 2>/dev/null || true
 fi

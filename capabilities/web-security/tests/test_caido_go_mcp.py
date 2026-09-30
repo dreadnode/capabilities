@@ -60,8 +60,7 @@ class TestCaidoGoManifest:
         # raises at connect time (the server falls back to the token file).
         assert env["CAIDO_ACCESS_TOKEN"] == "${CAIDO_ACCESS_TOKEN:-}"
         assert (
-            env["CAIDO_ALLOW_SENSITIVE_HEADERS"]
-            == "${CAIDO_ALLOW_SENSITIVE_HEADERS:-}"
+            env["CAIDO_ALLOW_SENSITIVE_HEADERS"] == "${CAIDO_ALLOW_SENSITIVE_HEADERS:-}"
         )
 
     def test_has_init_timeout(self) -> None:
@@ -118,7 +117,9 @@ class TestCaidoGoInstall:
         # placed on PATH — never install an unverified binary.
         assert "sha256sum -c -" in INSTALL_SCRIPT
         verify = INSTALL_SCRIPT.index("sha256sum -c -")
-        install = INSTALL_SCRIPT.index("install -m 0755 /tmp/caido-mcp-server")
+        install = INSTALL_SCRIPT.index(
+            'install -m 0755 "${INSTALL_TMP}/caido-mcp-server"'
+        )
         assert verify < install, "checksum must be verified before install"
 
     def test_checksum_mismatch_skips_install(self) -> None:
@@ -126,7 +127,7 @@ class TestCaidoGoInstall:
 
     def test_installs_onto_path(self) -> None:
         assert (
-            "install -m 0755 /tmp/caido-mcp-server /usr/local/bin/caido-mcp-server"
+            'install -m 0755 "${INSTALL_TMP}/caido-mcp-server" /usr/local/bin/caido-mcp-server'
             in INSTALL_SCRIPT
         )
 
@@ -135,4 +136,4 @@ class TestCaidoGoInstall:
         assert "if ! command -v caido-mcp-server &>/dev/null; then" in INSTALL_SCRIPT
 
     def test_cleans_up_temp_download(self) -> None:
-        assert "rm -f /tmp/caido-mcp-server" in INSTALL_SCRIPT
+        assert 'rm -f "${INSTALL_TMP}/caido-mcp-server"' in INSTALL_SCRIPT
