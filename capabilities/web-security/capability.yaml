@@ -143,6 +143,16 @@ dependencies:
     - "stegano>=0.11"
   scripts:
     - scripts/install_tools.sh
+  # Shared directories that install_tools.sh drops CLI tools into. The runtime
+  # appends these to PATH (after the image's own PATH, so the platform's
+  # verified tools win) for install scripts, preflight checks, MCP subprocesses,
+  # and the agent's shell tools — including under `dreadnode serve` off-platform.
+  # Keep in sync with the `export PATH` in scripts/install_tools.sh.
+  path:
+    - $HOME/.pdtm/go/bin
+    - $HOME/go/bin
+    - $HOME/.local/bin
+    - /usr/local/go/bin
 
 checks:
   - name: pd-tool-resolver
