@@ -5072,17 +5072,14 @@ def _generate_atlas_single(config: dict, agent_config: dict) -> str:
 def generate_multistep_tool_attack(params: dict) -> dict:
     """Generate a multi-step tool-attack search against an HTTP agent.
 
-    Our own implementation of the algorithmic multi-step tool-attack techniques
-    surfaced by the Kaggle 'AI Agent Security - Multi-Step Tool Attacks'
-    competition (Kaggle x OpenAI x Google x IEEE, 2026), generalized to any
-    HTTP agent. We reimplement the algorithms (not the competition code) so we
-    control the trace format and success predicate:
-      - Replay-stable candidates (Pilkwang Kim, 'Replay-Dense Exfiltration')
-      - Shared-prefix / snapshot branching (competition starter; Trajectory Search)
-      - Budget-aware N_eff sizing (Pilkwang Kim, replay-budget model)
-      - Two-probe recovery (tetsu2131)
-      - Split / multi-post exfiltration (Nguyen Cong Tuan, 'JED multipost')
-    https://www.kaggle.com/competitions/ai-agent-security-multi-step-tool-attacks
+    A black-box multi-step tool-attack search, generalized to any HTTP agent. We
+    own the trace format and success predicate:
+      - Replay-stable candidates
+      - Shared-prefix / snapshot branching (trajectory search)
+      - Budget-aware N_eff sizing (replay-budget model)
+      - Calibrated two-probe recovery
+      - Split / multi-post exfiltration
+    For a white-box target you own, swap in a gradient-guided proposer (GCG / HotFlip).
 
     Requires: agent_url. Optional: secret_source, sink_url, sink_email,
     time_budget_s, attacker_model, assessment_name.
@@ -5140,10 +5137,8 @@ EGRESS_TOOLS = {"fetch_url", "send_email", "http_post", "post_status"}
 class MultiStepToolAttack:
     """Budgeted search for a replay-stable read-then-exfiltrate causal path.
 
-    Attribution (our own implementation): Kaggle AI Agent Security - Multi-Step
-    Tool Attacks (Kaggle x OpenAI x Google x IEEE, 2026). Replay-stable
-    candidates + trajectory/shared-prefix search (Pilkwang Kim); two-probe
-    recovery (tetsu2131); split/multi-post exfiltration (JED / Nguyen Cong Tuan).
+    Black-box: replay-stable candidates + trajectory / shared-prefix search, a
+    calibrated two-probe recovery step, and split / multi-post exfiltration.
     """
 
     def __init__(self, target, secret_source, sink_url, sink_email, time_budget_s=120.0):
