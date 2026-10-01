@@ -181,9 +181,6 @@ checks:
     command: 'command -v interactsh-client >/dev/null 2>&1 || test -x "$HOME/go/bin/interactsh-client"'
   - name: protoscope
     command: 'command -v protoscope >/dev/null 2>&1 || test -x "$HOME/go/bin/protoscope"'
-  # Only required tools are health-checked. Optional tools may be absent at
-  # runtime (e.g. sealed deployments provision without them), so their absence
-  # is not reported as an error.
 
 author:
   name: Dreadnode
