@@ -181,12 +181,9 @@ checks:
     command: 'command -v interactsh-client >/dev/null 2>&1 || test -x "$HOME/go/bin/interactsh-client"'
   - name: protoscope
     command: 'command -v protoscope >/dev/null 2>&1 || test -x "$HOME/go/bin/protoscope"'
-  # Only the required tools are health-checked. The tools below (Caido, Burp,
-  # exiftool, agent-browser, wrangler, ast-grep, waymore, pacu, fireprox,
-  # archivealchemist) are optional: scripts/install_tools.sh warns rather than
-  # failing when they are absent, and sealed/offline deployments legitimately
-  # ship without them. A health check for an expected-absent tool only produces
-  # a false "error", so they are intentionally not checked here.
+  # Only required tools are health-checked. Optional tools may be absent at
+  # runtime (e.g. sealed deployments provision without them), so their absence
+  # is not reported as an error.
 
 author:
   name: Dreadnode

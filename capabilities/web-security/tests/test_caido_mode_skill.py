@@ -243,9 +243,7 @@ class TestCaidoModeInstall:
         assert node_setup < skill_install
 
     def test_optional_tool_is_not_health_checked(self) -> None:
-        # caido-mode is optional: the installer warns rather than failing when
-        # its deps are absent (sealed/offline deployments ship without them), so
-        # it must not be a health check that would report a false "error".
+        # Optional tools may be absent at runtime, so their presence is not asserted.
         checks = {c["name"] for c in MANIFEST["checks"]}
         assert "caido-mode" not in checks
 
@@ -259,8 +257,7 @@ class TestCaidoSurfacesCoexist:
     def test_all_four_surfaces_are_declared(self) -> None:
         servers = MANIFEST["mcp"]["servers"]
         assert "caido" in servers and "caido-go" in servers
-        # The Caido surfaces are optional, so they are intentionally absent from
-        # the health checks (see test_optional_tool_is_not_health_checked).
+        # Optional tools may be absent at runtime, so their presence is not asserted.
         checks = {c["name"] for c in MANIFEST["checks"]}
         assert not ({"caido-cli", "caido-mcp-server", "caido-mode"} & checks)
 

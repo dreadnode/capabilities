@@ -75,9 +75,7 @@ class TestCaidoGoManifest:
 
 class TestCaidoGoCheck:
     def test_optional_tool_is_not_health_checked(self) -> None:
-        # caido-mcp-server is optional: the installer warns rather than failing
-        # when it is absent (sealed/offline deployments ship without it), so it
-        # must not be a health check that would report a false "error".
+        # Optional tools may be absent at runtime, so their presence is not asserted.
         checks = {c["name"] for c in MANIFEST["checks"]}
         assert "caido-mcp-server" not in checks
 
