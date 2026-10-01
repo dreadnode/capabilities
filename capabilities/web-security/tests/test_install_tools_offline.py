@@ -540,8 +540,8 @@ def test_partial_npm_directory_does_not_prevent_repair(
     script = _installer_fixture(tmp_path)
     (tmp_path / "skills/caido-mode/node_modules/complete").unlink()
     first = _run_installer(script, NPM_FAIL="1")
-    assert first.returncode == 1
-    assert "failed stages: caido_mode" in first.stderr
+    assert first.returncode == 0, first.stderr
+    assert "optional stage caido_mode failed" in first.stderr
     second = _run_installer(script)
     assert second.returncode == 0, second.stderr
     assert (tmp_path / "skills/caido-mode/node_modules/complete").is_file()
@@ -551,8 +551,8 @@ def test_fireprox_requirements_retry_after_successful_clone(tmp_path: Path) -> N
     script = _installer_fixture(tmp_path)
     (tmp_path / "git/fireprox/.dreadnode-deps-installed").unlink()
     first = _run_installer(script)
-    assert first.returncode == 1
-    assert "failed stages: fireprox" in first.stderr
+    assert first.returncode == 0, first.stderr
+    assert "optional stage fireprox failed" in first.stderr
     assert not (tmp_path / "git/fireprox/.dreadnode-deps-installed").exists()
     _command(tmp_path / "bin/uv", "exit 0")
     second = _run_installer(script)
@@ -574,7 +574,8 @@ exit "${DOWNLOAD_FAIL:-0}"
 """,
     )
     first = _run_installer(script, DOWNLOAD_FAIL="1")
-    assert first.returncode == 1
+    assert first.returncode == 0, first.stderr
+    assert "optional stage burp failed" in first.stderr
     assert not jar.exists()
     assert len((tmp_path / "downloads").read_text().splitlines()) == 3
     second = _run_installer(script)
@@ -585,9 +586,10 @@ exit "${DOWNLOAD_FAIL:-0}"
 def test_sealed_install_does_not_download_missing_browser(tmp_path: Path) -> None:
     script = _installer_fixture(tmp_path)
     (tmp_path / ".cache/agent-browser").rename(tmp_path / "saved-browser")
+    _command(tmp_path / "bin/nuclei", "exit 0")
     result = _run_installer(script, DREADNODE_CAPABILITY_INSTALL="sealed")
     assert result.returncode == 0, result.stderr
-    assert "browser-install" not in (tmp_path / "commands").read_text()
+    assert not (tmp_path / "commands").exists()
 
 
 def test_clone_retry_uses_fresh_staging_after_partial_failure(tmp_path: Path) -> None:
@@ -697,13 +699,15 @@ def test_python_probe_failure_does_not_attempt_install(tmp_path: Path) -> None:
 @pytest.mark.parametrize("sealed", [True, False])
 def test_existing_browser_cache_needs_no_marker(tmp_path: Path, sealed: bool) -> None:
     script = _installer_fixture(tmp_path)
+    _command(tmp_path / "bin/nuclei", "exit 0")
     result = _run_installer(
         script,
         BROWSER_FAIL="1",
         DREADNODE_CAPABILITY_INSTALL="sealed" if sealed else "",
     )
     assert result.returncode == 0, result.stderr
-    assert "browser-install" not in (tmp_path / "commands").read_text()
+    commands = tmp_path / "commands"
+    assert not commands.exists() or "browser-install" not in commands.read_text()
 
 
 def test_optional_browser_download_failure_does_not_fail_install(
@@ -771,3 +775,39 @@ def test_python_probe_checks_install_destinations(
     else:
         assert result.returncode != 0
         assert "installed" not in result.stdout
+
+
+@pytest.mark.parametrize("missing_required", [False, True])
+def test_sealed_install_checks_local_tools_without_fetches_or_retries(
+    tmp_path: Path, missing_required: bool
+) -> None:
+    script = _installer_fixture(tmp_path)
+    if not missing_required:
+        _command(tmp_path / "bin/nuclei", "exit 0")
+    for name in ("caido-cli", "caido-mcp-server", "burp", "waymore", "pacu"):
+        (tmp_path / "bin" / name).unlink()
+    for relative in (
+        "opt/burp",
+        "git/fireprox",
+        "git/archivealchemist",
+        "skills/caido-mode/node_modules",
+    ):
+        (tmp_path / relative).rename(tmp_path / Path(relative).name)
+    _command(tmp_path / "bin/node", "echo 18")
+    _command(tmp_path / "bin/sleep", 'echo sleep >> "$HOME/commands"; exit 97')
+    result = _run_installer(script, DREADNODE_CAPABILITY_INSTALL="sealed")
+    assert result.returncode == (1 if missing_required else 0), result.stderr
+    assert not (tmp_path / "commands").exists()
+    assert not (tmp_path / "go-attempts").exists()
+    for name in (
+        "caido-cli",
+        "caido-mcp-server",
+        "burp",
+        "wrangler",
+        "waymore",
+        "pacu",
+    ):
+        assert f"WARN: optional tool unavailable: {name}" in result.stderr
+    assert "WARN: optional artifact unavailable:" in result.stderr
+    if missing_required:
+        assert "Missing required tool: nuclei" in result.stderr

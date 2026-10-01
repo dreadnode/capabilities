@@ -22,14 +22,26 @@ failed_stages=()
 run_stage() {
   local name="$1" status
   shift
+  # Sealed images supply their tools at build time. Validate what is present
+  # without entering any installer (including retry loops and package managers).
+  if [ "${DREADNODE_CAPABILITY_INSTALL:-}" = "sealed" ] && [ "$name" != validation ]; then
+    return 0
+  fi
   echo "web-security: starting $name" >&2
   set +e
   ( set -e; "$@" )
   status=$?
   set -e
   if [ "$status" -ne 0 ]; then
-    failed_stages+=("$name")
-    echo "web-security: $name failed (exit $status)" >&2
+    case "$name" in
+      caido_cli|caido_mcp|burp|exiftool|browser|caido_mode|wrangler|ast_grep|waymore|pacu|fireprox|archivealchemist)
+        echo "WARN: optional stage $name failed (exit $status); continuing with available tools" >&2
+        ;;
+      *)
+        failed_stages+=("$name")
+        echo "web-security: $name failed (exit $status)" >&2
+        ;;
+    esac
   fi
 }
 
@@ -462,13 +474,15 @@ validate_tools() {
   for tool in nuclei httpx subfinder naabu dnsx uncover alterx tlsx asnmap; do
     have_pd_tool "$tool" || { echo "Missing required tool: $tool" >&2; missing=1; }
   done
-  for tool in katana protoscope interactsh-client 2fa kr caido-cli caido-mcp-server \
-      burp exiftool agent-browser wrangler ast-grep waymore pacu; do
+  for tool in katana protoscope interactsh-client 2fa kr; do
     have "$tool" || { echo "Missing required tool: $tool" >&2; missing=1; }
+  done
+  for tool in caido-cli caido-mcp-server burp exiftool agent-browser wrangler ast-grep waymore pacu; do
+    have "$tool" || echo "WARN: optional tool unavailable: $tool" >&2
   done
   for artifact in /opt/burp/burpsuite.jar "$HOME/git/fireprox/fire.py" \
       "$HOME/git/archivealchemist/archive-alchemist.py"; do
-    [ -s "$artifact" ] || { echo "Missing required artifact: $artifact" >&2; missing=1; }
+    [ -s "$artifact" ] || echo "WARN: optional artifact unavailable: $artifact" >&2
   done
   return "$missing"
 }
@@ -479,8 +493,8 @@ if [ "${#failed_stages[@]}" -gt 0 ]; then
   exit 1
 fi
 # Retain downloaded modules after a failed pass so the next pass can reuse them.
-if [ "$need_go" = true ]; then
+if [ "${DREADNODE_CAPABILITY_INSTALL:-}" != "sealed" ] && [ "$need_go" = true ]; then
   go clean -cache -modcache 2>/dev/null || true
 fi
 
-echo "web-security tools installed successfully"
+echo "web-security required tools installed successfully; optional tools may be unavailable"
