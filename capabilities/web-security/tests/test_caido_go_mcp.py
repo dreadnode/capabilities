@@ -74,13 +74,10 @@ class TestCaidoGoManifest:
 
 
 class TestCaidoGoCheck:
-    def test_presence_check_registered(self) -> None:
-        checks = {c["name"]: c["command"] for c in MANIFEST["checks"]}
-        assert "caido-mcp-server" in checks
-        cmd = checks["caido-mcp-server"]
-        # Accept a PATH install or the c0tton-fluff install.sh default (~/bin).
-        assert "command -v caido-mcp-server" in cmd
-        assert "$HOME/bin/caido-mcp-server" in cmd
+    def test_optional_tool_is_not_health_checked(self) -> None:
+        # Optional tools may be absent at runtime, so their presence is not asserted.
+        checks = {c["name"] for c in MANIFEST["checks"]}
+        assert "caido-mcp-server" not in checks
 
 
 # =============================================================================
