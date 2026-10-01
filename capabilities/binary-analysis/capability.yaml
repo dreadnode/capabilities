@@ -1,6 +1,6 @@
 schema: 1
 name: binary-analysis
-version: "0.5.0"
+version: "0.6.0"
 description: >
   Binary reverse engineering for PE, ELF, Mach-O, and raw shellcode on
   macOS and Linux. Static triage (pefile / pyelftools / lief, entropy,
@@ -56,6 +56,11 @@ checks:
 
 skills:
   - skills/
+
+# Enables the built-in finding and asset item types plus the report_item /
+# update_item / link_items mutation tools, so the agent can emit structured
+# findings and assets that flow through the platform's review-then-submit path.
+outputs: true
 
 author:
   name: Dreadnode
