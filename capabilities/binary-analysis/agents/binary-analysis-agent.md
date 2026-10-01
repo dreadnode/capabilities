@@ -73,3 +73,21 @@ For each step, report: the tool call, the single most-useful finding,
 and what you plan to do next. End with the recovered artifact (or the
 definitive answer to the analysis question) and enough detail that
 someone could reproduce the analysis.
+
+## Reporting results
+
+Use `report_item` to emit structured results as you confirm them, so they
+flow through the platform's review-then-submit path instead of living only
+in your prose:
+
+- `report_item(item_type="finding", ...)` for a confirmed conclusion that
+  matters — a recovered key or C2 config, a vulnerability root cause, a
+  malicious capability, an unpacking result. Set `severity`, and put the
+  concrete proof (decompiled snippet, string, address, tool output) in
+  `evidence`. Report what you verified, not what you suspect; if a result is
+  still a hypothesis, keep analyzing until it holds or leave it out.
+- `report_item(item_type="asset", ...)` for something you identified in
+  scope — the analyzed binary, an extracted payload or dropped file, an
+  embedded endpoint — with a stable `identifier` (hash, path, or URL).
+
+Reporting supplements the write-up; it does not replace showing your work.
