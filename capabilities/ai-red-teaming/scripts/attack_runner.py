@@ -3229,6 +3229,12 @@ def _build_assessment_kwargs(config: dict, assessment_name: str, filename: str) 
         '    attacker_config={"model": ATTACKER_MODEL, "evaluator_model": JUDGE_MODEL},',
     ]
 
+    # Per-assessment severity policy (user risk taxonomy). The SDK Assessment folds
+    # it into attacker_config["severity_policy"]; the platform validates + applies it.
+    severity_policy = config.get("severity_policy")
+    if severity_policy:
+        lines.append("    severity_policy={},".format(repr(severity_policy)))
+
     # Attack manifest
     manifest_entries = []
     for atk in config["attacks"]:
@@ -4185,6 +4191,37 @@ def generate_category_attack(params: dict) -> dict:
 # Main entry point
 
 
+_SEVERITY_LABELS = ("critical", "high", "medium", "low", "info")
+
+
+def _validate_severity_policy(sp: object) -> str | None:
+    """Light validation of a user severity policy (mirrors the platform schema).
+
+    Returns an error string, or None when the policy is acceptable. The platform
+    re-validates on assessment creation; this fails fast with a clear message.
+    """
+    if not isinstance(sp, dict):
+        return "severity_policy must be an object"
+    thresholds = sp.get("thresholds")
+    if thresholds is not None:
+        if not (isinstance(thresholds, list) and len(thresholds) == 5):
+            return "severity_policy.thresholds must be a list of 5 numbers"
+        if any(thresholds[i] < thresholds[i + 1] for i in range(4)):
+            return "severity_policy.thresholds must be in descending order"
+    for key, row in (sp.get("matrix") or {}).items():
+        if not (isinstance(row, list) and len(row) == 5):
+            return "severity_policy.matrix[{!r}] must have exactly 5 labels".format(key)
+        bad = [s for s in row if s not in _SEVERITY_LABELS]
+        if bad:
+            return "severity_policy.matrix[{!r}] has invalid labels: {}".format(key, bad)
+    default_row = sp.get("default_row")
+    if default_row is not None and not (
+        isinstance(default_row, list) and len(default_row) == 5 and all(s in _SEVERITY_LABELS for s in default_row)
+    ):
+        return "severity_policy.default_row must be 5 valid severity labels"
+    return None
+
+
 def generate_attack(params: dict) -> dict:
     """Main entry point -- resolve all parameters and generate a workflow script."""
     attack_type = params.get("attack_type", "")
@@ -4199,6 +4236,11 @@ def generate_attack(params: dict) -> dict:
     n_iterations = params.get("n_iterations")
     goal_category = params.get("goal_category")
     assessment_name = params.get("assessment_name")
+    severity_policy = params.get("severity_policy")
+    if severity_policy is not None:
+        _sp_err = _validate_severity_policy(severity_policy)
+        if _sp_err:
+            return {"error": _sp_err}
 
     # Custom HTTP endpoint target: point the attack at *any* text endpoint by URL
     # instead of a litellm model. The attacker/judge still use real models.
@@ -4292,6 +4334,7 @@ def generate_attack(params: dict) -> dict:
         "filename": filename,
         "custom_target": custom_target,
         "airt_goal_category": _resolve_airt_goal_category(goal_category),
+        "severity_policy": severity_policy,
     }
 
     # Determine mode and generate script
