@@ -120,6 +120,16 @@ def generate_attack(
     custom_auth_env_var: t.Annotated[str, "Env var holding the custom endpoint credential"] = "TARGET_API_KEY",
     custom_request_template: t.Annotated[str, "JSON request template with a {prompt} placeholder"] = "",
     custom_response_text_path: t.Annotated[str, "JSONPath to the response text (e.g. $.response)"] = "",
+    severity_policy: t.Annotated[
+        dict[str, t.Any] | None,
+        "Optional per-assessment severity policy to classify findings by the user's "
+        "own risk taxonomy instead of the platform defaults. Build it from the user's "
+        "natural-language intent. Keys: 'thresholds' (5 descending score cutoffs), "
+        "'matrix' ({goal_category: 5 labels from critical/high/medium/low/info, "
+        "ordered highest-band first}), 'aliases' ({category: canonical_category}), "
+        "'replace' (bool - ignore built-in matrix entirely), 'default_row' (5 labels "
+        "for unmapped categories). Omit to use the platform defaults.",
+    ] = None,
 ) -> str:
     """Generate, save, and execute a single attack workflow.
 
@@ -164,6 +174,8 @@ def generate_attack(
         params["custom_request_template"] = custom_request_template
     if custom_response_text_path:
         params["custom_response_text_path"] = custom_response_text_path
+    if severity_policy:
+        params["severity_policy"] = severity_policy
 
     return _call_runner("generate_attack", params)
 
