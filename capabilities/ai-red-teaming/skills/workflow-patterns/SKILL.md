@@ -470,8 +470,6 @@ generate_attack(
         "matrix": {
             "malware_generation": ["critical", "high", "medium", "low", "info"],
         },
-        # Advanced: reuse another category's row.
-        "aliases": {"malware": "malware_generation"},
         # Fallback row for categories not in `matrix`.
         "default_row": ["critical", "high", "medium", "low", "info"],
     },
