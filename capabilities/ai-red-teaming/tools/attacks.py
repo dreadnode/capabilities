@@ -122,13 +122,14 @@ def generate_attack(
     custom_response_text_path: t.Annotated[str, "JSONPath to the response text (e.g. $.response)"] = "",
     severity_policy: t.Annotated[
         dict[str, t.Any] | None,
-        "Optional per-assessment severity policy to classify findings by the user's "
-        "own risk taxonomy instead of the platform defaults. Build it from the user's "
-        "natural-language intent. Keys: 'thresholds' (5 descending score cutoffs), "
-        "'matrix' ({goal_category: 5 labels from critical/high/medium/low/info, "
-        "ordered highest-band first}), 'aliases' ({category: canonical_category}), "
-        "'replace' (bool - ignore built-in matrix entirely), 'default_row' (5 labels "
-        "for unmapped categories). Omit to use the platform defaults.",
+        "Optional per-assessment severity policy, built from the user's natural-language "
+        "intent. Severity is score-only by default (one label per band); a policy tailors "
+        "it. Keys: 'thresholds' (5 descending score cutoffs - lower a cutoff to make a "
+        "score critical from lower; the main knob), and for advanced per-category "
+        "weighting 'matrix' ({goal_category: 5 labels from critical/high/medium/low/info, "
+        "one per band}), 'aliases' ({category: other_category}), 'default_row' (5 labels "
+        "for categories not in matrix). Keep one label per band - don't repeat labels. "
+        "Omit to use the default score-only severity.",
     ] = None,
 ) -> str:
     """Generate, save, and execute a single attack workflow.
