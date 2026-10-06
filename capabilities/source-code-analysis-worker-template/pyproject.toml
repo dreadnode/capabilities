@@ -1,6 +1,6 @@
 [project]
 name = "source-code-analysis-worker-template"
-version = "0.1.0"
+version = "0.1.1"
 description = "Reference template for a worker-coordinated multi-agent source-analysis capability."
 requires-python = ">=3.11"
 dependencies = ["dreadnode>=2.0.15"]
