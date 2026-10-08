@@ -360,7 +360,7 @@ def provision_environment(
             + f"  Execute token: {token}\n\n"
             + ">>> NEXT STEP: run ATLAS against it - call generate_atlas_attack("
             + f'agent_url="{url}/attack", agent_auth_type="bearer", '
-            + f'scenario_name="{task_ref.replace("-mesh", "")}", attacker_model="groq scout") '
+            + f'scenario_name="{task_ref.replace("-mesh", "")}", attacker_model="dn/gpt-5.4-mini") '
             + "and set AGENT_API_KEY to the execute token above."
             + teardown_note
         )
