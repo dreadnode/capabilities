@@ -31,7 +31,9 @@ from dreadnode.app.env import resolve_python_executable
 
 _RUNNER_SCRIPT = Path(__file__).parent.parent / "scripts" / "attack_runner.py"
 _MANIFEST_SCRIPT = Path(__file__).parent.parent / "scripts" / "media_manifest.py"
-_MEDIA_GENERATOR_SCRIPT = Path(__file__).parent.parent / "scripts" / "media_generator.py"
+_MEDIA_GENERATOR_SCRIPT = (
+    Path(__file__).parent.parent / "scripts" / "media_generator.py"
+)
 
 
 def _call_runner(name: str, params: dict) -> str:
@@ -39,7 +41,10 @@ def _call_runner(name: str, params: dict) -> str:
     payload = json.dumps({"name": name, "parameters": params})
     try:
         python_executable = resolve_python_executable()
-        print(f"[INFO] Executing attack runner with Python: {python_executable}", file=sys.stderr)
+        print(
+            f"[INFO] Executing attack runner with Python: {python_executable}",
+            file=sys.stderr,
+        )
         result = subprocess.run(
             [python_executable, str(_RUNNER_SCRIPT)],
             input=payload,
@@ -106,7 +111,9 @@ def generate_attack(
         "injection (skeleton_key_framing, many_shot_examples), "
         "advanced_jailbreak, mcp_attacks, multi_agent_attacks, exfiltration, and more.",
     ] = None,
-    compare_transforms: t.Annotated[bool, "If True with transforms, creates N+1 comparison study"] = False,
+    compare_transforms: t.Annotated[
+        bool, "If True with transforms, creates N+1 comparison study"
+    ] = False,
     scorers: t.Annotated[list[str] | None, "Custom scorer names"] = None,
     n_iterations: t.Annotated[int | None, "Iterations per attack"] = None,
     goal_category: t.Annotated[str, "Goal category for scoring"] = "",
@@ -116,10 +123,18 @@ def generate_attack(
         "Target a custom HTTP endpoint instead of a litellm model. When set, "
         "target_model is optional and the attacker/judge use real models.",
     ] = "",
-    custom_auth_type: t.Annotated[str, "Auth scheme for custom_url: 'none', 'bearer', or 'api_key'"] = "none",
-    custom_auth_env_var: t.Annotated[str, "Env var holding the custom endpoint credential"] = "TARGET_API_KEY",
-    custom_request_template: t.Annotated[str, "JSON request template with a {prompt} placeholder"] = "",
-    custom_response_text_path: t.Annotated[str, "JSONPath to the response text (e.g. $.response)"] = "",
+    custom_auth_type: t.Annotated[
+        str, "Auth scheme for custom_url: 'none', 'bearer', or 'api_key'"
+    ] = "none",
+    custom_auth_env_var: t.Annotated[
+        str, "Env var holding the custom endpoint credential"
+    ] = "TARGET_API_KEY",
+    custom_request_template: t.Annotated[
+        str, "JSON request template with a {prompt} placeholder"
+    ] = "",
+    custom_response_text_path: t.Annotated[
+        str, "JSONPath to the response text (e.g. $.response)"
+    ] = "",
     severity_policy: t.Annotated[
         dict[str, t.Any] | None,
         "Optional per-assessment severity policy, built from the user's natural-language "
@@ -190,10 +205,15 @@ def generate_category_attack(
     target_model: t.Annotated[str, "Target LLM model"],
     categories: t.Annotated[
         list[str] | None,
-        "Sub-category slugs (e.g., ['cybersecurity', 'credential_extraction']) " "or ['all'] for all categories",
+        "Sub-category slugs (e.g., ['cybersecurity', 'credential_extraction']) "
+        "or ['all'] for all categories",
     ] = None,
-    goal_ids: t.Annotated[list[str] | None, "Specific goal IDs (overrides categories)"] = None,
-    goals_per_category: t.Annotated[int | None, "Max goals to sample per category"] = None,
+    goal_ids: t.Annotated[
+        list[str] | None, "Specific goal IDs (overrides categories)"
+    ] = None,
+    goals_per_category: t.Annotated[
+        int | None, "Max goals to sample per category"
+    ] = None,
     attacker_model: t.Annotated[str, "Attacker LLM"] = "",
     evaluator_model: t.Annotated[str, "Judge LLM"] = "",
     transform_model: t.Annotated[str, "Transform LLM"] = "",
@@ -249,14 +269,30 @@ def generate_agentic_attack(
     agent_url: t.Annotated[str, "HTTP endpoint of the target agent"],
     attacker_model: t.Annotated[str, "LLM generating attack prompts"],
     attack_type: t.Annotated[str, "Attack type (default: tap)"] = "tap",
-    agent_auth_type: t.Annotated[str, "Auth scheme: 'none', 'bearer', or 'api_key'"] = "none",
-    agent_auth_env_var: t.Annotated[str, "Env var name for auth credential"] = "AGENT_API_KEY",
-    agent_request_template: t.Annotated[str, "JSON request template with {prompt} placeholder"] = "",
-    agent_response_text_path: t.Annotated[str, "JSONPath to extract response text"] = "",
-    agent_response_tool_calls_path: t.Annotated[str, "JSONPath for tool calls in response"] = "",
-    agent_dangerous_tools: t.Annotated[list[str] | None, "Dangerous tool names to target for agentic scoring"] = None,
-    agent_safe_tools: t.Annotated[list[str] | None, "Safe tool whitelist for agentic scoring"] = None,
-    agent_preset: t.Annotated[str, "Preset: 'openai_assistants', 'anthropic', or 'custom'"] = "custom",
+    agent_auth_type: t.Annotated[
+        str, "Auth scheme: 'none', 'bearer', or 'api_key'"
+    ] = "none",
+    agent_auth_env_var: t.Annotated[
+        str, "Env var name for auth credential"
+    ] = "AGENT_API_KEY",
+    agent_request_template: t.Annotated[
+        str, "JSON request template with {prompt} placeholder"
+    ] = "",
+    agent_response_text_path: t.Annotated[
+        str, "JSONPath to extract response text"
+    ] = "",
+    agent_response_tool_calls_path: t.Annotated[
+        str, "JSONPath for tool calls in response"
+    ] = "",
+    agent_dangerous_tools: t.Annotated[
+        list[str] | None, "Dangerous tool names to target for agentic scoring"
+    ] = None,
+    agent_safe_tools: t.Annotated[
+        list[str] | None, "Safe tool whitelist for agentic scoring"
+    ] = None,
+    agent_preset: t.Annotated[
+        str, "Preset: 'openai_assistants', 'anthropic', or 'custom'"
+    ] = "custom",
     evaluator_model: t.Annotated[str, "Judge LLM"] = "",
     transform_model: t.Annotated[str, "Transform LLM"] = "",
     transforms: t.Annotated[list[str] | None, "Transforms to apply"] = None,
@@ -316,12 +352,22 @@ def generate_agentic_attack(
 @safe_tool
 def generate_multistep_tool_attack(
     agent_url: t.Annotated[str, "HTTP endpoint of the tool-using agent to red-team"],
-    secret_source: t.Annotated[str, "Untrusted source the agent can read (e.g. 'secret.txt')"] = "secret.txt",
-    sink_url: t.Annotated[str, "Attacker-controlled egress URL"] = "https://attacker.example/collect",
-    sink_email: t.Annotated[str, "Attacker-controlled egress email"] = "exfil@attacker.example",
-    attacker_model: t.Annotated[str, "LLM that records the assessment"] = "dn/claude-opus-4-8",
+    secret_source: t.Annotated[
+        str, "Untrusted source the agent can read (e.g. 'secret.txt')"
+    ] = "secret.txt",
+    sink_url: t.Annotated[
+        str, "Attacker-controlled egress URL"
+    ] = "https://attacker.example/collect",
+    sink_email: t.Annotated[
+        str, "Attacker-controlled egress email"
+    ] = "exfil@attacker.example",
+    attacker_model: t.Annotated[
+        str, "LLM that records the assessment"
+    ] = "dn/claude-opus-4-8",
     time_budget_s: t.Annotated[int, "Search time budget in seconds"] = 120,
-    agent_auth_env_var: t.Annotated[str, "Env var holding the agent bearer token (optional)"] = "AGENT_API_KEY",
+    agent_auth_env_var: t.Annotated[
+        str, "Env var holding the agent bearer token (optional)"
+    ] = "AGENT_API_KEY",
     assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
 ) -> str:
     """Run an algorithmic multi-step tool-attack search against an HTTP agent.
@@ -352,12 +398,20 @@ def generate_multistep_tool_attack(
 @safe_tool
 def generate_agentvigil_attack(
     agent_url: t.Annotated[str, "HTTP endpoint of the tool-using agent to red-team"],
-    instructed_tool: t.Annotated[str, "Tool whose firing counts as injection success"] = "send_email",
-    tasks: t.Annotated[list[str] | None, "Benign tasks to compute ASR over; payload is planted in each"] = None,
+    instructed_tool: t.Annotated[
+        str, "Tool whose firing counts as injection success"
+    ] = "send_email",
+    tasks: t.Annotated[
+        list[str] | None, "Benign tasks to compute ASR over; payload is planted in each"
+    ] = None,
     seed_payload: t.Annotated[str, "Initial injection payload (MCTS root)"] = "",
-    attacker_model: t.Annotated[str, "LLM that mutates payloads (five operators)"] = "dn/claude-opus-4-8",
+    attacker_model: t.Annotated[
+        str, "LLM that mutates payloads (five operators)"
+    ] = "dn/claude-opus-4-8",
     n_iterations: t.Annotated[int, "MCTS rollouts"] = 30,
-    agent_auth_env_var: t.Annotated[str, "Env var holding the agent bearer token (optional)"] = "AGENT_API_KEY",
+    agent_auth_env_var: t.Annotated[
+        str, "Env var holding the agent bearer token (optional)"
+    ] = "AGENT_API_KEY",
     assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
 ) -> str:
     """Run an AgentVigil MCTS indirect-injection search against an HTTP agent.
@@ -385,12 +439,64 @@ def generate_agentvigil_attack(
 
 
 @safe_tool
+def generate_slip_attack(
+    goal: t.Annotated[str, "The harmful behavior the SLIP jailbreak should elicit"],
+    target_model: t.Annotated[
+        str,
+        "Model under test (and its own jailbreak guide). Aliases or full litellm path, "
+        "e.g. dn/claude-opus-4-8, openai/gpt-4o, groq/...",
+    ] = "dn/claude-opus-4-8",
+    judge_model: t.Annotated[
+        str, "Separate judge (HarmBench-style) that scores completions"
+    ] = "dn/gpt-5.4-mini",
+    repair_model: t.Annotated[
+        str, "Model that JSON-repairs the target's seed-pool reply"
+    ] = "dn/gpt-5.4-mini",
+    max_depth: t.Annotated[int, "Max lexical-insertion search depth"] = 3,
+    branching_k: t.Annotated[int, "Branches expanded per node"] = 3,
+    retry: t.Annotated[int, "Retries per target call"] = 2,
+    assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
+) -> str:
+    """Run a SLIP self-jailbreaking lexical-insertion attack against a model.
+
+    SLIP (Self-jailbreaking Lexical Insertion Prompting) uses the model under
+    test as its own guide: it draws a seed pool of candidate anchor words from
+    the target, then does a bounded branching search (branching_k per node, up
+    to max_depth) over lexical insertions that steer the target toward the goal.
+    A separate judge (HarmBench-style) scores each completion, and an optional
+    repair model fixes malformed JSON in the target's seed-pool reply. Cheap -
+    roughly ~8 target calls per run. Standalone model jailbreak (not an agent
+    attack); pass a `target_model` plus the `judge_model`/`repair_model`.
+    """
+    params: dict[str, t.Any] = {
+        "goal": goal,
+        "target_model": target_model,
+        "judge_model": judge_model,
+        "repair_model": repair_model,
+        "max_depth": max_depth,
+        "branching_k": branching_k,
+        "retry": retry,
+    }
+    if assessment_name:
+        params["assessment_name"] = assessment_name
+    return _call_runner("generate_slip_attack", params)
+
+
+@safe_tool
 def generate_eva_attack(
-    agent_url: t.Annotated[str, "HTTP endpoint of the GUI/computer-use agent to red-team"],
-    instructed_tool: t.Annotated[str, "Action/tool whose firing counts as the injected action"] = "click",
+    agent_url: t.Annotated[
+        str, "HTTP endpoint of the GUI/computer-use agent to red-team"
+    ],
+    instructed_tool: t.Annotated[
+        str, "Action/tool whose firing counts as the injected action"
+    ] = "click",
     k_max: t.Annotated[int, "Max evolution iterations"] = 5,
-    attacker_model: t.Annotated[str, "LLM that mutates the overlay + judges intent"] = "dn/claude-opus-4-8",
-    agent_auth_env_var: t.Annotated[str, "Env var holding the agent bearer token (optional)"] = "AGENT_API_KEY",
+    attacker_model: t.Annotated[
+        str, "LLM that mutates the overlay + judges intent"
+    ] = "dn/claude-opus-4-8",
+    agent_auth_env_var: t.Annotated[
+        str, "Env var holding the agent bearer token (optional)"
+    ] = "AGENT_API_KEY",
     assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
 ) -> str:
     """Run an EVA evolving environmental-injection search against a GUI/CUA agent.
@@ -422,14 +528,30 @@ def generate_agentic_suite_attack(
         "OWASP-ASI category values to run (e.g. 'agentic_asi02_tool_misuse'); "
         "omit to run ALL categories — the 'run all possible attacks' path.",
     ] = None,
-    agent_auth_type: t.Annotated[str, "Auth scheme: 'none', 'bearer', or 'api_key'"] = "none",
-    agent_auth_env_var: t.Annotated[str, "Env var name for auth credential"] = "AGENT_API_KEY",
-    agent_request_template: t.Annotated[str, "JSON request template with {prompt} placeholder"] = "",
-    agent_response_text_path: t.Annotated[str, "JSONPath to extract response text"] = "",
-    agent_response_tool_calls_path: t.Annotated[str, "JSONPath for tool calls in response"] = "",
-    agent_dangerous_tools: t.Annotated[list[str] | None, "Dangerous tool names for scoring"] = None,
-    agent_safe_tools: t.Annotated[list[str] | None, "Safe tool whitelist for scoring"] = None,
-    agent_preset: t.Annotated[str, "Preset: 'openai_assistants', 'anthropic', or 'custom'"] = "custom",
+    agent_auth_type: t.Annotated[
+        str, "Auth scheme: 'none', 'bearer', or 'api_key'"
+    ] = "none",
+    agent_auth_env_var: t.Annotated[
+        str, "Env var name for auth credential"
+    ] = "AGENT_API_KEY",
+    agent_request_template: t.Annotated[
+        str, "JSON request template with {prompt} placeholder"
+    ] = "",
+    agent_response_text_path: t.Annotated[
+        str, "JSONPath to extract response text"
+    ] = "",
+    agent_response_tool_calls_path: t.Annotated[
+        str, "JSONPath for tool calls in response"
+    ] = "",
+    agent_dangerous_tools: t.Annotated[
+        list[str] | None, "Dangerous tool names for scoring"
+    ] = None,
+    agent_safe_tools: t.Annotated[
+        list[str] | None, "Safe tool whitelist for scoring"
+    ] = None,
+    agent_preset: t.Annotated[
+        str, "Preset: 'openai_assistants', 'anthropic', or 'custom'"
+    ] = "custom",
     evaluator_model: t.Annotated[str, "Judge LLM"] = "",
     assessment_name: t.Annotated[str, "Assessment name"] = "",
 ) -> str:
@@ -471,8 +593,12 @@ def generate_agentic_suite_attack(
 
 @safe_tool
 def generate_atlas_attack(
-    agent_url: t.Annotated[str, "HTTP /attack endpoint of the deployed multi-agent environment"],
-    attacker_model: t.Annotated[str, "LLM that generates adversarial prompts (e.g. groq scout, gpt-4.1)"],
+    agent_url: t.Annotated[
+        str, "HTTP /attack endpoint of the deployed multi-agent environment"
+    ],
+    attacker_model: t.Annotated[
+        str, "LLM that generates adversarial prompts (e.g. groq scout, gpt-4.1)"
+    ],
     objectives: t.Annotated[
         list[dict] | None,
         "Campaign objectives, each {id, category, goal}. Categories: TW, EA, TB, "
@@ -486,8 +612,12 @@ def generate_atlas_attack(
     ] = "",
     total_budget: t.Annotated[int, "Total attack episodes across the campaign"] = 64,
     evaluator_model: t.Annotated[str, "Judge LLM (defaults to attacker_model)"] = "",
-    agent_auth_type: t.Annotated[str, "Auth scheme: 'none', 'bearer', or 'api_key'"] = "none",
-    agent_auth_env_var: t.Annotated[str, "Env var holding the auth credential"] = "AGENT_API_KEY",
+    agent_auth_type: t.Annotated[
+        str, "Auth scheme: 'none', 'bearer', or 'api_key'"
+    ] = "none",
+    agent_auth_env_var: t.Annotated[
+        str, "Env var holding the auth credential"
+    ] = "AGENT_API_KEY",
     goal_category: t.Annotated[str, "Default goal category for span labeling"] = "",
     assessment_name: t.Annotated[str, "Assessment name"] = "",
 ) -> str:
@@ -530,12 +660,14 @@ def generate_image_attack(
     ] = "hopskipjump",
     input_type: t.Annotated[
         str,
-        "Input data type: 'image' (load from URL, perturb pixels) or " "'tabular' (feature array + API endpoint)",
+        "Input data type: 'image' (load from URL, perturb pixels) or "
+        "'tabular' (feature array + API endpoint)",
     ] = "image",
     # --- Image-specific params ---
     image_url: t.Annotated[
         str,
-        "URL of the source image (for input_type='image'). " "Can also be a local file path.",
+        "URL of the source image (for input_type='image'). "
+        "Can also be a local file path.",
     ] = "",
     # --- Tabular-specific params ---
     features: t.Annotated[
@@ -549,7 +681,9 @@ def generate_image_attack(
         "and returns {predictions: [{class: int, confidence: float}]}",
     ] = "",
     api_key: t.Annotated[str, "API key for x-api-key header (optional)"] = "",
-    target_class: t.Annotated[int, "Class to flip TO (adversarial target), e.g. 1 for fraud"] = 1,
+    target_class: t.Annotated[
+        int, "Class to flip TO (adversarial target), e.g. 1 for fraud"
+    ] = 1,
     original_class: t.Annotated[
         int | str,
         "Original class of the source input, e.g. 0 for legitimate",
@@ -631,10 +765,18 @@ def generate_extraction_attack(
     ] = "knockoff",
     api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
     api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
-    pool_url: t.Annotated[str, "GET endpoint returning {inputs: [...]} — the unlabeled query pool."] = "",
-    query_pool: t.Annotated[list | None, "Inline query pool (used if pool_url is not given)."] = None,
-    request_template: t.Annotated[str, "Request body with a single {input} placeholder."] = '{"features": {input}}',
-    probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
+    pool_url: t.Annotated[
+        str, "GET endpoint returning {inputs: [...]} — the unlabeled query pool."
+    ] = "",
+    query_pool: t.Annotated[
+        list | None, "Inline query pool (used if pool_url is not given)."
+    ] = None,
+    request_template: t.Annotated[
+        str, "Request body with a single {input} placeholder."
+    ] = '{"features": {input}}',
+    probabilities_path: t.Annotated[
+        str, "JSONPath to the probability vector."
+    ] = "$.probabilities",
     input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
     num_classes: t.Annotated[int, "Number of classes."] = 2,
     query_budget: t.Annotated[int, "Max target queries."] = 1000,
@@ -686,15 +828,28 @@ def generate_membership_attack(
     ] = "threshold",
     api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
     api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
-    members_url: t.Annotated[str, "GET endpoint returning {records: [...], labels: [...]} for training members."] = "",
+    members_url: t.Annotated[
+        str,
+        "GET endpoint returning {records: [...], labels: [...]} for training members.",
+    ] = "",
     nonmembers_url: t.Annotated[str, "GET endpoint for held-out non-members."] = "",
-    members: t.Annotated[list | None, "Inline member records (if no members_url)."] = None,
-    nonmembers: t.Annotated[list | None, "Inline non-member records (if no nonmembers_url)."] = None,
-    request_template: t.Annotated[str, "Request body with a single {input} placeholder."] = '{"features": {input}}',
-    probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
+    members: t.Annotated[
+        list | None, "Inline member records (if no members_url)."
+    ] = None,
+    nonmembers: t.Annotated[
+        list | None, "Inline non-member records (if no nonmembers_url)."
+    ] = None,
+    request_template: t.Annotated[
+        str, "Request body with a single {input} placeholder."
+    ] = '{"features": {input}}',
+    probabilities_path: t.Annotated[
+        str, "JSONPath to the probability vector."
+    ] = "$.probabilities",
     input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
     num_classes: t.Annotated[int, "Number of classes."] = 2,
-    signal: t.Annotated[str, "Threshold signal: confidence | entropy | loss."] = "confidence",
+    signal: t.Annotated[
+        str, "Threshold signal: confidence | entropy | loss."
+    ] = "confidence",
     modality: t.Annotated[str, "tabular | image | text."] = "tabular",
     assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
 ) -> str:
@@ -731,18 +886,30 @@ def generate_membership_attack(
 
 @safe_tool
 def generate_inversion_attack(
-    attack_type: t.Annotated[str, "Model-inversion attack: confidence (MI-Face hill-climb) or nes."] = "confidence",
+    attack_type: t.Annotated[
+        str, "Model-inversion attack: confidence (MI-Face hill-climb) or nes."
+    ] = "confidence",
     api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
     api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
     num_classes: t.Annotated[int, "Number of classes."] = 2,
-    input_dim: t.Annotated[int, "Feature-vector length (tabular). Inferred from the target's /pool if omitted."] = 0,
+    input_dim: t.Annotated[
+        int,
+        "Feature-vector length (tabular). Inferred from the target's /pool if omitted.",
+    ] = 0,
     input_shape: t.Annotated[
-        str, "Image shape as 'H,W' (e.g. '8,8'). Inferred from /pool when square, if omitted."
+        str,
+        "Image shape as 'H,W' (e.g. '8,8'). Inferred from /pool when square, if omitted.",
     ] = "",
-    target_classes: t.Annotated[list | None, "Classes to reconstruct (default: all classes)."] = None,
+    target_classes: t.Annotated[
+        list | None, "Classes to reconstruct (default: all classes)."
+    ] = None,
     max_queries: t.Annotated[int, "Max target queries."] = 1500,
-    request_template: t.Annotated[str, "Request body with a single {input} placeholder."] = '{"features": {input}}',
-    probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
+    request_template: t.Annotated[
+        str, "Request body with a single {input} placeholder."
+    ] = '{"features": {input}}',
+    probabilities_path: t.Annotated[
+        str, "JSONPath to the probability vector."
+    ] = "$.probabilities",
     input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
     modality: t.Annotated[str, "tabular | image | text."] = "tabular",
     assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
@@ -786,10 +953,18 @@ def generate_evasion_attack(
     ] = "boundary",
     api_url: t.Annotated[str, "Target classifier predict endpoint (POST)."] = "",
     api_key: t.Annotated[str, "API key for the x-api-key header (optional)."] = "",
-    sample_url: t.Annotated[str, "GET endpoint returning {inputs: [...]} - the first input is perturbed."] = "",
-    original: t.Annotated[object, "Inline original input to perturb (if no sample_url)."] = None,
-    request_template: t.Annotated[str, "Request body with a single {input} placeholder."] = '{"features": {input}}',
-    probabilities_path: t.Annotated[str, "JSONPath to the probability vector."] = "$.probabilities",
+    sample_url: t.Annotated[
+        str, "GET endpoint returning {inputs: [...]} - the first input is perturbed."
+    ] = "",
+    original: t.Annotated[
+        object, "Inline original input to perturb (if no sample_url)."
+    ] = None,
+    request_template: t.Annotated[
+        str, "Request body with a single {input} placeholder."
+    ] = '{"features": {input}}',
+    probabilities_path: t.Annotated[
+        str, "JSONPath to the probability vector."
+    ] = "$.probabilities",
     input_format: t.Annotated[str, "json_array | image_b64 | text."] = "json_array",
     num_classes: t.Annotated[int, "Number of classes."] = 2,
     max_queries: t.Annotated[int, "Max target queries."] = 500,
@@ -869,7 +1044,9 @@ def generate_multimodal_attack(
         str,
         "Harm category slug, e.g. jailbreak_general, harmful_content, refusal_bypass.",
     ] = "jailbreak_general",
-    n_iterations: t.Annotated[int | None, "Iterations per media set (default 4)."] = None,
+    n_iterations: t.Annotated[
+        int | None, "Iterations per media set (default 4)."
+    ] = None,
     assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
     prompts: t.Annotated[
         list[str] | None,
@@ -899,12 +1076,16 @@ def generate_multimodal_attack(
         "(SigV4-signed, e.g. an Amazon SageMaker /invocations endpoint — set "
         "custom_region and custom_service).",
     ] = "none",
-    custom_auth_env_var: t.Annotated[str, "Env var holding the custom endpoint credential"] = "TARGET_API_KEY",
+    custom_auth_env_var: t.Annotated[
+        str, "Env var holding the custom endpoint credential"
+    ] = "TARGET_API_KEY",
     custom_request_template: t.Annotated[
         str,
         "JSON request template with {prompt}/{image_b64}/{audio_b64}/{video_b64} placeholders.",
     ] = "",
-    custom_response_text_path: t.Annotated[str, "JSONPath to the response text (e.g. $.response)"] = "",
+    custom_response_text_path: t.Annotated[
+        str, "JSONPath to the response text (e.g. $.response)"
+    ] = "",
     custom_transport: t.Annotated[
         str,
         "Target transport: 'http' (default) or 'streaming' for a realtime speech-to-speech "
@@ -917,9 +1098,12 @@ def generate_multimodal_attack(
         "its spoken reply (audio + transcript) is scored.",
     ] = "",
     custom_region: t.Annotated[
-        str, "AWS region for a streaming (Nova Sonic) or aws_sigv4 target (default us-east-1)."
+        str,
+        "AWS region for a streaming (Nova Sonic) or aws_sigv4 target (default us-east-1).",
     ] = "",
-    custom_service: t.Annotated[str, "AWS service for an aws_sigv4 HTTP target (default 'sagemaker')."] = "",
+    custom_service: t.Annotated[
+        str, "AWS service for an aws_sigv4 HTTP target (default 'sagemaker')."
+    ] = "",
     custom_request_format: t.Annotated[
         str,
         "Request body encoding for custom_url: 'json' (default, renders the request "
@@ -927,11 +1111,18 @@ def generate_multimodal_attack(
         "— for SageMaker ASR/audio endpoints like Whisper that take an audio body, not JSON).",
     ] = "",
     custom_audio_content_type: t.Annotated[
-        str, "Content-Type for a custom_request_format='audio_bytes' target (default 'audio/wav')."
+        str,
+        "Content-Type for a custom_request_format='audio_bytes' target (default 'audio/wav').",
     ] = "",
-    custom_voice: t.Annotated[str, "Voice id for a Nova Sonic streaming target (default matthew)."] = "",
-    custom_system_prompt: t.Annotated[str, "System prompt for a streaming S2S target."] = "",
-    custom_model_id: t.Annotated[str, "Model id for a streaming target (default amazon.nova-sonic-v1:0)."] = "",
+    custom_voice: t.Annotated[
+        str, "Voice id for a Nova Sonic streaming target (default matthew)."
+    ] = "",
+    custom_system_prompt: t.Annotated[
+        str, "System prompt for a streaming S2S target."
+    ] = "",
+    custom_model_id: t.Annotated[
+        str, "Model id for a streaming target (default amazon.nova-sonic-v1:0)."
+    ] = "",
     score_media_output: t.Annotated[
         bool,
         "Score the target's GENERATED media (image-out / speech-to-speech), not just its "
@@ -1053,23 +1244,37 @@ def generate_multimodal_category_attack(
         "Harm sub-category to sweep (e.g. weapons, cybersecurity, harmful_content). "
         "Goals are sampled from the bundled dataset.",
     ],
-    goals_per_category: t.Annotated[int, "How many goals to sample from the category (default 5)."] = 5,
+    goals_per_category: t.Annotated[
+        int, "How many goals to sample from the category (default 5)."
+    ] = 5,
     render_from_goals: t.Annotated[
         bool,
         "Auto-render each sampled goal into a typographic injection image (turnkey — no "
         "user media needed). One attack per goal. Use when the user has no media.",
     ] = False,
     target_model: t.Annotated[str, "Vision/audio/video-capable target model."] = "",
-    image_dir: t.Annotated[str, "User media: directory of images to pair with the goals."] = "",
-    image_paths: t.Annotated[list[str] | None, "User media: explicit image paths."] = None,
+    image_dir: t.Annotated[
+        str, "User media: directory of images to pair with the goals."
+    ] = "",
+    image_paths: t.Annotated[
+        list[str] | None, "User media: explicit image paths."
+    ] = None,
     audio_dir: t.Annotated[str, "User media: directory of audio files."] = "",
-    audio_paths: t.Annotated[list[str] | None, "User media: explicit audio paths."] = None,
+    audio_paths: t.Annotated[
+        list[str] | None, "User media: explicit audio paths."
+    ] = None,
     video_dir: t.Annotated[str, "User media: directory of video files."] = "",
-    video_paths: t.Annotated[list[str] | None, "User media: explicit video paths."] = None,
-    transforms: t.Annotated[list[str] | None, "Modality-typed transforms to apply."] = None,
+    video_paths: t.Annotated[
+        list[str] | None, "User media: explicit video paths."
+    ] = None,
+    transforms: t.Annotated[
+        list[str] | None, "Modality-typed transforms to apply."
+    ] = None,
     judge_model: t.Annotated[str, "Model used to score jailbreak success."] = "",
     n_iterations: t.Annotated[int | None, "Iterations per media set."] = None,
-    score_media_output: t.Annotated[bool, "Also score the target's generated media output."] = False,
+    score_media_output: t.Annotated[
+        bool, "Also score the target's generated media output."
+    ] = False,
     assessment_name: t.Annotated[str, "Human-readable assessment name."] = "",
 ) -> str:
     """Sweep a MULTIMODAL attack across sampled goals from a harm category.
@@ -1086,7 +1291,10 @@ def generate_multimodal_category_attack(
     """
     if not goal_category:
         return "Error: goal_category is required (e.g. weapons, cybersecurity, harmful_content)"
-    params: dict[str, t.Any] = {"goal_category": goal_category, "goals_per_category": goals_per_category}
+    params: dict[str, t.Any] = {
+        "goal_category": goal_category,
+        "goals_per_category": goals_per_category,
+    }
     if render_from_goals:
         params["render_from_goals"] = True
     if target_model:
@@ -1121,7 +1329,8 @@ def generate_multimodal_category_attack(
 def build_media_manifest(
     directory: t.Annotated[
         str,
-        "Directory of media files to inventory (recursively). Use this for " '"the images in ./imgs" style requests.',
+        "Directory of media files to inventory (recursively). Use this for "
+        '"the images in ./imgs" style requests.',
     ] = "",
     paths: t.Annotated[
         list[str] | None,
@@ -1161,7 +1370,10 @@ def build_media_manifest(
                 return f"Error: {data['error']}"
             return output[:50_000]
         except json.JSONDecodeError:
-            return output[:50_000] or f"Error: manifest failed: {result.stderr.strip()[:2000]}"
+            return (
+                output[:50_000]
+                or f"Error: manifest failed: {result.stderr.strip()[:2000]}"
+            )
     except Exception as e:  # noqa: BLE001
         return f"Error: {e}"
 
@@ -1177,8 +1389,12 @@ def generate_injection_images(
         "Path to a CSV whose first column is the attack text (one image per row). "
         "Use when the user hands you a CSV of prompts to render as images.",
     ] = "",
-    output_dir: t.Annotated[str, "Directory to write the images into (default ./injection_images)."] = "",
-    base_image: t.Annotated[str, "Optional base image path to overlay the text onto (else a plain canvas)."] = "",
+    output_dir: t.Annotated[
+        str, "Directory to write the images into (default ./injection_images)."
+    ] = "",
+    base_image: t.Annotated[
+        str, "Optional base image path to overlay the text onto (else a plain canvas)."
+    ] = "",
     font_size: t.Annotated[int, "Font size for the rendered text (default 40)."] = 40,
 ) -> str:
     """Render attack text into typographic/visual prompt-injection IMAGES.
@@ -1222,6 +1438,9 @@ def generate_injection_images(
                 return f"Error: {data['error']}"
             return output[:50_000]
         except json.JSONDecodeError:
-            return output[:50_000] or f"Error: generation failed: {result.stderr.strip()[:2000]}"
+            return (
+                output[:50_000]
+                or f"Error: generation failed: {result.stderr.strip()[:2000]}"
+            )
     except Exception as e:  # noqa: BLE001
         return f"Error: {e}"
