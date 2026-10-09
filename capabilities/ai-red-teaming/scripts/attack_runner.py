@@ -5998,6 +5998,7 @@ def generate_slip_attack(params: dict) -> dict:
     max_depth = int(params.get("max_depth", 3))
     branching_k = int(params.get("branching_k", 3))
     retry = int(params.get("retry", 2))
+    embed_model = params.get("embed_model", "paraphrase-MiniLM-L6-v2")
     assessment_name = params.get(
         "assessment_name", "slip - self-jailbreaking lexical insertion"
     )
@@ -6012,7 +6013,7 @@ def generate_slip_attack(params: dict) -> dict:
         "import sys\n\n"
         "import dreadnode as dn\n"
         "from dreadnode.generators.generator import get_generator, GenerateParams\n"
-        "from dreadnode.airt import slip_attack\n"
+        "from dreadnode.airt import slip_attack, litellm_embedder\n"
         "from dreadnode.airt.assessment import Assessment\n\n"
         "{configure}\n\n"
         "GOAL = {goal!r}\n"
@@ -6022,6 +6023,7 @@ def generate_slip_attack(params: dict) -> dict:
         "MAX_DEPTH = {max_depth}\n"
         "BRANCHING_K = {branching_k}\n"
         "RETRY = {retry}\n"
+        "EMBED_MODEL = {embed_model!r}\n"
         "ASSESSMENT_NAME = {assessment_name!r}\n"
     ).format(
         configure=configure,
@@ -6032,6 +6034,7 @@ def generate_slip_attack(params: dict) -> dict:
         max_depth=max_depth,
         branching_k=branching_k,
         retry=retry,
+        embed_model=_safe_str(embed_model),
         assessment_name=_safe_str(assessment_name),
     )
 
@@ -6064,6 +6067,32 @@ def _resolve_dn_model(model_name):
 TARGET_GEN = _resolve_dn_model(TARGET_MODEL)
 JUDGE_GEN = _resolve_dn_model(JUDGE_MODEL)
 REPAIR_GEN = _resolve_dn_model(REPAIR_MODEL)
+
+
+def _make_embedder(model):
+    # A sentence-transformers name (no provider prefix) is left to slip_attack's
+    # embed_model. A dn/ id becomes a proxy-routed litellm embedder; other provider
+    # ids use the user's own keys. If embeddings fail, slip_attack falls back to lexical.
+    if isinstance(model, str) and model.startswith("dn/"):
+        _eb = (os.environ.get("DREADNODE_LLM_BASE", "") or "").strip() or None
+        _ek = (os.environ.get("DREADNODE_LLM_API_KEY", "") or "").strip() or None
+
+        async def _embed(texts):
+            import litellm
+
+            resp = await litellm.aembedding(
+                model=model, input=texts, api_base=_eb, api_key=_ek,
+                custom_llm_provider="litellm_proxy",
+            )
+            return [list(map(float, row["embedding"])) for row in resp["data"]]
+
+        return _embed
+    if isinstance(model, str) and model.startswith(_DIRECT_PROVIDERS):
+        return litellm_embedder(model)
+    return None
+
+
+EMBEDDER = _make_embedder(EMBED_MODEL)
 """
 
     body = r"""
@@ -6084,6 +6113,8 @@ async def main():
             max_depth=MAX_DEPTH,
             branching_k=BRANCHING_K,
             retry=RETRY,
+            embed_model=EMBED_MODEL,
+            embedder=EMBEDDER,
             assessment=assessment,
             airt_assessment_id=getattr(assessment, "assessment_id", None),
             airt_target_model=TARGET_MODEL,

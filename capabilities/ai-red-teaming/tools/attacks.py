@@ -455,6 +455,12 @@ def generate_slip_attack(
     max_depth: t.Annotated[int, "Max lexical-insertion search depth"] = 3,
     branching_k: t.Annotated[int, "Branches expanded per node"] = 3,
     retry: t.Annotated[int, "Retries per target call"] = 2,
+    embed_model: t.Annotated[
+        str,
+        "Paraphrase-ranking embedding model. A sentence-transformers name (default "
+        "'paraphrase-MiniLM-L6-v2') is used directly; a litellm/dn id (e.g. dn/..., "
+        "openai/text-embedding-3-small) is routed through litellm_embedder.",
+    ] = "paraphrase-MiniLM-L6-v2",
     assessment_name: t.Annotated[str, "Human-readable assessment name"] = "",
 ) -> str:
     """Run a SLIP self-jailbreaking lexical-insertion attack against a model.
@@ -476,6 +482,7 @@ def generate_slip_attack(
         "max_depth": max_depth,
         "branching_k": branching_k,
         "retry": retry,
+        "embed_model": embed_model,
     }
     if assessment_name:
         params["assessment_name"] = assessment_name
