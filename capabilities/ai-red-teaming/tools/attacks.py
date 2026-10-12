@@ -617,7 +617,11 @@ def generate_atlas_attack(
         "policy: finops, devsecops, healthcare, soc, devops (RCE), support (exfil). "
         "The environment-derived name also works (e.g. 'devops-rce', 'support-exfil').",
     ] = "",
-    total_budget: t.Annotated[int, "Total attack episodes across the campaign"] = 64,
+    total_budget: t.Annotated[
+        int,
+        "Total attack episodes across the campaign. Defaults to a light, fast "
+        "interactive budget (matches the cookbook demo); raise for deeper campaigns.",
+    ] = 12,
     evaluator_model: t.Annotated[str, "Judge LLM (defaults to attacker_model)"] = "",
     agent_auth_type: t.Annotated[
         str, "Auth scheme: 'none', 'bearer', or 'api_key'"
@@ -637,6 +641,10 @@ def generate_atlas_attack(
     execution* (not just verbal compliance). Point it at a deployed multi-agent
     environment that exposes POST /attack {prompt, surface, injection} ->
     {content, tool_calls, ...}.
+
+    ``total_budget`` defaults to a light interactive budget (12 episodes, the
+    cookbook demo config) so a single call returns in a couple of minutes rather
+    than running the full 64-episode campaign. Raise it for a deeper sweep.
     """
     params: dict[str, t.Any] = {
         "agent_url": agent_url,
