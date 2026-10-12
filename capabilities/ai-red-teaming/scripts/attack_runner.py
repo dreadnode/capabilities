@@ -133,6 +133,37 @@ def _auto_execute_workflow(filename: str, timeout: int = 3600) -> str:
             e.msg, e.lineno
         )
 
+    # Inject the provisioned environment's bearer/api-key token so the target is called
+    # AUTHENTICATED. The generated agent target reads it from an env var (AGENT_API_KEY,
+    # TARGET_API_KEY, or a scenario name like FINOPS_EXECUTE_TOKEN). The one-shot token is
+    # recorded in the env registry by provision_environment; without this the target gets
+    # an empty bearer, returns no response, and every trial errors. Match the registry
+    # base_url against the URL baked into the script, then set each token-like env var the
+    # script reads (excluding DREADNODE_* platform creds).
+    try:
+        import re as _re
+
+        reg_path = Path(os.environ.get("AIRT_ENV_REGISTRY_PATH", "/tmp/airt_environments.json"))
+        entries = json.loads(reg_path.read_text()) if reg_path.exists() else []
+        token, best_len = "", -1
+        for e in entries if isinstance(entries, list) else []:
+            base = (e.get("base_url") or "").rstrip("/")
+            tok = e.get("execute_token") or ""
+            if base and tok and base in source and len(base) > best_len:
+                token, best_len = tok, len(base)
+        if token:
+            token_vars = {
+                v
+                for v in _re.findall(
+                    r'os\.environ\.get\(\s*["\']([A-Z0-9_]+(?:TOKEN|API_KEY))["\']', source
+                )
+                if not v.startswith("DREADNODE_")
+            }
+            for var in token_vars:
+                os.environ[var] = token
+    except Exception:  # noqa: BLE001 - best-effort auth wiring; script still runs
+        pass
+
     try:
         python_executable = resolve_python_executable()
         print(

@@ -73,11 +73,23 @@ def _registry_remove(env_id: str, registry_path: _Path = REGISTRY_PATH) -> None:
 
 
 def _register_provisioned(
-    env: t.Any, task_ref: str, org: str, workspace: str, registry_path: _Path = REGISTRY_PATH
+    env: t.Any,
+    task_ref: str,
+    org: str,
+    workspace: str,
+    registry_path: _Path = REGISTRY_PATH,
+    *,
+    base_url: str = "",
+    execute_token: str = "",
 ) -> str:
     """Record a just-provisioned environment in the session registry. Returns its id
     (empty string if the environment exposed none, e.g. a provision that never became
-    ready)."""
+    ready).
+
+    ``base_url`` + ``execute_token`` are persisted so the attack runner can inject the
+    one-shot bearer token into the attack subprocess env (the generated attack script
+    reads it from an env var). Without this the target is called unauthenticated and
+    returns no response, so every trial errors."""
     env_id = getattr(env, "id", None) or ""
     if not env_id:
         return ""
@@ -87,6 +99,8 @@ def _register_provisioned(
             "task_ref": task_ref,
             "org": org,
             "workspace": workspace,
+            "base_url": base_url,
+            "execute_token": execute_token,
             "provisioned_at": _iso_now(),
             "provisioned_at_ts": _time.time(),
         },
@@ -321,7 +335,9 @@ def provision_environment(
     token = env._execute_token or ""  # noqa: SLF001 - one-shot provision token
     # Record the sandbox so it is torn down at assessment completion even if the
     # attack path forgets - a hosted sandbox bills for its whole lifetime.
-    env_id = _register_provisioned(env, task_ref, org, workspace)
+    env_id = _register_provisioned(
+        env, task_ref, org, workspace, base_url=url.rstrip("/"), execute_token=token
+    )
     if not url:
         return f"Environment '{task_ref}' provisioned but exposed no 'challenge' URL: {ctx.get('service_urls')}"
 
