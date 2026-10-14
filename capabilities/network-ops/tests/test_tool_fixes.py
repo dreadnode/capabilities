@@ -599,14 +599,10 @@ class TestHashcatNoBackendDetection:
         cracker = cracking_mod.Cracking()
 
         async def fake_execute(cmd, **kwargs):
-            raise RuntimeError(
-                "Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"
-            )
+            raise RuntimeError("Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR")
 
         with patch.object(cracking_mod, "execute", side_effect=fake_execute):
-            with pytest.raises(
-                RuntimeError, match=r"Use john_the_ripper.*hash_format='nt'"
-            ):
+            with pytest.raises(RuntimeError, match=r"Use john_the_ripper.*hash_format='nt'"):
                 await cracker.hashcat(
                     hashcat_mode=1000,
                     hash_file=str(hash_file),
@@ -622,9 +618,7 @@ class TestHashcatNoBackendDetection:
         wordlist.write_text("password\n")
 
         cracker = cracking_mod.Cracking()
-        original = RuntimeError(
-            "Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"
-        )
+        original = RuntimeError("Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR")
 
         async def fake_execute(cmd, **kwargs):
             raise original
@@ -658,3 +652,197 @@ class TestHashcatNoBackendDetection:
                     hash_file=str(hash_file),
                     wordlist_path=str(wordlist),
                 )
+
+
+# ===================================================================
+# Cracking: results survive hashcat's non-zero / time-boxed exits
+# ===================================================================
+
+
+def _split_execute(crack_error: BaseException, show_output: str):
+    """Build an execute() side effect: the --show call returns `show_output`,
+    every other (crack) call raises `crack_error`. Records the commands seen."""
+    calls: list[list[str]] = []
+
+    async def fake_execute(cmd, **kwargs):
+        calls.append(cmd)
+        if "--show" in cmd:
+            return show_output
+        raise crack_error
+
+    return fake_execute, calls
+
+
+class TestHashcatResultsSurviveNonZeroExit:
+    """A time-boxed crack that exits non-zero must still return potfile results."""
+
+    def _write_inputs(self, tmp_path):
+        hash_file = tmp_path / "hashes.txt"
+        hash_file.write_text("aad3b435b51404eeaad3b435b51404ee\n")
+        wordlist = tmp_path / "wordlist.txt"
+        wordlist.write_text("Password1\n")
+        return hash_file, wordlist
+
+    @pytest.mark.asyncio
+    async def test_exhausted_exit_1_returns_recovered(self, tmp_path):
+        """Exit 1 (exhausted keyspace) with a partial recovery returns the creds."""
+        hash_file, wordlist = self._write_inputs(tmp_path)
+        fake_execute, calls = _split_execute(
+            RuntimeError("Command failed (1):\nStatus: Exhausted\nRecovered: 1/2"),
+            "svc_sql:Password1",
+        )
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            result = await cracking_mod.Cracking().hashcat(
+                hashcat_mode=1000,
+                hash_file=str(hash_file),
+                wordlist_path=str(wordlist),
+            )
+        assert result == "svc_sql:Password1"
+        assert any("--show" in cmd for cmd in calls)
+
+    @pytest.mark.asyncio
+    async def test_runtime_exit_4_returns_recovered(self, tmp_path):
+        """Exit 4 (halted by --runtime, the real code on current hashcat) returns creds."""
+        hash_file, wordlist = self._write_inputs(tmp_path)
+        fake_execute, _ = _split_execute(
+            RuntimeError("Command failed (4):\nStatus: Aborted (Runtime)"),
+            "svc_sql:Password1",
+        )
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            result = await cracking_mod.Cracking().hashcat(
+                hashcat_mode=1000,
+                hash_file=str(hash_file),
+                wordlist_path=str(wordlist),
+            )
+        assert result == "svc_sql:Password1"
+
+    @pytest.mark.asyncio
+    async def test_aborted_exit_2_returns_recovered(self, tmp_path):
+        """Exit 2 (aborted) still returns the creds."""
+        hash_file, wordlist = self._write_inputs(tmp_path)
+        fake_execute, _ = _split_execute(
+            RuntimeError("Command failed (2):\nStatus: Aborted"),
+            "svc_sql:Password1",
+        )
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            result = await cracking_mod.Cracking().hashcat(
+                hashcat_mode=1000,
+                hash_file=str(hash_file),
+                wordlist_path=str(wordlist),
+            )
+        assert result == "svc_sql:Password1"
+
+    @pytest.mark.asyncio
+    async def test_genuine_failure_surfaces_instead_of_empty(self, tmp_path):
+        """A non-backend fatal exit (255) must surface as an error, not an empty
+        '--show' result that reads as 'nothing cracked'."""
+        hash_file, wordlist = self._write_inputs(tmp_path)
+        # Crack fails for a real reason; --show would exit 0 with nothing to report.
+        fake_execute, calls = _split_execute(
+            RuntimeError("Command failed (255):\nCUDA API call failed (cuInit)"),
+            "",
+        )
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            with pytest.raises(RuntimeError, match=r"cuInit"):
+                await cracking_mod.Cracking().hashcat(
+                    hashcat_mode=1000,
+                    hash_file=str(hash_file),
+                    wordlist_path=str(wordlist),
+                )
+        assert not any("--show" in cmd for cmd in calls)
+
+    @pytest.mark.asyncio
+    async def test_error_without_parseable_code_surfaces(self, tmp_path):
+        """An error whose text carries no exit code is treated as genuine and surfaced."""
+        hash_file, wordlist = self._write_inputs(tmp_path)
+        fake_execute, calls = _split_execute(
+            RuntimeError("hashcat process died unexpectedly"),
+            "",
+        )
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            with pytest.raises(RuntimeError, match=r"died unexpectedly"):
+                await cracking_mod.Cracking().hashcat(
+                    hashcat_mode=1000,
+                    hash_file=str(hash_file),
+                    wordlist_path=str(wordlist),
+                )
+        assert not any("--show" in cmd for cmd in calls)
+
+    @pytest.mark.asyncio
+    async def test_timeout_kill_returns_recovered(self, tmp_path):
+        """A timeout that kills hashcat still collects potfile results via --show."""
+        hash_file, wordlist = self._write_inputs(tmp_path)
+        fake_execute, _ = _split_execute(
+            TimeoutError("Command 'hashcat ...' timed out after 150 seconds."),
+            "svc_sql:Password1",
+        )
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            result = await cracking_mod.Cracking().hashcat(
+                hashcat_mode=1000,
+                hash_file=str(hash_file),
+                wordlist_path=str(wordlist),
+            )
+        assert result == "svc_sql:Password1"
+
+    @pytest.mark.asyncio
+    async def test_no_backend_short_circuits_before_show(self, tmp_path):
+        """A missing GPU backend raises the john hint and never reaches --show."""
+        hash_file, wordlist = self._write_inputs(tmp_path)
+        fake_execute, calls = _split_execute(
+            RuntimeError("Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"),
+            "svc_sql:Password1",
+        )
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            with pytest.raises(RuntimeError, match=r"Use john_the_ripper"):
+                await cracking_mod.Cracking().hashcat(
+                    hashcat_mode=1000,
+                    hash_file=str(hash_file),
+                    wordlist_path=str(wordlist),
+                )
+        assert not any("--show" in cmd for cmd in calls)
+
+
+class TestJohnResultsSurviveNonCleanExit:
+    """John is time-boxed by a timeout kill — results must survive that — but a
+    non-zero john exit is a genuine failure and must surface."""
+
+    def _write_inputs(self, tmp_path):
+        hash_file = tmp_path / "hashes.txt"
+        hash_file.write_text("$krb5asrep$23$user@REALM:abc...\n")
+        wordlist = tmp_path / "wordlist.txt"
+        wordlist.write_text("Password1\n")
+        return hash_file, wordlist
+
+    @pytest.mark.asyncio
+    async def test_timeout_kill_returns_recovered(self, tmp_path):
+        hash_file, wordlist = self._write_inputs(tmp_path)
+        fake_execute, calls = _split_execute(
+            TimeoutError("Command 'john ...' timed out after 630 seconds."),
+            "user:Password1",
+        )
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            result = await cracking_mod.Cracking().john_the_ripper(
+                hash_format="krb5asrep",
+                hash_file=str(hash_file),
+                wordlist_path=str(wordlist),
+            )
+        assert result == "user:Password1"
+        assert any("--show" in cmd for cmd in calls)
+
+    @pytest.mark.asyncio
+    async def test_nonzero_exit_surfaces_instead_of_empty(self, tmp_path):
+        """A john failure (e.g. unknown format) surfaces rather than returning an
+        empty, successful-looking result."""
+        hash_file, wordlist = self._write_inputs(tmp_path)
+        fake_execute, calls = _split_execute(
+            RuntimeError("Command failed (1):\nUnknown ciphertext format name"),
+            "",
+        )
+        with patch.object(cracking_mod, "execute", side_effect=fake_execute):
+            with pytest.raises(RuntimeError, match=r"Unknown ciphertext format"):
+                await cracking_mod.Cracking().john_the_ripper(
+                    hash_format="krb5asrep",
+                    hash_file=str(hash_file),
+                    wordlist_path=str(wordlist),
+                )
+        assert not any("--show" in cmd for cmd in calls)
