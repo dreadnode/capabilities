@@ -67,7 +67,7 @@ class BloodyAD(Toolset):
             username: Username for authentication.
             host: Domain controller hostname or IP.
             password: Password for authentication.
-            hashes: NTLM hashes for pass-the-hash.
+            hashes: NTLM hash for pass-the-hash, as ``LMHASH:NTHASH`` or a bare NT hash.
             use_kerberos: Use Kerberos authentication.
             dc_ip: Optional DC IP to override DNS.
 
@@ -79,7 +79,9 @@ class BloodyAD(Toolset):
         if password:
             cmd.extend(["-p", password])
         elif hashes:
-            cmd.extend(["--hashes", hashes])
+            # bloodyAD takes a hash through the password field: -p LMHASH:NTHASH,
+            # or -p :NTHASH when only the NT half is known.
+            cmd.extend(["-p", hashes if ":" in hashes else f":{hashes}"])
 
         if use_kerberos:
             cmd.append("-k")
