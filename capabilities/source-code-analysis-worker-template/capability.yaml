@@ -1,6 +1,6 @@
 schema: 1
 name: source-code-analysis-worker-template
-version: 0.1.0
+version: 0.1.1
 description: >
   Reference template for a worker-coordinated multi-agent capability. A single
   ``source-analysis.requested`` event drives a five-stage pipeline against a
