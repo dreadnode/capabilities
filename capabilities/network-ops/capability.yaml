@@ -28,15 +28,39 @@ workers:
     path: workers/coordinator.py
 
 dependencies:
+  # apt tools, installed privileged by the SDK (dependencies.packages).
+  packages:
+    - nmap
+    - smbclient
+    - hashcat
+    - john
   python:
     - "loguru>=0.7.0"
     - "impacket>=0.12.0"
+    - "certipy-ad"
+    - "bloodyAD"
+  # NetExec (nxc) is deliberately absent here: it is not published on PyPI. The
+  # install script below fetches the project's prebuilt standalone binary.
+  # Runtime-fetched assets apt/pip can't provide: the NetExec binary, wordlists,
+  # hashcat rules, and the NTLM coercion scripts.
   scripts:
     - scripts/install_coercion_tools.sh
 
 checks:
   - name: nmap
     command: "command -v nmap >/dev/null 2>&1"
+  - name: smbclient
+    command: "command -v smbclient >/dev/null 2>&1"
+  - name: hashcat
+    command: "command -v hashcat >/dev/null 2>&1"
+  - name: john
+    command: "command -v john >/dev/null 2>&1"
+  - name: netexec
+    command: "command -v nxc >/dev/null 2>&1 || command -v netexec >/dev/null 2>&1"
+  - name: certipy
+    command: "command -v certipy >/dev/null 2>&1 || command -v certipy-ad >/dev/null 2>&1"
+  - name: bloodyad
+    command: "command -v bloodyAD >/dev/null 2>&1"
   - name: petitpotam
     command: "test -f /opt/PetitPotam/PetitPotam.py"
   - name: dfscoerce
@@ -45,6 +69,10 @@ checks:
     command: "test -f /opt/ShadowCoerce/shadowcoerce.py"
   - name: rockyou-wordlist
     command: "test -s /usr/share/wordlists/rockyou.txt"
+  - name: wordlist-10k
+    command: "test -s /usr/share/wordlists/10k-most-common.txt"
+  - name: hashcat-rules
+    command: "test -s /usr/share/hashcat/rules/OneRuleToRuleThemAll.rule"
 
 keywords:
   - network-ops
