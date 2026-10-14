@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 import tempfile
 
 from dreadnode import Config
@@ -17,6 +18,22 @@ HASHCAT_TO_JOHN: dict[int, str] = {
 }
 
 _NO_BACKEND_MARKERS = ("CL_PLATFORM_NOT_FOUND_KHR", "No devices found/left")
+
+# hashcat exit statuses that mean the run started and then stopped for an
+# expected reason: 1 = keyspace exhausted, 2/3 = aborted, 4 = halted by the
+# --runtime time box this tool always sets. In each the potfile may already
+# hold cracked hashes, so results are collected rather than treated as failure.
+# Anything else (255, negative) means hashcat could not run and is surfaced.
+_HASHCAT_RAN_EXIT_CODES = frozenset({1, 2, 3, 4})
+
+_EXECUTE_EXIT_CODE_RE = re.compile(r"Command failed \((-?\d+)\)")
+
+
+def _execute_exit_code(message: str) -> int | None:
+    """Recover the process exit code the platform execute() helper embeds in its
+    failure text ("Command failed (<code>): ..."), or None when it is absent."""
+    match = _EXECUTE_EXIT_CODE_RE.search(message)
+    return int(match.group(1)) if match else None
 
 
 class Cracking(Toolset):
@@ -65,15 +82,17 @@ class Cracking(Toolset):
                 raise FileNotFoundError(f"Hash file {hash_file_path} does not exist.")
 
             if not os.path.exists(wordlist_path):
-                raise FileNotFoundError(
-                    f"Wordlist file {wordlist_path} does not exist."
-                )
+                raise FileNotFoundError(f"Wordlist file {wordlist_path} does not exist.")
 
-            logger.info(
-                f"Cracking {hash_file_path} with mode {hashcat_mode} using wordlist {wordlist_path}"
-            )
+            logger.info(f"Cracking {hash_file_path} with mode {hashcat_mode} using wordlist {wordlist_path}")
 
-            # Execute the cracking command
+            # Run the crack, then always read the potfile with --show below. hashcat
+            # records each recovered hash to the potfile as it goes and a time-boxed
+            # crack normally exits non-zero (keyspace exhausted, or halted by the
+            # --runtime box), so an expected non-zero exit, or a timeout that kills the
+            # process, must not abort before --show collects what landed. A crack that
+            # could not run (no compute backend, or any other genuine failure) is
+            # surfaced instead, so an empty result never masks a broken invocation.
             try:
                 await execute(
                     [
@@ -90,7 +109,9 @@ class Cracking(Toolset):
                     ],
                     timeout=(max_time_minutes * 60) + 30,
                 )
-            except Exception as e:
+            except TimeoutError:
+                logger.info("hashcat crack step timed out; collecting recovered hashes from " "the potfile via --show")
+            except RuntimeError as e:
                 msg = str(e)
                 if any(marker in msg for marker in _NO_BACKEND_MARKERS):
                     john_fmt = HASHCAT_TO_JOHN.get(hashcat_mode)
@@ -104,12 +125,14 @@ class Cracking(Toolset):
                         f"Use john_the_ripper instead (hashcat mode {hashcat_mode} "
                         f"has no automatic john format mapping — consult john documentation)."
                     ) from e
-                raise
+                if _execute_exit_code(msg) not in _HASHCAT_RAN_EXIT_CODES:
+                    raise
+                logger.info(
+                    "hashcat crack step exited non-zero (exhausted or aborted); "
+                    "collecting recovered hashes from the potfile via --show"
+                )
 
-            # Execute the --show command to get the cracked results
-            return await execute(
-                ["hashcat", "-m", str(hashcat_mode), hash_file_path, "--show"]
-            )
+            return await execute(["hashcat", "-m", str(hashcat_mode), hash_file_path, "--show"])
 
     @tool_method(catch=True, variants=["hashcat", "john", "all"])
     async def john_the_ripper(
@@ -150,23 +173,24 @@ class Cracking(Toolset):
         if not os.path.exists(wordlist_path):
             raise FileNotFoundError(f"Wordlist file {wordlist_path} does not exist.")
 
-        logger.info(
-            f"Cracking {hash_file_path} with format {hash_format} using wordlist {wordlist_path}"
-        )
+        logger.info(f"Cracking {hash_file_path} with format {hash_format} using wordlist {wordlist_path}")
 
-        # Execute the cracking command
-        # Note: John's --max-run-time is not a standard feature, we rely on the timeout
-        await execute(
-            [
-                "john",
-                f"--wordlist={wordlist_path}",
-                f"--format={hash_format}",
-                hash_file_path,
-            ],
-            timeout=(max_time_minutes * 60) + 30,
-        )
+        # Run the crack, then read the pot file with --show below. John writes each
+        # recovered password to its pot file as it goes and is time-boxed here by the
+        # run timeout, so a run cut short by the time box still has results to collect.
+        # A non-zero exit means john itself failed (bad format, unreadable hashes) and
+        # is left to surface rather than reported as an empty, successful result.
+        try:
+            await execute(
+                [
+                    "john",
+                    f"--wordlist={wordlist_path}",
+                    f"--format={hash_format}",
+                    hash_file_path,
+                ],
+                timeout=(max_time_minutes * 60) + 30,
+            )
+        except TimeoutError:
+            logger.info("john crack step timed out; collecting recovered hashes from the " "pot file via --show")
 
-        # Execute the --show command to get the cracked results
-        return await execute(
-            ["john", "--show", f"--format={hash_format}", hash_file_path]
-        )
+        return await execute(["john", "--show", f"--format={hash_format}", hash_file_path])
