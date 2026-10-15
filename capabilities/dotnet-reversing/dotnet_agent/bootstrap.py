@@ -2,8 +2,8 @@
 Bootstrap script to install .NET and ILSpy dependencies.
 
 This module handles first-time setup of .NET runtime and ILSpy libraries
-in the Dreadnode sandbox environment. Dependencies are installed to the
-workspace directory so they persist across sandbox restarts.
+in the Dreadnode sandbox environment. Dependencies are installed under the
+home directory and last for the life of the sandbox.
 
 Usage:
     from dotnet_agent.bootstrap import ensure_dependencies
@@ -20,31 +20,9 @@ from pathlib import Path
 # Configuration
 # =============================================================================
 
-# Install to workspace so it persists across sandbox restarts.
-# /home/user/workspace is S3-mounted and survives sandbox recreation.
-# For local runtime, falls back to ~/.dreadnode/deps
-SANDBOX_WORKSPACE = Path("/home/user/workspace")
-LOCAL_FALLBACK = Path.home() / ".dreadnode" / "deps"
-
-
-def _get_deps_dir() -> Path:
-    """Get the appropriate deps directory based on environment."""
-    if SANDBOX_WORKSPACE.exists() and SANDBOX_WORKSPACE.is_dir():
-        # Check if it's a mount point (sandbox) or just exists (local dev)
-        try:
-            if SANDBOX_WORKSPACE.is_mount():
-                return SANDBOX_WORKSPACE / ".dreadnode" / "deps"
-        except OSError:
-            pass
-        # If workspace exists but isn't a mount, still use it in sandbox-like envs
-        if (SANDBOX_WORKSPACE / ".dreadnode").exists() or os.environ.get(
-            "DREADNODE_SANDBOX"
-        ):
-            return SANDBOX_WORKSPACE / ".dreadnode" / "deps"
-    return LOCAL_FALLBACK
-
-
-DEPS_DIR = _get_deps_dir()
+# The sandbox workspace is an ordinary local directory with no lifetime beyond
+# the sandbox itself, so deps go under the home directory in every environment.
+DEPS_DIR = Path.home() / ".dreadnode" / "deps"
 DOTNET_ROOT = DEPS_DIR / "dotnet"
 ILSPY_LIB_DIR = DEPS_DIR / "ilspy"
 
@@ -65,9 +43,8 @@ def ensure_dependencies(verbose: bool = True) -> bool:
     """
     Install .NET and ILSpy if not present. Returns True if ready.
 
-    This function is idempotent - safe to call multiple times.
-    Dependencies are installed to a persistent directory so subsequent
-    sandbox starts skip the download.
+    This function is idempotent - safe to call multiple times. The download
+    is skipped once the dependencies are present in this sandbox.
 
     Args:
         verbose: Print progress messages (default True)
