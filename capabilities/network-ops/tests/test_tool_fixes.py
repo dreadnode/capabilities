@@ -4,8 +4,11 @@ relay orchestration helpers."""
 
 from __future__ import annotations
 
+import asyncio
+import importlib.machinery
 import importlib.util
 import inspect
+import signal
 import sys
 import types
 from pathlib import Path
@@ -92,21 +95,36 @@ _install_stubs()
 # Now we can import the tool modules
 TOOLS_DIR = Path(__file__).resolve().parents[1] / "tools"
 
+# Register a synthetic package rooted at the tools dir so the tool modules'
+# intra-package imports (e.g. ``from ._relay import ...``) resolve the same way
+# they do when the capability loader imports them as a package at runtime.
+_PKG = "netops_tools"
+if _PKG not in sys.modules:
+    _spec = importlib.machinery.ModuleSpec(_PKG, loader=None, is_package=True)
+    _spec.submodule_search_locations = [str(TOOLS_DIR)]
+    sys.modules[_PKG] = importlib.util.module_from_spec(_spec)
+
 
 def _load_module(name: str, filename: str):
+    mod_name = f"{_PKG}.{name}"
     path = TOOLS_DIR / filename
-    spec = importlib.util.spec_from_file_location(name, path)
+    spec = importlib.util.spec_from_file_location(mod_name, path)
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[mod_name] = mod
     spec.loader.exec_module(mod)
     return mod
 
 
-nmap_mod = _load_module("nmap_tools", "nmap.py")
-certipy_mod = _load_module("certipy_tools", "certipy.py")
-impacket_mod = _load_module("impacket_tools", "impacket.py")
-cracking_mod = _load_module("cracking_tools", "cracking.py")
-bloodyad_mod = _load_module("bloodyad_tools", "bloodyad.py")
+nmap_mod = _load_module("nmap", "nmap.py")
+certipy_mod = _load_module("certipy", "certipy.py")
+impacket_mod = _load_module("impacket", "impacket.py")
+cracking_mod = _load_module("cracking", "cracking.py")
+bloodyad_mod = _load_module("bloodyad", "bloodyad.py")
+krbrelayx_mod = _load_module("krbrelayx", "krbrelayx.py")
+# The tool modules above import ``._relay`` relatively, so it is already loaded
+# under the package; reuse that instance rather than loading a second copy.
+relay_mod = sys.modules.get(f"{_PKG}._relay") or _load_module("_relay", "_relay.py")
 
 
 # ===================================================================
@@ -456,8 +474,13 @@ class TestBuildCoercionCommand:
 # ===================================================================
 
 
-def _make_mock_process(lines: list[bytes], returncode: int | None = None):
-    """Create a mock asyncio subprocess with predefined stdout lines."""
+def _make_mock_process(lines: list[bytes], returncode: int | None = None, exit_code: int = 0):
+    """Create a mock asyncio subprocess with predefined stdout lines.
+
+    ``returncode`` is the process's state before it is awaited; ``exit_code`` is
+    what ``wait()`` resolves it to, letting a test model a clean (0) or failing
+    (non-zero) exit after stdout closes.
+    """
     line_iter = iter(lines)
 
     async def readline():
@@ -473,7 +496,7 @@ def _make_mock_process(lines: list[bytes], returncode: int | None = None):
     proc.pid = 12345
 
     async def wait():
-        proc.returncode = 0
+        proc.returncode = exit_code
 
     proc.wait = wait
     return proc
@@ -531,7 +554,9 @@ class TestWaitForRelayResult:
             ]
         )
         output: list[str] = []
-        result = await impacket_mod._wait_for_relay_result(proc, output, timeout=5)
+        result = await impacket_mod._wait_for_relay_result(
+            proc, output, impacket_mod.NTLMRELAYX_SUCCESS_PATTERNS, timeout=5
+        )
         assert result is True
         assert any("certificate" in line.lower() for line in output)
 
@@ -545,8 +570,40 @@ class TestWaitForRelayResult:
             ]
         )
         output: list[str] = []
-        result = await impacket_mod._wait_for_relay_result(proc, output, timeout=2)
+        result = await impacket_mod._wait_for_relay_result(
+            proc, output, impacket_mod.NTLMRELAYX_SUCCESS_PATTERNS, timeout=2
+        )
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_krbrelayx_failed_auth_is_not_success(self):
+        # krbrelayx logs "Authenticating against ... SUCCEED" and "... FAILED".
+        # The patterns must fire on the real capture lines, not on FAILED.
+        failed = _make_mock_process(
+            [
+                b"[*] SMBD: Received connection from 10.0.0.5\n",
+                b"[-] Authenticating against smb://dc as CORP\\u FAILED\n",
+                b"",
+            ]
+        )
+        out1: list[str] = []
+        assert (
+            await relay_mod.wait_for_relay_result(failed, out1, krbrelayx_mod._KRBRELAYX_SUCCESS_PATTERNS, timeout=2)
+            is False
+        )
+
+        caught = _make_mock_process(
+            [
+                b"[*] SMBD: Received connection from 10.0.0.5\n",
+                b"[*] Got ticket for admin@CORP.LOCAL [2]\n",
+                b"",
+            ]
+        )
+        out2: list[str] = []
+        assert (
+            await relay_mod.wait_for_relay_result(caught, out2, krbrelayx_mod._KRBRELAYX_SUCCESS_PATTERNS, timeout=2)
+            is True
+        )
 
 
 # ===================================================================
@@ -581,6 +638,33 @@ class TestKillRelay:
             mock_getpgid.assert_called_once_with(99999)
             mock_killpg.assert_called()
 
+    @pytest.mark.asyncio
+    async def test_escalates_to_sigkill_when_sigterm_ignored(self):
+        # A relay that ignores SIGTERM (ntlmrelayx with live connections does)
+        # must be escalated to SIGKILL, not leaked holding ports 445/80.
+        proc = MagicMock()
+        proc.returncode = None
+        proc.pid = 99999
+        calls = {"n": 0}
+
+        async def mock_wait():
+            calls["n"] += 1
+            if calls["n"] == 1:
+                await asyncio.sleep(1)  # outlast the (patched) SIGKILL timeout
+            proc.returncode = -9
+
+        proc.wait = mock_wait
+
+        with (
+            patch.object(relay_mod, "_SIGKILL_TIMEOUT", 0.05),
+            patch("os.getpgid", return_value=99999),
+            patch("os.killpg") as mock_killpg,
+        ):
+            await impacket_mod._kill_relay(proc)
+            # SIGTERM first, then SIGKILL after the wait timed out.
+            assert mock_killpg.call_count == 2
+            assert mock_killpg.call_args_list[-1].args[1] == signal.SIGKILL
+
 
 # ===================================================================
 # Cracking: hashcat no-backend detection
@@ -601,14 +685,10 @@ class TestHashcatNoBackendDetection:
         cracker = cracking_mod.Cracking()
 
         async def fake_execute(cmd, **kwargs):
-            raise RuntimeError(
-                "Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"
-            )
+            raise RuntimeError("Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR")
 
         with patch.object(cracking_mod, "execute", side_effect=fake_execute):
-            with pytest.raises(
-                RuntimeError, match=r"Use john_the_ripper.*hash_format='nt'"
-            ):
+            with pytest.raises(RuntimeError, match=r"Use john_the_ripper.*hash_format='nt'"):
                 await cracker.hashcat(
                     hashcat_mode=1000,
                     hash_file=str(hash_file),
@@ -624,9 +704,7 @@ class TestHashcatNoBackendDetection:
         wordlist.write_text("password\n")
 
         cracker = cracking_mod.Cracking()
-        original = RuntimeError(
-            "Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"
-        )
+        original = RuntimeError("Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR")
 
         async def fake_execute(cmd, **kwargs):
             raise original
@@ -720,9 +798,7 @@ class TestBuildConnectionOptions:
 # the real tool surface.
 _BLOODYAD_TOOL_METHODS = sorted(
     name
-    for name, member in inspect.getmembers(
-        bloodyad_mod.BloodyAD, inspect.iscoroutinefunction
-    )
+    for name, member in inspect.getmembers(bloodyad_mod.BloodyAD, inspect.iscoroutinefunction)
     if name.startswith("bloodyad_")
 )
 
@@ -908,9 +984,7 @@ class TestHashcatResultsSurviveNonZeroExit:
         """A missing GPU backend raises the john hint and never reaches --show."""
         hash_file, wordlist = self._write_inputs(tmp_path)
         fake_execute, calls = _split_execute(
-            RuntimeError(
-                "Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"
-            ),
+            RuntimeError("Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"),
             "svc_sql:Password1",
         )
         with patch.object(cracking_mod, "execute", side_effect=fake_execute):
@@ -967,3 +1041,244 @@ class TestJohnResultsSurviveNonCleanExit:
                     wordlist_path=str(wordlist),
                 )
         assert not any("--show" in cmd for cmd in calls)
+
+
+# ===================================================================
+# Shared relay listener: stream_listener
+#
+# Relay/coercion tools are listeners, not one-shot commands. stream_listener
+# must stream their output, return early on a success line, and — crucially —
+# return the captured output rather than raising when it reaches the timeout
+# without catching an auth. A listener that caught nothing produced no result;
+# that is a normal outcome, not a failed tool call.
+# ===================================================================
+
+
+class TestStreamListener:
+    @pytest.mark.asyncio
+    async def test_returns_output_on_success(self):
+        proc = _make_mock_process(
+            [
+                b"[*] Servers started, waiting for connections\n",
+                b"[*] Got certificate!\n",
+                b"",
+            ]
+        )
+        with (
+            patch("asyncio.create_subprocess_exec", AsyncMock(return_value=proc)),
+            patch("os.getpgid", return_value=12345),
+            patch("os.killpg"),
+        ):
+            out = await relay_mod.stream_listener(
+                ["ntlmrelayx.py"],
+                success_patterns=["got certificate"],
+                timeout=5,
+            )
+        assert "Got certificate" in out
+        assert "No success indicator" not in out
+
+    @pytest.mark.asyncio
+    async def test_success_drain_captures_followup_loot(self):
+        # The certificate / hashes land on the line *after* the success marker;
+        # the drain must capture that loot, not just the marker line.
+        proc = _make_mock_process(
+            [
+                b"[*] Got certificate!\n",
+                b"[*] Certificate: MIIFxyz-LOOT-VALUE\n",
+                b"",
+            ]
+        )
+        with (
+            patch("asyncio.create_subprocess_exec", AsyncMock(return_value=proc)),
+            patch("os.getpgid", return_value=12345),
+            patch("os.killpg"),
+        ):
+            out = await relay_mod.stream_listener(["ntlmrelayx.py"], success_patterns=["got certificate"], timeout=5)
+        assert "MIIFxyz-LOOT-VALUE" in out
+
+    @pytest.mark.asyncio
+    async def test_clean_early_exit_returns_note_without_raising(self):
+        # Process exits 0 without catching anything: a result, not an error.
+        proc = _make_mock_process([b"[*] Servers started, waiting for connections\n", b""], exit_code=0)
+        with (
+            patch("asyncio.create_subprocess_exec", AsyncMock(return_value=proc)),
+            patch("os.getpgid", return_value=12345),
+            patch("os.killpg"),
+        ):
+            out = await relay_mod.stream_listener(["ntlmrelayx.py"], success_patterns=["got certificate"], timeout=5)
+        assert "Servers started" in out
+        assert "exited without capturing" in out
+
+    @pytest.mark.asyncio
+    async def test_nonzero_early_exit_raises(self):
+        # A crash / misconfiguration (non-zero exit before the deadline) must
+        # surface as a tool-call error, not a success-shaped "nothing caught".
+        proc = _make_mock_process([b"[-] Address already in use\n", b""], exit_code=1)
+        with (
+            patch("asyncio.create_subprocess_exec", AsyncMock(return_value=proc)),
+            patch("os.getpgid", return_value=12345),
+            patch("os.killpg"),
+        ):
+            with pytest.raises(RuntimeError, match=r"exited with code 1"):
+                await relay_mod.stream_listener(["ntlmrelayx.py"], success_patterns=["got certificate"], timeout=5)
+
+    @pytest.mark.asyncio
+    async def test_real_timeout_returns_note_and_terminates(self):
+        # End-to-end against a real subprocess that prints a line then blocks
+        # past the timeout: verifies the actual timeout + process-group kill
+        # path (not just mocked EOF), and that it returns rather than raises.
+        script = "import time, sys; print('listener up', flush=True); time.sleep(30)"
+        out = await relay_mod.stream_listener(
+            [sys.executable, "-c", script],
+            success_patterns=["NEVER-MATCHES"],
+            timeout=1,
+        )
+        assert "listener up" in out
+        assert "No authentication captured within 1s" in out
+
+
+class TestCertipyRelayRouting:
+    """certipy(action='relay') is a listener; every other action is one-shot."""
+
+    def _make_certipy(self):
+        inst = certipy_mod.Certipy()
+        inst.certipy_cmd = "certipy"
+        inst.timeout = 20
+        inst.relay_timeout = 7
+        return inst
+
+    @pytest.mark.asyncio
+    async def test_relay_action_streams_with_relay_timeout(self):
+        inst = self._make_certipy()
+        captured: dict = {}
+
+        async def fake_stream(cmd, **kwargs):
+            captured["cmd"] = cmd
+            captured.update(kwargs)
+            return "relayed"
+
+        async def fake_execute(*args, **kwargs):
+            raise AssertionError("execute must not be called for the relay action")
+
+        with (
+            patch.object(certipy_mod, "stream_listener", side_effect=fake_stream),
+            patch.object(certipy_mod, "execute", side_effect=fake_execute),
+        ):
+            out = await inst.certipy(action="relay", args=["-target", "http://ca"], target="1.2.3.4")
+
+        assert out == "relayed"
+        assert captured["timeout"] == 7
+        assert captured["success_patterns"] is certipy_mod._CERTIPY_RELAY_SUCCESS_PATTERNS
+
+    @pytest.mark.asyncio
+    async def test_non_relay_action_uses_execute(self):
+        inst = self._make_certipy()
+
+        async def fake_execute(cmd, **kwargs):
+            return "executed"
+
+        async def fake_stream(*args, **kwargs):
+            raise AssertionError("stream_listener must not be called for non-relay")
+
+        with (
+            patch.object(certipy_mod, "execute", side_effect=fake_execute),
+            patch.object(certipy_mod, "stream_listener", side_effect=fake_stream),
+        ):
+            out = await inst.certipy(action="find", args=["-enabled"], target="1.2.3.4")
+
+        assert out == "executed"
+
+
+class TestKrbrelayxRelayRouting:
+    """krbrelayx_relay is a listener and must stream with its relay_timeout."""
+
+    @pytest.mark.asyncio
+    async def test_relay_streams_with_relay_timeout(self):
+        inst = krbrelayx_mod.Krbrelayx()
+        inst.script_path = Path("/opt/krbrelayx")
+        inst.timeout = 30
+        captured: dict = {}
+
+        async def fake_stream(cmd, **kwargs):
+            captured["cmd"] = cmd
+            captured.update(kwargs)
+            return "ok"
+
+        with patch.object(krbrelayx_mod, "stream_listener", side_effect=fake_stream):
+            out = await inst.krbrelayx_relay(target="host/victim.corp.local", clsid="abc", relay_timeout=42)
+
+        assert out == "ok"
+        assert captured["timeout"] == 42
+        assert captured["success_patterns"] is krbrelayx_mod._KRBRELAYX_SUCCESS_PATTERNS
+        assert str(Path("/opt/krbrelayx") / "krbrelayx.py") in captured["cmd"]
+
+
+class TestImpacketNtlmrelayxRouting:
+    """The standalone impacket_ntlmrelayx listener must stream, not block-execute."""
+
+    @pytest.mark.asyncio
+    async def test_standalone_relay_streams_with_relay_timeout(self):
+        inst = impacket_mod.Impacket()
+        captured: dict = {}
+
+        async def fake_stream(cmd, **kwargs):
+            captured["cmd"] = cmd
+            captured.update(kwargs)
+            return "ok"
+
+        with (
+            patch.object(inst, "_build_ntlmrelayx_args", return_value=["-t", "smb://x"]),
+            patch.object(
+                inst,
+                "_build_script_command",
+                return_value=["python", "ntlmrelayx.py", "-t", "smb://x"],
+            ),
+            patch.object(impacket_mod, "stream_listener", side_effect=fake_stream),
+        ):
+            out = await inst.impacket_ntlmrelayx(target="smb://x", relay_timeout=55)
+
+        assert out == "ok"
+        assert captured["timeout"] == 55
+        assert captured["success_patterns"] is impacket_mod.NTLMRELAYX_SUCCESS_PATTERNS
+
+
+class TestRelayRedactionAndCap:
+    def test_redact_cmd_masks_credentials(self):
+        cmd = [
+            "certipy",
+            "relay",
+            "-u",
+            "bob",
+            "-p",
+            "S3cret!",
+            "-hashes",
+            ":abcd",
+            "--aeskey",
+            "AESKEY",
+            "-dc-ip",
+            "1.2.3.4",
+        ]
+        red = relay_mod._redact_cmd(cmd)
+        joined = " ".join(red)
+        assert "S3cret!" not in joined
+        assert ":abcd" not in joined
+        assert "AESKEY" not in joined
+        assert red.count("***") == 3
+        # Non-secret args are preserved.
+        assert "bob" in red
+        assert "1.2.3.4" in red
+
+    @pytest.mark.asyncio
+    async def test_output_is_capped(self):
+        lines = [b"X" * 500 + b"\n"] * 10 + [b""]  # ~5 KB of output
+        proc = _make_mock_process(lines, exit_code=0)
+        with (
+            patch.object(relay_mod, "_MAX_OUTPUT_BYTES", 1000),
+            patch("asyncio.create_subprocess_exec", AsyncMock(return_value=proc)),
+            patch("os.getpgid", return_value=12345),
+            patch("os.killpg"),
+        ):
+            out = await relay_mod.stream_listener(["x"], success_patterns=["nomatch"], timeout=5)
+        assert "Output truncated at 1000 bytes" in out
+        # Retained output stays bounded near the cap, not the full ~5 KB.
+        assert len(out) < 2000
