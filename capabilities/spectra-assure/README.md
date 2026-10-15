@@ -5,6 +5,8 @@ Software supply chain security capability for Dreadnode, powered by
 via the [rl-mcp-community](https://github.com/reversinglabs/rl-mcp-community)
 MCP server.
 
+This wraps the Portal scanner (a Docker MCP) for deep behavioral binary analysis. For lightweight supply-chain lookups — secure.software Community catalogue search by purl/hash, plus OSV/Scorecard enrichment — see the sibling `secure-software` capability.
+
 ## What's in the box
 
 | Component | Purpose |
