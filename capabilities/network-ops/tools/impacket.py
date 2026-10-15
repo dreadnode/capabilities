@@ -1,8 +1,6 @@
 import asyncio
-import contextlib
 import os
 import re
-import signal
 import shutil
 import sys
 from pathlib import Path
@@ -12,6 +10,11 @@ from dreadnode.agents.tools import Toolset, tool_method
 from dreadnode.tools.execute import execute
 
 from loguru import logger
+
+from ._relay import NTLMRELAYX_SUCCESS_PATTERNS, stream_listener
+from ._relay import kill_relay as _kill_relay
+from ._relay import wait_for_relay_ready as _wait_for_relay_ready
+from ._relay import wait_for_relay_result as _wait_for_relay_result
 
 
 def _is_python_script(path: Path) -> bool:
@@ -90,9 +93,7 @@ def _ensure_impacket_installed() -> None:
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         pass
 
-    logger.warning(
-        f"impacket not importable by {sys.executable} — attempting install"
-    )
+    logger.warning(f"impacket not importable by {sys.executable} — attempting install")
 
     # Build install commands to try in order:
     # 1. uv pip install --python (works in uv venvs that lack pip)
@@ -102,17 +103,18 @@ def _ensure_impacket_installed() -> None:
 
     uv = shutil.which("uv")
     if uv:
-        install_cmds.append(
-            [uv, "pip", "install", "--python", sys.executable, "impacket>=0.12.0"]
-        )
+        install_cmds.append([uv, "pip", "install", "--python", sys.executable, "impacket>=0.12.0"])
 
-    install_cmds.append(
-        [sys.executable, "-m", "pip", "install", "--quiet", "impacket>=0.12.0"]
-    )
+    install_cmds.append([sys.executable, "-m", "pip", "install", "--quiet", "impacket>=0.12.0"])
     install_cmds.append(
         [
-            sys.executable, "-m", "pip", "install", "--quiet",
-            "--break-system-packages", "impacket>=0.12.0",
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--quiet",
+            "--break-system-packages",
+            "impacket>=0.12.0",
         ]
     )
 
@@ -129,9 +131,7 @@ def _ensure_impacket_installed() -> None:
             return
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
             continue
-    logger.error(
-        f"Failed to install impacket into {sys.executable} — impacket tools will not work"
-    )
+    logger.error(f"Failed to install impacket into {sys.executable} — impacket tools will not work")
 
 
 _ensure_impacket_installed()
@@ -182,14 +182,10 @@ def _get_impacket_script_path() -> Path:
         # script path (e.g. "exec python3 /real/path/script.py")
         real_dir = _extract_real_path_from_wrapper(found_path)
         if real_dir is not None:
-            logger.debug(
-                f"Impacket wrapper at {found_path} points to real scripts at {real_dir}"
-            )
+            logger.debug(f"Impacket wrapper at {found_path} points to real scripts at {real_dir}")
             return real_dir
 
-        logger.warning(
-            f"Impacket script at {found_path} is a shell wrapper, skipping PATH discovery"
-        )
+        logger.warning(f"Impacket script at {found_path} is a shell wrapper, skipping PATH discovery")
 
     # Default fallback
     return Path("/usr/share/doc/python3-impacket/examples/")
@@ -215,148 +211,6 @@ _COERCION_SCRIPTS: dict[str, tuple[Path, str, str]] = {
         "https://github.com/ShutdownRepo/ShadowCoerce",
     ),
 }
-
-# Patterns in ntlmrelayx stdout that indicate a successful relay
-_RELAY_SUCCESS_PATTERNS = [
-    "certificate",
-    "got certificate",
-    "dumping",
-    "sam hashes",
-    "authenticating against",
-    "relay succeeded",
-    "shadow credentials",
-    "msds-keycredentiallink",
-    "escalating",
-    "adding computer",
-    "laps password",
-    "gmsa password",
-]
-
-# How long to wait after SIGTERM before escalating to SIGKILL.
-_SIGKILL_TIMEOUT = 5.0
-
-
-async def _wait_for_relay_ready(
-    proc: asyncio.subprocess.Process,
-    output_buffer: list[str],
-    timeout: float = 30,
-) -> bool:
-    """Read ntlmrelayx stdout until 'Servers started' appears or timeout.
-
-    Returns True if the relay is ready, False on early exit or timeout.
-    """
-    assert proc.stdout is not None
-    loop = asyncio.get_running_loop()
-    deadline = loop.time() + timeout
-
-    while loop.time() < deadline:
-        remaining = deadline - loop.time()
-        try:
-            line = await asyncio.wait_for(
-                proc.stdout.readline(), timeout=min(remaining, 5)
-            )
-        except TimeoutError:
-            if proc.returncode is not None:
-                return False
-            continue
-
-        if not line:
-            return False  # EOF — process exited
-
-        decoded = line.decode(errors="replace")
-        output_buffer.append(decoded)
-
-        if "servers started" in decoded.lower():
-            return True
-
-        # Early failure: port bind error
-        lower = decoded.lower()
-        if "error" in lower and ("bind" in lower or "address already in use" in lower):
-            return False
-
-    return False
-
-
-async def _wait_for_relay_result(
-    proc: asyncio.subprocess.Process,
-    output_buffer: list[str],
-    timeout: float = 90,
-) -> bool:
-    """Read ntlmrelayx stdout looking for success indicators.
-
-    On match, continues reading for 5 more seconds to capture follow-up
-    data (certificate values, hashes, etc.) before returning.
-    """
-    assert proc.stdout is not None
-    loop = asyncio.get_running_loop()
-    deadline = loop.time() + timeout
-
-    while loop.time() < deadline:
-        remaining = deadline - loop.time()
-        try:
-            line = await asyncio.wait_for(
-                proc.stdout.readline(), timeout=min(remaining, 5)
-            )
-        except TimeoutError:
-            if proc.returncode is not None:
-                break
-            continue
-
-        if not line:
-            break
-
-        decoded = line.decode(errors="replace")
-        output_buffer.append(decoded)
-
-        lower = decoded.lower()
-        if any(pattern in lower for pattern in _RELAY_SUCCESS_PATTERNS):
-            # Drain follow-up output (cert data, hash values) for up to 5s total
-            drain_deadline = loop.time() + 5
-            try:
-                while loop.time() < drain_deadline:
-                    drain_remaining = drain_deadline - loop.time()
-                    extra = await asyncio.wait_for(
-                        proc.stdout.readline(), timeout=drain_remaining
-                    )
-                    if not extra:
-                        break
-                    output_buffer.append(extra.decode(errors="replace"))
-            except TimeoutError:
-                pass
-            return True
-
-    return False
-
-
-async def _kill_relay(proc: asyncio.subprocess.Process) -> None:
-    """Terminate a relay subprocess and its process group.
-
-    Sends SIGTERM to the process group, waits up to 5 seconds, then
-    escalates to SIGKILL.  Requires the subprocess was created with
-    ``start_new_session=True``.
-    """
-    if proc.returncode is not None:
-        return
-
-    pid = proc.pid
-    if pid is None:
-        return
-
-    try:
-        pgid = os.getpgid(pid)
-    except (OSError, ProcessLookupError):
-        return
-
-    with contextlib.suppress(OSError, ProcessLookupError):
-        os.killpg(pgid, signal.SIGTERM)
-
-    try:
-        await asyncio.wait_for(proc.wait(), timeout=_SIGKILL_TIMEOUT)
-    except TimeoutError:
-        with contextlib.suppress(OSError, ProcessLookupError):
-            os.killpg(pgid, signal.SIGKILL)
-        with contextlib.suppress(ProcessLookupError):
-            await proc.wait()
 
 
 class Impacket(Toolset):
@@ -457,9 +311,7 @@ class Impacket(Toolset):
         if target == "LOCAL":
             return "LOCAL"
 
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if identity:
             return f"{identity}@{target}"
         return target
@@ -728,10 +580,7 @@ class Impacket(Toolset):
             FileNotFoundError: If the coercion script is not installed.
         """
         if method not in _COERCION_SCRIPTS:
-            raise ValueError(
-                f"Unknown coercion method '{method}'. "
-                f"Choose from: {', '.join(_COERCION_SCRIPTS)}"
-            )
+            raise ValueError(f"Unknown coercion method '{method}'. " f"Choose from: {', '.join(_COERCION_SCRIPTS)}")
 
         base_path, script_name, repo_url = _COERCION_SCRIPTS[method]
         script = base_path / script_name
@@ -876,18 +725,12 @@ class Impacket(Toolset):
             raise ValueError("delegate_from is required when action='write'")
 
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -903,11 +746,7 @@ class Impacket(Toolset):
         if use_ldaps:
             args.append("-use-ldaps")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -1015,9 +854,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build identity with target
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -1034,11 +871,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         return await execute(
@@ -1135,9 +968,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build domain-first identity
-        identity = self._build_domain_first_identity(
-            domain, username=username, password=password
-        )
+        identity = self._build_domain_first_identity(domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -1145,11 +976,7 @@ class Impacket(Toolset):
         if target_domain:
             args.extend(["-target-domain", target_domain])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -1248,9 +1075,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build domain-first identity
-        identity = self._build_domain_first_identity(
-            domain, username=username, password=password
-        )
+        identity = self._build_domain_first_identity(domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -1261,11 +1086,7 @@ class Impacket(Toolset):
         if outputfile:
             args.extend(["-outputfile", outputfile])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -1395,9 +1216,7 @@ class Impacket(Toolset):
         """
         # Validation
         if not nthash and not aes_key and not keytab:
-            raise ValueError(
-                "Must provide at least one signing key: nthash, aes_key, or keytab"
-            )
+            raise ValueError("Must provide at least one signing key: nthash, aes_key, or keytab")
 
         if request and not request_user:
             raise ValueError("request_user is required when request=True")
@@ -1582,18 +1401,12 @@ class Impacket(Toolset):
         """
         # Validation
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -1623,11 +1436,7 @@ class Impacket(Toolset):
         if renew:
             args.append("-renew")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -1750,9 +1559,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build domain-first identity
-        identity = self._build_domain_first_identity(
-            domain, username=username, password=password
-        )
+        identity = self._build_domain_first_identity(domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -1781,11 +1588,7 @@ class Impacket(Toolset):
         if stealth:
             args.append("-stealth")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -1915,18 +1718,12 @@ class Impacket(Toolset):
         """
         # Validation
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -1960,11 +1757,7 @@ class Impacket(Toolset):
         if delete:
             args.append("-delete")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -2064,18 +1857,12 @@ class Impacket(Toolset):
         """
         # Validation
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -2088,11 +1875,7 @@ class Impacket(Toolset):
         if principal_type:
             args.extend(["-principalType", principal_type])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -2137,6 +1920,7 @@ class Impacket(Toolset):
         no_http_server: bool = False,
         no_wcf_server: bool = False,
         no_raw_server: bool = False,
+        relay_timeout: int = 180,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -2144,6 +1928,12 @@ class Impacket(Toolset):
         Execute impacket ntlmrelayx.py to perform NTLM relay attacks.
 
         This is a relay server that requires NO authentication - it relays incoming NTLM authentication.
+
+        It is a **listener**: it stays up streaming output and returns as soon as a relay
+        succeeds (SAM hashes, a certificate, escalation, etc.) or after ``relay_timeout``
+        seconds. Reaching that deadline without catching an auth is a normal outcome, not a
+        failure — the captured output is returned either way. To pair the relay with coercion
+        in one call, use ``impacket_ntlmrelay_attack`` instead.
 
         Usage Examples:
             # Basic SMB relay to dump SAM
@@ -2347,8 +2137,11 @@ class Impacket(Toolset):
             no_http_server: Disable HTTP server.
             no_wcf_server: Disable WCF server.
             no_raw_server: Disable RAW server.
+            relay_timeout: How long (seconds) to keep the relay listener up waiting for an
+                authentication before returning the captured output (default: 180).
             env: Optional environment variables.
-            input: Optional input string to pass to the command's stdin.
+            input: Accepted for signature parity with the other impacket tools; ignored
+                here, since a relay listener does not read from stdin.
         """
         if not target and not targets_file:
             raise ValueError("Must provide either target or targets_file")
@@ -2387,10 +2180,10 @@ class Impacket(Toolset):
             no_raw_server=no_raw_server,
         )
 
-        return await execute(
+        return await stream_listener(
             self._build_script_command("ntlmrelayx.py", args),
-            timeout=self.timeout,
-            input=input,
+            success_patterns=NTLMRELAYX_SUCCESS_PATTERNS,
+            timeout=relay_timeout,
             env=env,
         )
 
@@ -2528,25 +2321,16 @@ class Impacket(Toolset):
             ready_timeout = min(relay_timeout // 2, 30)
 
             # Wait for relay to bind its listeners
-            ready = await _wait_for_relay_ready(
-                relay_proc, relay_output, timeout=ready_timeout
-            )
+            ready = await _wait_for_relay_ready(relay_proc, relay_output, timeout=ready_timeout)
             if not ready:
                 captured = "".join(relay_output)
-                raise RuntimeError(
-                    f"ntlmrelayx failed to start within {ready_timeout}s.\n\n"
-                    f"Output:\n{captured}"
-                )
+                raise RuntimeError(f"ntlmrelayx failed to start within {ready_timeout}s.\n\n" f"Output:\n{captured}")
 
             # Fire coercion — the target authenticates back to our relay
-            logger.info(
-                f"Relay ready. Running {coerce_method} coercion against {coerce_target}"
-            )
+            logger.info(f"Relay ready. Running {coerce_method} coercion against {coerce_target}")
             coerce_timeout = min(30, relay_timeout - ready_timeout)
             try:
-                coerce_result = await execute(
-                    coerce_cmd, timeout=coerce_timeout, env=env
-                )
+                coerce_result = await execute(coerce_cmd, timeout=coerce_timeout, env=env)
             except (RuntimeError, TimeoutError) as exc:
                 coerce_result = f"[coercion error] {exc}"
                 logger.warning(f"Coercion failed: {exc}")
@@ -2556,16 +2340,14 @@ class Impacket(Toolset):
             # Monitor relay for success with whatever time remains
             remaining = max(relay_timeout - ready_timeout - coerce_timeout, 1)
             success = await _wait_for_relay_result(
-                relay_proc, relay_output, timeout=remaining
+                relay_proc, relay_output, NTLMRELAYX_SUCCESS_PATTERNS, timeout=remaining
             )
 
             # Assemble result
             full_relay = "".join(relay_output)
             parts = [f"=== ntlmrelayx output ===\n{full_relay}"]
             if coerce_result:
-                parts.append(
-                    f"\n=== {coerce_method} coercion output ===\n{coerce_result}"
-                )
+                parts.append(f"\n=== {coerce_method} coercion output ===\n{coerce_result}")
             if not success:
                 parts.append(
                     "\n[!] No relay success indicator detected within timeout. "
@@ -2699,26 +2481,18 @@ class Impacket(Toolset):
         """
         # Validation
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         if not (target or target_sid or target_dn):
-            raise ValueError(
-                "Must provide at least one target identifier: target, target_sid, or target_dn"
-            )
+            raise ValueError("Must provide at least one target identifier: target, target_sid, or target_dn")
 
         if action == "write" and not (new_owner or new_owner_sid or new_owner_dn):
             raise ValueError("Must provide new owner when action='write'")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -2748,11 +2522,7 @@ class Impacket(Toolset):
         if use_ldaps:
             args.append("-use-ldaps")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -2918,9 +2688,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build identity with target
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -2974,11 +2742,7 @@ class Impacket(Toolset):
         if ntds:
             args.extend(["-ntds", ntds])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         return await execute(
@@ -3081,9 +2845,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build domain-first identity
-        identity = self._build_domain_first_identity(
-            domain, username=username, password=password
-        )
+        identity = self._build_domain_first_identity(domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -3100,11 +2862,7 @@ class Impacket(Toolset):
         if usersfile:
             args.extend(["-usersfile", usersfile])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -3238,9 +2996,7 @@ class Impacket(Toolset):
             raise ValueError("Must provide either newpass or newhashes")
 
         # Build identity with target
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -3266,11 +3022,7 @@ class Impacket(Toolset):
         if reset:
             args.append("-reset")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -3424,28 +3176,18 @@ class Impacket(Toolset):
         """
         # Validation
         if not (password or hashes or kerberos):
-            raise ValueError(
-                "Must provide at least one authentication method: password, hashes, or kerberos"
-            )
+            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
 
         if not (target or target_sid or target_dn):
-            raise ValueError(
-                "Must provide at least one target identifier: target, target_sid, or target_dn"
-            )
+            raise ValueError("Must provide at least one target identifier: target, target_sid, or target_dn")
 
-        if action in ("write", "remove") and not (
-            principal or principal_sid or principal_dn
-        ):
+        if action in ("write", "remove") and not (principal or principal_sid or principal_dn):
             raise ValueError(f"Must provide principal when action='{action}'")
 
         # Build identity
-        identity = self._build_basic_identity(
-            domain=domain, username=username, password=password
-        )
+        identity = self._build_basic_identity(domain=domain, username=username, password=password)
         if not identity and not kerberos:
-            raise ValueError(
-                "Must provide domain/username unless using Kerberos authentication"
-            )
+            raise ValueError("Must provide domain/username unless using Kerberos authentication")
 
         # Build command
         args = []
@@ -3490,11 +3232,7 @@ class Impacket(Toolset):
         if file:
             args.extend(["-file", file])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -3591,9 +3329,7 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Build identity with target
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         # Build command
         args = [identity]
@@ -3607,11 +3343,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=None, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=None, password=password))
         args.extend(self._build_connection_flags(target_ip=target_ip))
 
         return await execute(
@@ -3725,9 +3457,7 @@ class Impacket(Toolset):
             env: Optional environment variables.
             input: Optional stdin input.
         """
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         args = [identity]
         if command:
@@ -3744,11 +3474,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         # If no command given, send exit to prevent interactive shell hang
@@ -3861,9 +3587,7 @@ class Impacket(Toolset):
             env: Optional environment variables.
             input: Optional stdin input.
         """
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         args = [identity]
         if command:
@@ -3878,11 +3602,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         # If no command given, send exit to prevent interactive shell hang
@@ -3986,9 +3706,7 @@ class Impacket(Toolset):
             timeout: Command timeout in seconds.
             env: Optional environment variables.
         """
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         args = [identity]
 
@@ -4003,11 +3721,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         # smbexec opens a shell — send command via stdin, then exit
@@ -4099,9 +3813,7 @@ class Impacket(Toolset):
             env: Optional environment variables.
             input: Optional stdin input.
         """
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         args = [identity, command]
 
@@ -4110,11 +3822,7 @@ class Impacket(Toolset):
         if codec:
             args.extend(["-codec", codec])
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -4224,9 +3932,7 @@ class Impacket(Toolset):
             env: Optional environment variables.
             input: Optional stdin input.
         """
-        identity = self._build_identity_with_target(
-            target, domain=domain, username=username, password=password
-        )
+        identity = self._build_identity_with_target(target, domain=domain, username=username, password=password)
 
         args = [identity]
         if command:
@@ -4243,11 +3949,7 @@ class Impacket(Toolset):
         if silentcommand:
             args.append("-silentcommand")
 
-        args.extend(
-            self._build_auth_flags(
-                hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password
-            )
-        )
+        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         # If no command given, send exit to prevent interactive shell hang

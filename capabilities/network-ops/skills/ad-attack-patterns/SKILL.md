@@ -97,7 +97,7 @@ Reference for common AD attack chains. Each pattern lists prerequisites, tool se
 | Step | Tool | Action |
 |---|---|---|
 | Combined (preferred) | `impacket_ntlmrelay_attack` | Start relay + fire coercion + capture result in one call |
-| 1. Start relay listener (manual) | `impacket_ntlmrelayx` | Listen and relay to target (SMB/LDAP/AD CS) |
+| 1. Start relay listener (manual) | `impacket_ntlmrelayx` | Listen and relay (SMB/LDAP/AD CS); blocks until it catches an auth or `relay_timeout`, so cannot be followed by a coercion call — prefer the combined tool |
 | 2. Coerce authentication (manual) | See coercion method selection below | Force target to authenticate to relay |
 | 3. Relay captures and forwards | ntlmrelayx relays auth | Escalation depends on relay target |
 

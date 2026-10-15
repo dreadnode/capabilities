@@ -7,6 +7,20 @@ from dreadnode.agents.tools import Toolset, tool_method
 from dreadnode.tools.execute import execute
 from loguru import logger
 
+from ._relay import stream_listener
+
+# Substrings in certipy relay stdout that indicate a relayed AD CS auth
+# succeeded. Kept specific to certificate issuance so routine status lines
+# ("... successfully", "wrote config") cannot trip a premature success.
+_CERTIPY_RELAY_SUCCESS_PATTERNS = [
+    "got certificate",
+    "saving certificate",
+    "saved certificate",
+    "certificate with",
+    "wrote certificate",
+    "pkcs#12",
+]
+
 
 def _detect_certipy_command() -> str:
     """Detect whether certipy is available as 'certipy' (pip) or 'certipy-ad' (Kali)."""
@@ -27,6 +41,8 @@ class Certipy(Toolset):
     """Expose generic protocol functions or specialized methods wrapping common use cases (or both)."""
     timeout: int = Config(default=20)
     """Default timeout for commands in seconds."""
+    relay_timeout: int = Config(default=180)
+    """How long (seconds) to keep the ``relay`` action's listener up waiting for an auth."""
     certipy_cmd: str = Config(default_factory=_detect_certipy_command)
     """Command to execute certipy (auto-detected: 'certipy' for pip, 'certipy-ad' for Kali)."""
 
@@ -35,13 +51,10 @@ class Certipy(Toolset):
         """Initialize Certipy toolset and verify certipy is installed."""
         if not shutil.which(self.certipy_cmd):
             logger.warning(
-                f"certipy command '{self.certipy_cmd}' not found in PATH. "
-                "Install with: pip install certipy-ad"
+                f"certipy command '{self.certipy_cmd}' not found in PATH. " "Install with: pip install certipy-ad"
             )
         else:
-            logger.info(
-                f"Certipy toolset initialized, using command: {self.certipy_cmd}"
-            )
+            logger.info(f"Certipy toolset initialized, using command: {self.certipy_cmd}")
         return self
 
     @override
@@ -64,6 +77,7 @@ class Certipy(Toolset):
         domain: str | None = None,
         password: str | None = None,
         nt_hash: str | None = None,
+        relay_timeout: int | None = None,
         input: str | None = None,
     ) -> str:
         """
@@ -78,7 +92,10 @@ class Certipy(Toolset):
                 find - Enumerate AD CS
                 parse - Offline enumerate AD CS based on registry data
                 forge - Create Golden Certificates or self-signed certificates
-                relay - NTLM Relay to AD CS HTTP Endpoints
+                relay - NTLM Relay to AD CS HTTP Endpoints. This action is a
+                    listener: it stays up streaming output until a relayed
+                    certificate is captured or `relay_timeout` elapses (reaching
+                    the deadline returns the captured output, it is not a failure).
                 req -  Request certificates
                 shadow -  Abuse Shadow Credentials for account takeover
                 template - Manage certificate templates
@@ -88,7 +105,11 @@ class Certipy(Toolset):
             domain: The domain name.
             password: The password for authentication.
             nt_hash: The NTLM hash for authentication.
+            relay_timeout: Only for action="relay": seconds to keep the listener up
+                waiting for a relayed certificate before returning (defaults to the
+                toolset's relay_timeout). Ignored for every other action.
             input: Optional input string to send to the command's standard input.
+                Ignored for action="relay", which does not read from stdin.
         """
         cmd = [self.certipy_cmd, action]
 
@@ -106,9 +127,19 @@ class Certipy(Toolset):
         cmd.extend(["-dc-ip", target])
         cmd.extend(args)
 
-        logger.info(
-            f"Running '{self.certipy_cmd} {action}' with args: {' '.join(args)}"
-        )
+        logger.info(f"Running '{self.certipy_cmd} {action}' with args: {' '.join(args)}")
+
+        # `relay` is a long-lived listener, not a one-shot command: stream its
+        # output and keep it up until a relayed cert arrives or relay_timeout,
+        # rather than force-killing it at the short command timeout.
+        if action == "relay":
+            return await stream_listener(
+                cmd,
+                success_patterns=_CERTIPY_RELAY_SUCCESS_PATTERNS,
+                timeout=relay_timeout if relay_timeout is not None else self.relay_timeout,
+                env=None,
+            )
+
         return await execute(cmd, timeout=self.timeout, input=input)
 
     # Specialized methods
@@ -289,9 +320,7 @@ class Certipy(Toolset):
             args: List of arguments for the command.
             input: Optional input string to pass to the command's stdin.
         """
-        return await execute(
-            [self.certipy_cmd, "account", *args], timeout=self.timeout, input=input
-        )
+        return await execute([self.certipy_cmd, "account", *args], timeout=self.timeout, input=input)
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_auth(self, args: list[str], input: str | None = "y") -> str:
@@ -337,9 +366,7 @@ class Certipy(Toolset):
             args: List of arguments for the command.
             input: Optional input string to pass to the command's stdin.
         """
-        return await execute(
-            [self.certipy_cmd, "auth", *args], timeout=self.timeout, input=input
-        )
+        return await execute([self.certipy_cmd, "auth", *args], timeout=self.timeout, input=input)
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_ca(self, args: list[str], input: str | None = None) -> str:
@@ -422,9 +449,7 @@ class Certipy(Toolset):
             args: List of arguments for the command.
             input: Optional input string to pass to the command's stdin.
         """
-        return await execute(
-            [self.certipy_cmd, "ca", *args], timeout=self.timeout, input=input
-        )
+        return await execute([self.certipy_cmd, "ca", *args], timeout=self.timeout, input=input)
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_cert(self, args: list[str], input: str | None = "y") -> str:
@@ -456,9 +481,7 @@ class Certipy(Toolset):
             args: List of arguments for the command.
             input: Optional input string to pass to the command's stdin.
         """
-        return await execute(
-            [self.certipy_cmd, "cert", *args], timeout=self.timeout, input=input
-        )
+        return await execute([self.certipy_cmd, "cert", *args], timeout=self.timeout, input=input)
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_find(
@@ -621,9 +644,7 @@ class Certipy(Toolset):
         Args:
             args: List of arguments for the command.
         """
-        return await execute(
-            [self.certipy_cmd, "req", *args], timeout=self.timeout, input=input
-        )
+        return await execute([self.certipy_cmd, "req", *args], timeout=self.timeout, input=input)
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_template(self, args: list[str], input: str | None = None) -> str:
@@ -694,6 +715,4 @@ class Certipy(Toolset):
             args: List of arguments for the command.
             input: Optional input string to pass to the command's stdin.
         """
-        return await execute(
-            [self.certipy_cmd, "template", *args], timeout=self.timeout, input=input
-        )
+        return await execute([self.certipy_cmd, "template", *args], timeout=self.timeout, input=input)
