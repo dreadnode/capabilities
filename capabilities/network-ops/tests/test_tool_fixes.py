@@ -5,6 +5,7 @@ relay orchestration helpers."""
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import sys
 import types
 from pathlib import Path
@@ -105,6 +106,7 @@ nmap_mod = _load_module("nmap_tools", "nmap.py")
 certipy_mod = _load_module("certipy_tools", "certipy.py")
 impacket_mod = _load_module("impacket_tools", "impacket.py")
 cracking_mod = _load_module("cracking_tools", "cracking.py")
+bloodyad_mod = _load_module("bloodyad_tools", "bloodyad.py")
 
 
 # ===================================================================
@@ -599,10 +601,14 @@ class TestHashcatNoBackendDetection:
         cracker = cracking_mod.Cracking()
 
         async def fake_execute(cmd, **kwargs):
-            raise RuntimeError("Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR")
+            raise RuntimeError(
+                "Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"
+            )
 
         with patch.object(cracking_mod, "execute", side_effect=fake_execute):
-            with pytest.raises(RuntimeError, match=r"Use john_the_ripper.*hash_format='nt'"):
+            with pytest.raises(
+                RuntimeError, match=r"Use john_the_ripper.*hash_format='nt'"
+            ):
                 await cracker.hashcat(
                     hashcat_mode=1000,
                     hash_file=str(hash_file),
@@ -618,7 +624,9 @@ class TestHashcatNoBackendDetection:
         wordlist.write_text("password\n")
 
         cracker = cracking_mod.Cracking()
-        original = RuntimeError("Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR")
+        original = RuntimeError(
+            "Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"
+        )
 
         async def fake_execute(cmd, **kwargs):
             raise original
@@ -652,6 +660,117 @@ class TestHashcatNoBackendDetection:
                     hash_file=str(hash_file),
                     wordlist_path=str(wordlist),
                 )
+
+
+# ===================================================================
+# BloodyAD: _build_connection_options (pass-the-hash auth)
+# ===================================================================
+
+
+class TestBuildConnectionOptions:
+    """A hash is supplied to bloodyAD through the password field (-p)."""
+
+    def _make_bloodyad(self):
+        return bloodyad_mod.BloodyAD()
+
+    def _base_kwargs(self):
+        return {"domain": "domain.local", "username": "alice", "host": "dc01"}
+
+    def test_bare_nt_hash_uses_leading_colon_password(self):
+        bad = self._make_bloodyad()
+        cmd = bad._build_connection_options(
+            **self._base_kwargs(),
+            hashes="aad3b435b51404eeaad3b435b51404ee",
+        )
+        assert "--hashes" not in cmd
+        p_idx = cmd.index("-p")
+        assert cmd[p_idx + 1] == ":aad3b435b51404eeaad3b435b51404ee"
+
+    def test_full_lm_nt_hash_passed_through_unchanged(self):
+        bad = self._make_bloodyad()
+        full = "aad3b435b51404eeaad3b435b51404ee:" "31d6cfe0d16ae931b73c59d7e0c089c0"
+        cmd = bad._build_connection_options(**self._base_kwargs(), hashes=full)
+        assert "--hashes" not in cmd
+        p_idx = cmd.index("-p")
+        assert cmd[p_idx + 1] == full
+
+    def test_password_takes_precedence_over_hashes(self):
+        bad = self._make_bloodyad()
+        cmd = bad._build_connection_options(
+            **self._base_kwargs(),
+            password="Summer2026!",
+            hashes="deadbeef",
+        )
+        assert "--hashes" not in cmd
+        p_idx = cmd.index("-p")
+        assert cmd[p_idx + 1] == "Summer2026!"
+        # The hash must not also leak into the argv.
+        assert "deadbeef" not in cmd
+        assert ":deadbeef" not in cmd
+
+    def test_no_hashes_flag_ever_emitted(self):
+        bad = self._make_bloodyad()
+        cmd = bad._build_connection_options(**self._base_kwargs(), hashes="deadbeef")
+        assert "--hashes" not in cmd
+
+
+# Every public bloodyad_* tool method must forward its `hashes` argument into
+# the shared connection-options helper. Testing the helper alone would not
+# catch a method that dropped `hashes=hashes` on its own call, so this walks
+# the real tool surface.
+_BLOODYAD_TOOL_METHODS = sorted(
+    name
+    for name, member in inspect.getmembers(
+        bloodyad_mod.BloodyAD, inspect.iscoroutinefunction
+    )
+    if name.startswith("bloodyad_")
+)
+
+_CONNECTION_PARAMS = {"domain", "username", "host"}
+_NT_HASH = "aad3b435b51404eeaad3b435b51404ee"
+
+
+def _call_kwargs_for(method) -> dict:
+    """Minimal kwargs to invoke a tool method on the hash-auth path: every
+    required parameter gets a placeholder, and `hashes` carries a bare NT hash
+    while `password` is left unset so the hash branch is taken."""
+    kwargs: dict = {}
+    for name, param in inspect.signature(method).parameters.items():
+        if name == "self":
+            continue
+        if name == "hashes":
+            kwargs[name] = _NT_HASH
+        elif name in _CONNECTION_PARAMS:
+            kwargs[name] = f"test-{name}"
+        elif param.default is inspect.Parameter.empty:
+            kwargs[name] = "test-value"
+    return kwargs
+
+
+class TestPublicMethodsForwardHashes:
+    """The ticket's failure was a tool authenticating without its hash. Guard
+    every public tool method, not just the shared helper."""
+
+    def test_at_least_one_tool_method_discovered(self):
+        # A rename/refactor that empties this list must fail loudly rather than
+        # silently parametrizing over nothing and passing.
+        assert len(_BLOODYAD_TOOL_METHODS) >= 20
+
+    @pytest.mark.parametrize("method_name", _BLOODYAD_TOOL_METHODS)
+    @pytest.mark.asyncio
+    async def test_hash_reaches_argv(self, method_name):
+        bad = bloodyad_mod.BloodyAD()
+        bad.timeout = 30
+        method = getattr(bad, method_name)
+
+        captured = AsyncMock(return_value="ok")
+        with patch.object(bloodyad_mod, "execute", captured):
+            await method(**_call_kwargs_for(method))
+
+        cmd = captured.call_args.args[0]
+        assert "--hashes" not in cmd
+        p_idx = cmd.index("-p")
+        assert cmd[p_idx + 1] == f":{_NT_HASH}"
 
 
 # ===================================================================
@@ -789,7 +908,9 @@ class TestHashcatResultsSurviveNonZeroExit:
         """A missing GPU backend raises the john hint and never reaches --show."""
         hash_file, wordlist = self._write_inputs(tmp_path)
         fake_execute, calls = _split_execute(
-            RuntimeError("Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"),
+            RuntimeError(
+                "Command failed (255): clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR"
+            ),
             "svc_sql:Password1",
         )
         with patch.object(cracking_mod, "execute", side_effect=fake_execute):
