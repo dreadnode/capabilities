@@ -89,7 +89,7 @@ Every reported finding must include a confidence assessment.
 ## Reporting Standards
 
 Reports must:
-- Use `report_item` with the correct model type (DomainController, Credential, Hash, Weakness, etc.)
+- Use `report_item` with the correct `item_type`: `host` (with `role: domain_controller` or `member_server`), `user`, `credential`, `hash`, `share`, `weakness`, or the built-in `finding` / `asset`
 - Include credential provenance (source host, extraction method, verification status)
 - State access level explicitly (local admin, domain user, DA, EA)
 - Map weaknesses to specific misconfigurations (not "AD misconfiguration" but "unconstrained delegation on WEB01$")

@@ -1,6 +1,6 @@
 schema: 1
 name: network-ops
-version: "2.2.1"
+version: "3.0.0"
 description: >
   Network operations and Active Directory exploitation. Multi-agent
   pipeline for autonomous red teaming with Nmap scanning, Netexec
@@ -22,6 +22,20 @@ skills:
 
 tools:
   - tools/
+
+# Structured Agent Output. Enables the built-in `finding` and `asset` types
+# plus the runtime report_item / update_item / link_items tools, and declares
+# the AD-specific record types whose schemas live in items.py. Agents emit
+# these through the runtime-provided report_item (item_type=…); they validate
+# against the pinned contracts and surface in Agent Output.
+outputs:
+  values: [finding, asset]
+  host: items:Host
+  user: items:User
+  credential: items:Credential
+  hash: items:Hash
+  share: items:Share
+  weakness: items:Weakness
 
 workers:
   coordinator:

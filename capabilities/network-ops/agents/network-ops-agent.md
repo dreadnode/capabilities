@@ -71,4 +71,4 @@ Consult the **ad-enumeration-playbook** skill for enumeration priority order and
 
 ## Reporting
 
-Use `report_item` frequently to log findings as structured data. Report domain controllers, member servers, users, credentials, hashes, shares, and weaknesses as you discover them.
+Use `report_item` frequently to log findings as structured data. Report hosts (`item_type: host` with `role: domain_controller` or `member_server`), users, credentials, hashes, shares, and weaknesses as you discover them.

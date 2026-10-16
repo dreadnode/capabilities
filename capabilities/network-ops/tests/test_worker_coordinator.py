@@ -27,9 +27,7 @@ def _load_coordinator():
     runtime.Worker = Worker
 
     sys.modules.setdefault("dreadnode", types.ModuleType("dreadnode"))
-    sys.modules.setdefault(
-        "dreadnode.capabilities", types.ModuleType("dreadnode.capabilities")
-    )
+    sys.modules.setdefault("dreadnode.capabilities", types.ModuleType("dreadnode.capabilities"))
     sys.modules["dreadnode.capabilities.worker"] = runtime
 
     if "loguru" not in sys.modules:
@@ -76,9 +74,7 @@ def test_normalize_scope_payload_passes_through_optional_fields():
 
 def test_normalize_scope_payload_drops_empty_values():
     coordinator = _load_coordinator()
-    scope = coordinator._normalize_scope_payload(
-        {"target": "10.10.10.0/24", "domain": "", "notes": None}
-    )
+    scope = coordinator._normalize_scope_payload({"target": "10.10.10.0/24", "domain": "", "notes": None})
     assert "domain" not in scope
     assert "notes" not in scope
 
@@ -214,15 +210,11 @@ def test_prompts_thread_prior_stage_reports_forward():
     discovery_prompt = coordinator._discovery_prompt('{"target":"x"}', "SCOPE_OUT", 10)
     assert "SCOPE_OUT" in discovery_prompt
 
-    enum_prompt = coordinator._enumeration_prompt(
-        '{"target":"x"}', "SCOPE_OUT", "DISCO_OUT", 12
-    )
+    enum_prompt = coordinator._enumeration_prompt('{"target":"x"}', "SCOPE_OUT", "DISCO_OUT", 12)
     assert "SCOPE_OUT" in enum_prompt
     assert "DISCO_OUT" in enum_prompt
 
-    exploit_prompt = coordinator._exploit_prompt(
-        '{"target":"x"}', "SCOPE_OUT", "DISCO_OUT", "ENUM_OUT", 20
-    )
+    exploit_prompt = coordinator._exploit_prompt('{"target":"x"}', "SCOPE_OUT", "DISCO_OUT", "ENUM_OUT", 20)
     assert "ENUM_OUT" in exploit_prompt
 
     harvest_prompt = coordinator._harvest_prompt(
@@ -303,3 +295,29 @@ def test_event_constants_use_netops_prefix():
         coordinator.FAILED_EVENT,
     ):
         assert event.startswith("netops."), event
+
+
+# --- _HIGH_VALUE_FIELDS is coupled to items.py by bare string ---
+
+
+def _load_items():
+    path = Path(__file__).resolve().parents[1] / "items.py"
+    spec = importlib.util.spec_from_file_location("netops_items_for_coord_test", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_high_value_fields_exist_on_item_models():
+    """`_extract_findings` keys attack results off bare field-name strings. If a
+    field is renamed in items.py without updating the coordinator, hashes and
+    weaknesses silently vanish from synthesis. This binds the two so a rename
+    breaks loudly instead."""
+    coordinator = _load_coordinator()
+    items = _load_items()
+    model_fields: set[str] = set()
+    for model_name in ("Credential", "Hash", "Weakness"):
+        model_fields |= set(getattr(items, model_name).model_fields)
+    missing = coordinator._HIGH_VALUE_FIELDS - model_fields
+    assert not missing, f"_HIGH_VALUE_FIELDS keys not present on any item model: {missing}"
