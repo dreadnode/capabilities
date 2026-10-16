@@ -86,7 +86,7 @@ class Certipy(Toolset):
         self,
         action: str,
         args: list[str],
-        target: str,
+        dc_ip: str,
         username: str | None = None,
         domain: str | None = None,
         password: str | None = None,
@@ -114,11 +114,11 @@ class Certipy(Toolset):
                 shadow -  Abuse Shadow Credentials for account takeover
                 template - Manage certificate templates
             args: A list of arguments specific to the subcommand.
-            target: The IP address of the Domain Controller.
+            dc_ip: The IP address of the Domain Controller.
             username: The username for authentication.
             domain: The domain name.
             password: The password for authentication.
-            nt_hash: The NTLM hash for authentication.
+            nt_hash: NTLM hash for authentication, as LMHASH:NTHASH or the NT hash alone.
             relay_timeout: Only for action="relay": seconds to keep the listener up
                 waiting for a relayed certificate before returning (defaults to the
                 toolset's relay_timeout). Ignored for every other action.
@@ -138,9 +138,11 @@ class Certipy(Toolset):
         if password:
             cmd.extend(["-p", password])
         elif nt_hash:
-            cmd.extend(["-hashes", f":{nt_hash}"])
+            # certipy's -hashes expects LMHASH:NTHASH; accept the family-wide
+            # full form verbatim and pad an empty LM half when given the NT hash alone.
+            cmd.extend(["-hashes", nt_hash if ":" in nt_hash else f":{nt_hash}"])
 
-        cmd.extend(["-dc-ip", target])
+        cmd.extend(["-dc-ip", dc_ip])
         cmd.extend(args)
 
         logger.info(f"Running '{self.certipy_cmd} {action}' with args: {' '.join(args)}")
@@ -163,7 +165,7 @@ class Certipy(Toolset):
     @tool_method(catch=True, variants=["specialized", "all"])
     async def certipy_find_vulnerable_templates(
         self,
-        target: str,
+        dc_ip: str,
         username: str,
         domain: str,
         password: str | None = None,
@@ -173,17 +175,17 @@ class Certipy(Toolset):
         Finds vulnerable AD CS certificate templates using the certipy-ad runner.
 
         Args:
-            target: The IP address of the Domain Controller.
+            dc_ip: The IP address of the Domain Controller.
             username: The username for authentication.
             domain: The domain name.
             password: The password for authentication.
-            nt_hash: The NTLM hash for authentication.
+            nt_hash: NTLM hash for authentication, as LMHASH:NTHASH or the NT hash alone.
         """
-        logger.info(f"Finding vulnerable certificate templates on {target}")
+        logger.info(f"Finding vulnerable certificate templates on {dc_ip}")
         return await self.certipy(
             action="find",
             args=["-vulnerable", "-stdout"],
-            target=target,
+            dc_ip=dc_ip,
             username=username,
             domain=domain,
             password=password,
@@ -193,7 +195,7 @@ class Certipy(Toolset):
     @tool_method(catch=True, variants=["specialized", "all"])
     async def certipy_request_certificate(
         self,
-        target: str,
+        dc_ip: str,
         ca_server: str,
         ca_name: str,
         template: str,
@@ -207,14 +209,14 @@ class Certipy(Toolset):
         Requests a certificate using a specified template via the certipy-ad runner.
 
         Args:
-            target: IP address of the Domain Controller.
+            dc_ip: IP address of the Domain Controller.
             ca_server: Hostname or IP of the Certificate Authority server.
             ca_name: Name of the Certificate Authority (e.g., "corp-CA").
             template: Name of the certificate template to use.
             username: Username for authentication.
             domain: Domain name.
             password: Password for authentication.
-            nt_hash: NTLM hash for authentication.
+            nt_hash: NTLM hash for authentication, as LMHASH:NTHASH or the NT hash alone.
             on_behalf_of: User to impersonate for the certificate request (for ESC4).
         """
         args = [
@@ -231,7 +233,7 @@ class Certipy(Toolset):
         return await self.certipy(
             action="req",
             args=args,
-            target=target,
+            dc_ip=dc_ip,
             username=username,
             domain=domain,
             password=password,
@@ -242,7 +244,7 @@ class Certipy(Toolset):
     async def certipy_certificate_auth(
         self,
         pfx_file: str,
-        target: str,
+        dc_ip: str,
         *,
         username: str = "",
         domain: str = "",
@@ -252,7 +254,7 @@ class Certipy(Toolset):
 
         Args:
             pfx_file: Path to the PFX certificate file.
-            target: IP address of the Domain Controller.
+            dc_ip: IP address of the Domain Controller.
             username: The username for authentication.
             domain: The domain name.
         """
@@ -261,7 +263,7 @@ class Certipy(Toolset):
             args=["-pfx", pfx_file],
             username=username,
             domain=domain,
-            target=target,
+            dc_ip=dc_ip,
         )
 
     # General methods
@@ -342,6 +344,9 @@ class Certipy(Toolset):
     async def certipy_auth(self, args: list[str], input: str | None = None) -> str:
         """
         Execute a certipy-ad auth command.
+
+        Raw escape hatch for arbitrary ``auth`` arguments. Prefer
+        ``certipy_certificate_auth`` for the common PFX-based authentication flow.
 
         <documentation>
         Authenticate to Active Directory services using certificates. This command enables certificate-based authentication to obtain Kerberos tickets, NT hashes, or establish LDAP connections.
@@ -508,7 +513,7 @@ class Certipy(Toolset):
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_find(
         self,
-        target: str,
+        dc_ip: str,
         args: list[str] | None = None,
         username: str | None = None,
         domain: str | None = None,
@@ -555,12 +560,12 @@ class Certipy(Toolset):
         </documentation>
 
         Args:
-            target: The IP address of the Domain Controller.
+            dc_ip: The IP address of the Domain Controller.
             args: Additional arguments for the find command (e.g., ["-vulnerable", "-stdout"]).
             username: The username for authentication.
             domain: The domain name (combined with username as user@domain).
             password: The password for authentication.
-            nt_hash: The NTLM hash for authentication.
+            nt_hash: NTLM hash for authentication, as LMHASH:NTHASH or the NT hash alone.
             input: Optional stdin for the command. The default (and any empty
                 value) auto-confirms certipy's interactive prompts with "y";
                 pass an explicit answer such as "n" to respond differently.
@@ -568,7 +573,7 @@ class Certipy(Toolset):
         return await self.certipy(
             action="find",
             args=args or [],
-            target=target,
+            dc_ip=dc_ip,
             username=username,
             domain=domain,
             password=password,
@@ -580,6 +585,9 @@ class Certipy(Toolset):
     async def certipy_req(self, args: list[str], input: str | None = None) -> str:
         r"""
         Execute a certipy-ad req command.
+
+        Raw escape hatch for arbitrary ``req`` arguments. Prefer
+        ``certipy_request_certificate`` for the common structured request flow.
 
         <documentation>
         Request and retrieve certificates from Active Directory Certificate Services (AD CS). This command supports multiple enrollment protocols and certificate template types.

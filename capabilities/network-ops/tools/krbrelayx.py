@@ -52,7 +52,7 @@ class Krbrelayx(Toolset):
         additional: bool = False,
         clear: bool = False,
         target_type: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         no_pass: bool = False,
         kerberos: bool = False,
         debug: bool = False,
@@ -153,7 +153,7 @@ class Krbrelayx(Toolset):
             additional: Add the SPN as an additional value (do not remove existing SPNs).
             clear: Remove all SPNs from the target account.
             target_type: Type of target specified - 'samname' or 'dn' (default: samname).
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             no_pass: Don't ask for password (useful for Kerberos).
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             debug: Enable debug output.
@@ -194,8 +194,8 @@ class Krbrelayx(Toolset):
         if target_type:
             args.extend(["--target-type", target_type])
 
-        if hashes:
-            args.extend(["-hashes", hashes])
+        if nt_hash:
+            args.extend(["-hashes", nt_hash])
 
         if no_pass:
             args.append("--no-pass")
@@ -229,7 +229,7 @@ class Krbrelayx(Toolset):
         legacy: bool = False,
         forest: bool = False,
         zone: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         no_pass: bool = False,
         kerberos: bool = False,
         debug: bool = False,
@@ -326,7 +326,7 @@ class Krbrelayx(Toolset):
             legacy: Use legacy DNS storage (for Windows 2000/2003).
             forest: Modify DNS in forest DNS zone.
             zone: Target DNS zone.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             no_pass: Don't ask for password (useful for Kerberos).
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             debug: Enable debug output.
@@ -363,8 +363,8 @@ class Krbrelayx(Toolset):
         if zone:
             args.extend(["--zone", zone])
 
-        if hashes:
-            args.extend(["-hashes", hashes])
+        if nt_hash:
+            args.extend(["-hashes", nt_hash])
 
         if no_pass:
             args.append("--no-pass")
@@ -519,7 +519,7 @@ class Krbrelayx(Toolset):
         username: str | None = None,
         password: str | None = None,
         domain: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         port: int | None = None,
         debug: bool = False,
         env: dict[str, str] | None = None,
@@ -549,7 +549,7 @@ class Krbrelayx(Toolset):
                 attacker="attacker.corp.local",
                 username="admin",
                 domain="CORP",
-                hashes="aad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
+                nt_hash="aad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
             )
 
             # Trigger printer bug with custom port
@@ -589,7 +589,7 @@ class Krbrelayx(Toolset):
             username: Username for authentication.
             password: Password for authentication.
             domain: Domain for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             port: Target port (default: 445).
             debug: Enable debug output.
             env: Optional environment variables.
@@ -607,8 +607,8 @@ class Krbrelayx(Toolset):
         if domain:
             args.extend(["-d", domain])
 
-        if hashes:
-            args.extend(["-hashes", hashes])
+        if nt_hash:
+            args.extend(["-hashes", nt_hash])
 
         if port is not None:
             args.extend(["--port", str(port)])

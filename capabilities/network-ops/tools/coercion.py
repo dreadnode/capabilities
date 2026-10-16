@@ -72,7 +72,7 @@ class Coercion(Toolset):
         username: str | None = None,
         password: str | None = None,
         domain: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         no_pass: bool = False,
         kerberos: bool = False,
         dc_ip: str | None = None,
@@ -147,7 +147,7 @@ class Coercion(Toolset):
             username: Username for authentication to the target.
             password: Password for authentication.
             domain: Domain name for authentication.
-            hashes: NTLM hashes in [LMHASH]:NTHASH format.
+            nt_hash: NTLM hashes in [LMHASH]:NTHASH format.
             no_pass: Don't prompt for password (for unauthenticated or Kerberos).
             kerberos: Use Kerberos authentication from ccache (KRB5CCNAME).
             dc_ip: Domain controller IP address override.
@@ -164,9 +164,9 @@ class Coercion(Toolset):
             args.extend(["-p", password])
         if domain:
             args.extend(["-d", domain])
-        if hashes:
-            args.extend(["-hashes", hashes])
-        if no_pass or (not password and not hashes):
+        if nt_hash:
+            args.extend(["-hashes", nt_hash])
+        if no_pass or (not password and not nt_hash):
             args.append("-no-pass")
         if kerberos:
             args.append("-k")
@@ -199,7 +199,7 @@ class Coercion(Toolset):
         username: str | None = None,
         password: str | None = None,
         domain: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         no_pass: bool = False,
         kerberos: bool = False,
         dc_ip: str | None = None,
@@ -230,7 +230,7 @@ class Coercion(Toolset):
                 target="dc01.corp.local",
                 username="admin",
                 domain="corp.local",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0"
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0"
             )
 
         <documentation>
@@ -262,7 +262,7 @@ class Coercion(Toolset):
             username: Username for authentication to the target.
             password: Password for authentication.
             domain: Domain name for authentication.
-            hashes: NTLM hashes in [LMHASH]:NTHASH format.
+            nt_hash: NTLM hashes in [LMHASH]:NTHASH format.
             no_pass: Don't prompt for password (for unauthenticated or Kerberos).
             kerberos: Use Kerberos authentication from ccache (KRB5CCNAME).
             dc_ip: Domain controller IP address override.
@@ -278,9 +278,9 @@ class Coercion(Toolset):
             args.extend(["-p", password])
         if domain:
             args.extend(["-d", domain])
-        if hashes:
-            args.extend(["-hashes", hashes])
-        if no_pass or (not password and not hashes):
+        if nt_hash:
+            args.extend(["-hashes", nt_hash])
+        if no_pass or (not password and not nt_hash):
             args.append("-no-pass")
         if kerberos:
             args.append("-k")
@@ -311,7 +311,7 @@ class Coercion(Toolset):
         username: str | None = None,
         password: str | None = None,
         domain: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         debug: bool = False,
         env: dict[str, str] | None = None,
         input: str | None = None,
@@ -343,7 +343,7 @@ class Coercion(Toolset):
                 target="fs01.corp.local",
                 username="admin",
                 domain="corp.local",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0"
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0"
             )
 
         <documentation>
@@ -372,7 +372,7 @@ class Coercion(Toolset):
             username: Username for authentication to the target.
             password: Password for authentication.
             domain: Domain name for authentication.
-            hashes: NTLM hashes in [LMHASH]:NTHASH format.
+            nt_hash: NTLM hashes in [LMHASH]:NTHASH format.
             debug: Enable debug output.
             env: Optional environment variables.
             input: Optional stdin input.
@@ -385,8 +385,8 @@ class Coercion(Toolset):
             args.extend(["-p", password])
         if domain:
             args.extend(["-d", domain])
-        if hashes:
-            args.extend(["-hashes", hashes])
+        if nt_hash:
+            args.extend(["-hashes", nt_hash])
         if debug:
             args.append("-debug")
 

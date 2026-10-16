@@ -353,7 +353,7 @@ class Impacket(Toolset):
     def _build_auth_flags(
         self,
         *,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         password: str | None = None,
@@ -364,7 +364,7 @@ class Impacket(Toolset):
         Automatically adds -no-pass when no password/hash is provided.
 
         Args:
-            hashes: NTLM hashes in LMHASH:NTHASH format
+            nt_hash: NTLM hashes in LMHASH:NTHASH format
             kerberos: Use Kerberos authentication (-k)
             aes_key: AES key for Kerberos
             password: Password (used to determine if -no-pass is needed)
@@ -373,14 +373,14 @@ class Impacket(Toolset):
             List of authentication flags
         """
         # Normalize empty strings to None
-        hashes = hashes or None
+        nt_hash = nt_hash or None
         aes_key = aes_key or None
         password = password or None
 
         flags = []
 
-        if hashes:
-            flags.extend(["-hashes", hashes])
+        if nt_hash:
+            flags.extend(["-hashes", nt_hash])
 
         if kerberos:
             flags.append("-k")
@@ -390,7 +390,7 @@ class Impacket(Toolset):
 
         # Auto-add -no-pass when no password/hash provided
         # This prevents impacket from prompting for password interactively
-        if not hashes and not password:
+        if not nt_hash and not password:
             flags.append("-no-pass")
 
         return flags
@@ -553,7 +553,7 @@ class Impacket(Toolset):
         username: str | None = None,
         password: str | None = None,
         domain: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         dc_ip: str | None = None,
         pipe: str | None = None,
@@ -567,7 +567,7 @@ class Impacket(Toolset):
             username: Username for authentication to the target.
             password: Password for authentication.
             domain: Domain name.
-            hashes: NTLM hashes for authentication.
+            nt_hash: NTLM hashes for authentication.
             kerberos: Use Kerberos authentication (petitpotam/dfscoerce only).
             dc_ip: Domain controller IP (petitpotam/dfscoerce only).
             pipe: Named pipe to use (petitpotam only).
@@ -593,15 +593,15 @@ class Impacket(Toolset):
         args: list[str] = []
         if username:
             args.extend(["-u", username])
-        if hashes:
-            args.extend(["-hashes", hashes])
+        if nt_hash:
+            args.extend(["-hashes", nt_hash])
         elif password:
             args.extend(["-p", password])
         if domain:
             args.extend(["-d", domain])
 
         # Auto -no-pass when no creds provided (prevents interactive prompt)
-        if not password and not hashes:
+        if not password and not nt_hash:
             args.append("-no-pass")
 
         # petitpotam/dfscoerce support -k and -dc-ip; shadowcoerce does not
@@ -627,7 +627,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -642,7 +642,7 @@ class Impacket(Toolset):
         This tool modifies the msDS-AllowedToActOnBehalfOfOtherIdentity property for RBCD attacks.
 
         Authentication:
-            At least one of (password, hashes, kerberos) must be provided.
+            At least one of (password, nt_hash, kerberos) must be provided.
             Domain and username are required unless using Kerberos with KRB5CCNAME.
 
         Usage Examples:
@@ -671,7 +671,7 @@ class Impacket(Toolset):
                 action="flush",
                 domain="corp.local",
                 username="user",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0"
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0"
             )
 
         <documentation>
@@ -711,7 +711,7 @@ class Impacket(Toolset):
             domain: Domain name (e.g., 'corp.local').
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -724,8 +724,8 @@ class Impacket(Toolset):
         if action == "write" and not delegate_from:
             raise ValueError("delegate_from is required when action='write'")
 
-        if not (password or hashes or kerberos):
-            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
+        if not (password or nt_hash or kerberos):
+            raise ValueError("Must provide at least one authentication method: password, nt_hash, or kerberos")
 
         # Build identity
         identity = self._build_basic_identity(domain=domain, username=username, password=password)
@@ -746,7 +746,7 @@ class Impacket(Toolset):
         if use_ldaps:
             args.append("-use-ldaps")
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -764,7 +764,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -795,7 +795,7 @@ class Impacket(Toolset):
                 target="dc01.corp.local",
                 domain="corp.local",
                 username="user",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0",
                 share="SYSVOL"
             )
 
@@ -841,7 +841,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -871,7 +871,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         return await execute(
@@ -888,7 +888,7 @@ class Impacket(Toolset):
         domain: str,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -914,7 +914,7 @@ class Impacket(Toolset):
             await impacket_find_delegation(
                 domain="corp.local",
                 username="user",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0",
                 dc_ip="10.0.0.1"
             )
 
@@ -958,7 +958,7 @@ class Impacket(Toolset):
             domain: Domain name (required).
             username: Username for authentication (optional for anonymous queries).
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -976,7 +976,7 @@ class Impacket(Toolset):
         if target_domain:
             args.extend(["-target-domain", target_domain])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -993,7 +993,7 @@ class Impacket(Toolset):
         domain: str,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -1028,7 +1028,7 @@ class Impacket(Toolset):
             await impacket_get_laps_password(
                 domain="corp.local",
                 username="user",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0",
                 outputfile="laps_passwords.txt"
             )
 
@@ -1064,7 +1064,7 @@ class Impacket(Toolset):
             domain: Domain name (required).
             username: Username for authentication (optional for anonymous queries).
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -1086,7 +1086,7 @@ class Impacket(Toolset):
         if outputfile:
             args.extend(["-outputfile", outputfile])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -1294,7 +1294,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -1314,7 +1314,7 @@ class Impacket(Toolset):
         Requests Kerberos service tickets, supports S4U2Self/S4U2Proxy for delegation attacks.
 
         Authentication:
-            At least one of (password, hashes, kerberos) must be provided.
+            At least one of (password, nt_hash, kerberos) must be provided.
             Domain and username are required unless using Kerberos with KRB5CCNAME.
 
         Usage Examples:
@@ -1331,7 +1331,7 @@ class Impacket(Toolset):
                 spn="http/webapp.corp.local",
                 domain="corp.local",
                 username="serviceaccount",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0",
                 impersonate="Administrator"
             )
 
@@ -1385,7 +1385,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -1400,8 +1400,8 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Validation
-        if not (password or hashes or kerberos):
-            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
+        if not (password or nt_hash or kerberos):
+            raise ValueError("Must provide at least one authentication method: password, nt_hash, or kerberos")
 
         # Build identity
         identity = self._build_basic_identity(domain=domain, username=username, password=password)
@@ -1436,7 +1436,7 @@ class Impacket(Toolset):
         if renew:
             args.append("-renew")
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -1453,7 +1453,7 @@ class Impacket(Toolset):
         domain: str,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -1495,7 +1495,7 @@ class Impacket(Toolset):
             await impacket_get_user_spns(
                 domain="corp.local",
                 username="user",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0",
                 request=True,
                 dc_ip="10.0.0.1"
             )
@@ -1542,7 +1542,7 @@ class Impacket(Toolset):
             domain: Domain name (required).
             username: Username for authentication (optional for anonymous queries).
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -1588,7 +1588,7 @@ class Impacket(Toolset):
         if stealth:
             args.append("-stealth")
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -1605,7 +1605,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -1628,7 +1628,7 @@ class Impacket(Toolset):
         Adds machine accounts using SAMR (over SMB) or LDAPS protocols.
 
         Authentication:
-            At least one of (password, hashes, kerberos) must be provided.
+            At least one of (password, nt_hash, kerberos) must be provided.
             Domain and username are required unless using Kerberos with KRB5CCNAME.
 
         Usage Examples:
@@ -1652,7 +1652,7 @@ class Impacket(Toolset):
             await impacket_add_computer(
                 domain="corp.local",
                 username="user",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0",
                 method="LDAPS",
                 computer_name="EVIL$"
             )
@@ -1699,7 +1699,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -1717,8 +1717,8 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Validation
-        if not (password or hashes or kerberos):
-            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
+        if not (password or nt_hash or kerberos):
+            raise ValueError("Must provide at least one authentication method: password, nt_hash, or kerberos")
 
         # Build identity
         identity = self._build_basic_identity(domain=domain, username=username, password=password)
@@ -1757,7 +1757,7 @@ class Impacket(Toolset):
         if delete:
             args.append("-delete")
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, dc_host=dc_host))
 
         return await execute(
@@ -1774,7 +1774,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -1789,7 +1789,7 @@ class Impacket(Toolset):
         Requests a TGT from the KDC and saves it as a ccache file.
 
         Authentication:
-            At least one of (password, hashes, kerberos) must be provided.
+            At least one of (password, nt_hash, kerberos) must be provided.
             Domain and username are required unless using Kerberos with KRB5CCNAME.
 
         Usage Examples:
@@ -1804,7 +1804,7 @@ class Impacket(Toolset):
             await impacket_get_tgt(
                 domain="corp.local",
                 username="administrator",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0",
                 dc_ip="10.0.0.1"
             )
 
@@ -1846,7 +1846,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -1856,8 +1856,8 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Validation
-        if not (password or hashes or kerberos):
-            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
+        if not (password or nt_hash or kerberos):
+            raise ValueError("Must provide at least one authentication method: password, nt_hash, or kerberos")
 
         # Build identity
         identity = self._build_basic_identity(domain=domain, username=username, password=password)
@@ -1875,7 +1875,7 @@ class Impacket(Toolset):
         if principal_type:
             args.extend(["-principalType", principal_type])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -2217,7 +2217,7 @@ class Impacket(Toolset):
         coerce_username: str | None = None,
         coerce_password: str | None = None,
         coerce_domain: str | None = None,
-        coerce_hashes: str | None = None,
+        coerce_nt_hash: str | None = None,
         coerce_dc_ip: str | None = None,
         coerce_pipe: str | None = None,
         # Timing
@@ -2260,7 +2260,7 @@ class Impacket(Toolset):
             coerce_username: Username for coercion authentication.
             coerce_password: Password for coercion authentication.
             coerce_domain: Domain for coercion authentication.
-            coerce_hashes: NTLM hashes for coercion authentication.
+            coerce_nt_hash: NTLM hash for coercion authentication, in LMHASH:NTHASH format.
             coerce_dc_ip: Domain controller IP for coercion.
             coerce_pipe: Named pipe for PetitPotam (e.g. "efsr", "lsarpc").
             relay_timeout: Total timeout in seconds (default 120).
@@ -2275,7 +2275,7 @@ class Impacket(Toolset):
             username=coerce_username,
             password=coerce_password,
             domain=coerce_domain,
-            hashes=coerce_hashes,
+            nt_hash=coerce_nt_hash,
             dc_ip=coerce_dc_ip,
             pipe=coerce_pipe,
         )
@@ -2366,7 +2366,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -2386,7 +2386,7 @@ class Impacket(Toolset):
         Modifies the owner attribute of Active Directory objects.
 
         Authentication:
-            At least one of (password, hashes, kerberos) must be provided.
+            At least one of (password, nt_hash, kerberos) must be provided.
             Domain and username are required unless using Kerberos with KRB5CCNAME.
 
         Usage Examples:
@@ -2416,7 +2416,7 @@ class Impacket(Toolset):
                 new_owner_dn="CN=Attacker,CN=Users,DC=corp,DC=local",
                 domain="corp.local",
                 username="user",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0"
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0"
             )
 
         <documentation>
@@ -2465,7 +2465,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -2480,8 +2480,8 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Validation
-        if not (password or hashes or kerberos):
-            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
+        if not (password or nt_hash or kerberos):
+            raise ValueError("Must provide at least one authentication method: password, nt_hash, or kerberos")
 
         if not (target or target_sid or target_dn):
             raise ValueError("Must provide at least one target identifier: target, target_sid, or target_dn")
@@ -2522,7 +2522,7 @@ class Impacket(Toolset):
         if use_ldaps:
             args.append("-use-ldaps")
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -2540,7 +2540,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -2582,7 +2582,7 @@ class Impacket(Toolset):
                 target="dc01.corp.local",
                 domain="corp.local",
                 username="administrator",
-                hashes="aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
+                nt_hash="aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
             )
 
             # DCSync attack to dump specific user with Kerberos ticket
@@ -2664,7 +2664,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -2742,7 +2742,7 @@ class Impacket(Toolset):
         if ntds:
             args.extend(["-ntds", ntds])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         return await execute(
@@ -2759,7 +2759,7 @@ class Impacket(Toolset):
         domain: str,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -2833,7 +2833,7 @@ class Impacket(Toolset):
             domain: Domain name (required).
             username: Username for authentication (optional for anonymous queries).
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -2862,7 +2862,7 @@ class Impacket(Toolset):
         if usersfile:
             args.extend(["-usersfile", usersfile])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -2882,7 +2882,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -2925,7 +2925,7 @@ class Impacket(Toolset):
                 target="dc01.corp.local",
                 domain="corp.local",
                 username="user",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0",
                 newpass="NewPass123!",
                 protocol="kpasswd"
             )
@@ -2979,7 +2979,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication (target user).
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -3022,7 +3022,7 @@ class Impacket(Toolset):
         if reset:
             args.append("-reset")
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -3040,7 +3040,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -3065,7 +3065,7 @@ class Impacket(Toolset):
         Edits Discretionary Access Control Lists for Active Directory objects.
 
         Authentication:
-            At least one of (password, hashes, kerberos) must be provided.
+            At least one of (password, nt_hash, kerberos) must be provided.
             Domain and username are required unless using Kerberos with KRB5CCNAME.
 
         Usage Examples:
@@ -3097,7 +3097,7 @@ class Impacket(Toolset):
                 rights="DCSync",
                 domain="corp.local",
                 username="user",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0"
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0"
             )
 
         <documentation>
@@ -3155,7 +3155,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             aes_key: AES key for Kerberos authentication (128 or 256 bits).
             dc_ip: Domain controller IP address override.
@@ -3175,8 +3175,8 @@ class Impacket(Toolset):
             input: Optional input string to pass to the command's stdin.
         """
         # Validation
-        if not (password or hashes or kerberos):
-            raise ValueError("Must provide at least one authentication method: password, hashes, or kerberos")
+        if not (password or nt_hash or kerberos):
+            raise ValueError("Must provide at least one authentication method: password, nt_hash, or kerberos")
 
         if not (target or target_sid or target_dn):
             raise ValueError("Must provide at least one target identifier: target, target_sid, or target_dn")
@@ -3232,7 +3232,7 @@ class Impacket(Toolset):
         if file:
             args.extend(["-file", file])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -3251,7 +3251,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         target_ip: str | None = None,
         port: int | None = None,
@@ -3278,7 +3278,7 @@ class Impacket(Toolset):
                 target="dc01.corp.local",
                 domain="corp.local",
                 username="user",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0",
                 max_rid=10000
             )
 
@@ -3320,7 +3320,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
             kerberos: Use Kerberos authentication (requires KRB5CCNAME environment variable).
             target_ip: Target machine IP address override.
             port: Destination port to connect to SMB server.
@@ -3343,7 +3343,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=None, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=None, password=password))
         args.extend(self._build_connection_flags(target_ip=target_ip))
 
         return await execute(
@@ -3366,7 +3366,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -3403,7 +3403,7 @@ class Impacket(Toolset):
                 command="ipconfig /all",
                 domain="corp.local",
                 username="administrator",
-                hashes="aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
+                nt_hash="aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
             )
 
         <documentation>
@@ -3443,7 +3443,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format.
             kerberos: Use Kerberos authentication.
             aes_key: AES key for Kerberos authentication.
             dc_ip: Domain controller IP address override.
@@ -3474,7 +3474,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         # If no command given, send exit to prevent interactive shell hang
@@ -3496,7 +3496,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -3532,7 +3532,7 @@ class Impacket(Toolset):
                 command="ipconfig",
                 domain="corp.local",
                 username="administrator",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0",
                 service_name="mySvc"
             )
 
@@ -3574,7 +3574,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format.
             kerberos: Use Kerberos authentication.
             aes_key: AES key for Kerberos authentication.
             dc_ip: Domain controller IP address override.
@@ -3602,7 +3602,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         # If no command given, send exit to prevent interactive shell hang
@@ -3624,7 +3624,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -3693,7 +3693,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format.
             kerberos: Use Kerberos authentication.
             aes_key: AES key for Kerberos authentication.
             dc_ip: Domain controller IP address override.
@@ -3721,7 +3721,7 @@ class Impacket(Toolset):
         if port is not None:
             args.extend(["-port", str(port)])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip, target_ip=target_ip))
 
         # smbexec opens a shell — send command via stdin, then exit
@@ -3743,7 +3743,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -3803,7 +3803,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format.
             kerberos: Use Kerberos authentication.
             aes_key: AES key for Kerberos authentication.
             dc_ip: Domain controller IP address override.
@@ -3822,7 +3822,7 @@ class Impacket(Toolset):
         if codec:
             args.extend(["-codec", codec])
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         return await execute(
@@ -3841,7 +3841,7 @@ class Impacket(Toolset):
         domain: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        hashes: str | None = None,
+        nt_hash: str | None = None,
         kerberos: bool = False,
         aes_key: str | None = None,
         dc_ip: str | None = None,
@@ -3877,7 +3877,7 @@ class Impacket(Toolset):
                 command="net localgroup administrators",
                 domain="corp.local",
                 username="administrator",
-                hashes=":31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash=":31d6cfe0d16ae931b73c59d7e0c089c0",
                 dcom_object="ShellWindows"
             )
 
@@ -3919,7 +3919,7 @@ class Impacket(Toolset):
             domain: Domain name.
             username: Username for authentication.
             password: Password for authentication.
-            hashes: NTLM hashes in LMHASH:NTHASH format.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format.
             kerberos: Use Kerberos authentication.
             aes_key: AES key for Kerberos authentication.
             dc_ip: Domain controller IP address override.
@@ -3949,7 +3949,7 @@ class Impacket(Toolset):
         if silentcommand:
             args.append("-silentcommand")
 
-        args.extend(self._build_auth_flags(hashes=hashes, kerberos=kerberos, aes_key=aes_key, password=password))
+        args.extend(self._build_auth_flags(nt_hash=nt_hash, kerberos=kerberos, aes_key=aes_key, password=password))
         args.extend(self._build_connection_flags(dc_ip=dc_ip))
 
         # If no command given, send exit to prevent interactive shell hang
