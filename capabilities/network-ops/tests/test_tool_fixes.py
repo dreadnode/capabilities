@@ -298,6 +298,127 @@ class TestCertipyFind:
 
 
 # ===================================================================
+# Certipy: uniform, hang-safe stdin confirmation across the toolset
+# ===================================================================
+
+
+class TestCertipyConfirmInput:
+    """Every certipy_* tool should auto-confirm interactive prompts by default
+    and close stdin, so no sibling tool can hang on a prompt until timeout, and
+    an explicit `input` always overrides."""
+
+    # Assert the literal "y" the subprocess must receive, not Certipy._CONFIRM_INPUT:
+    # comparing to the module constant would stay green if someone set it to "" or
+    # None, which (via execute()'s `if proc.stdin and input:` guard) would stop
+    # closing stdin and reintroduce the very prompt-hang these tests guard against.
+    CONFIRM = "y"
+
+    def _make_certipy(self):
+        c = certipy_mod.Certipy()
+        c.certipy_cmd = "certipy"
+        c.timeout = 10
+        return c
+
+    def _input_kwarg(self, mock_exec):
+        """Extract the `input` passed to execute, positional or keyword."""
+        assert mock_exec.await_count == 1
+        return mock_exec.call_args.kwargs["input"]
+
+    @pytest.mark.asyncio
+    async def test_direct_generic_tools_default_to_confirm(self):
+        """account/auth/ca/cert/req/template send the confirm default to stdin
+        when no input is given (none inherit the parent's stdin)."""
+        for method in [
+            "certipy_account",
+            "certipy_auth",
+            "certipy_ca",
+            "certipy_cert",
+            "certipy_req",
+            "certipy_template",
+        ]:
+            c = self._make_certipy()
+            with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
+                mock_exec.return_value = "output"
+                await getattr(c, method)(args=[])
+                assert self._input_kwarg(mock_exec) == self.CONFIRM, f"{method} should auto-confirm by default"
+
+    @pytest.mark.asyncio
+    async def test_passthrough_and_find_default_to_confirm(self):
+        """The generic passthrough and certipy_find route through certipy() and
+        inherit the same confirm default."""
+        c = self._make_certipy()
+        with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await c.certipy(action="find", args=[], target="10.0.0.1")
+            assert self._input_kwarg(mock_exec) == self.CONFIRM
+
+        c = self._make_certipy()
+        with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await c.certipy_find(target="10.0.0.1")
+            assert self._input_kwarg(mock_exec) == self.CONFIRM
+
+    @pytest.mark.asyncio
+    async def test_relay_does_not_receive_confirm_stdin(self):
+        """The relay action is a streaming listener that never reads stdin; the
+        confirm default must not leak into it (it bypasses execute())."""
+        c = self._make_certipy()
+        with (
+            patch.object(certipy_mod, "stream_listener", new_callable=AsyncMock) as mock_relay,
+            patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec,
+        ):
+            mock_relay.return_value = "output"
+            await c.certipy(action="relay", args=["-target", "http://ca"], target="1.2.3.4")
+            mock_exec.assert_not_awaited()
+            mock_relay.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_high_level_tools_default_to_confirm(self):
+        """The high-level helpers no longer hardcode stdin; they inherit the
+        uniform confirm default via certipy()."""
+        c = self._make_certipy()
+        with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await c.certipy_request_certificate(
+                target="10.0.0.1",
+                ca_server="ca.corp.local",
+                ca_name="corp-CA",
+                template="User",
+                username="Admin",
+                domain="corp.local",
+            )
+            assert self._input_kwarg(mock_exec) == self.CONFIRM
+
+        c = self._make_certipy()
+        with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await c.certipy_certificate_auth(pfx_file="admin.pfx", target="10.0.0.1")
+            assert self._input_kwarg(mock_exec) == self.CONFIRM
+
+    @pytest.mark.asyncio
+    async def test_explicit_input_overrides_default(self):
+        """A caller-supplied non-empty input is passed through unchanged."""
+        c = self._make_certipy()
+        with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await c.certipy_cert(args=["-export"], input="n")
+            assert self._input_kwarg(mock_exec) == "n"
+
+    @pytest.mark.asyncio
+    async def test_empty_input_still_confirms(self):
+        """An empty string falls back to the confirm default rather than being
+        forwarded as-is. This is deliberate: execute() only closes stdin when the
+        input is truthy, so forwarding "" would leave stdin open and reintroduce
+        the prompt-hang. Callers decline by sending an explicit answer (e.g. "n"),
+        not an empty string."""
+        c = self._make_certipy()
+        with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await c.certipy_cert(args=["-export"], input="")
+            assert self._input_kwarg(mock_exec) == self.CONFIRM
+
+
+# ===================================================================
 # Impacket: _build_ntlmrelayx_args
 # ===================================================================
 

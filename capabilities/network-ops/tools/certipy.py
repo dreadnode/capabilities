@@ -21,6 +21,20 @@ _CERTIPY_RELAY_SUCCESS_PATTERNS = [
     "pkcs#12",
 ]
 
+# Certipy's interactive subcommands prompt for confirmation (e.g. overwriting a
+# saved PFX/ccache). Agents run non-interactively, so an unanswered prompt would
+# block on stdin until the command hits its timeout. Every certipy_* tool passes
+# this as the default stdin so behavior is uniform across the toolset and stdin
+# is always closed (the prompt gets a definitive answer, never a hang). Callers
+# pass an explicit `input` to answer differently (e.g. "n").
+#
+# This is exposed as the family-wide `input: str | None` stdin parameter rather
+# than a dedicated `confirm: bool`, to stay uniform with the sibling tools
+# (impacket, bloodyad, coercion, krbrelayx), which all take `input` and guard
+# the same prompt-hang this way. The `relay` action is exempt: it is a streaming
+# listener that never reads stdin.
+_CONFIRM_INPUT = "y"
+
 
 def _detect_certipy_command() -> str:
     """Detect whether certipy is available as 'certipy' (pip) or 'certipy-ad' (Kali)."""
@@ -108,7 +122,9 @@ class Certipy(Toolset):
             relay_timeout: Only for action="relay": seconds to keep the listener up
                 waiting for a relayed certificate before returning (defaults to the
                 toolset's relay_timeout). Ignored for every other action.
-            input: Optional input string to send to the command's standard input.
+            input: Optional stdin for the command. The default (and any empty
+                value) auto-confirms certipy's interactive prompts with "y";
+                pass an explicit answer such as "n" to respond differently.
                 Ignored for action="relay", which does not read from stdin.
         """
         cmd = [self.certipy_cmd, action]
@@ -140,7 +156,7 @@ class Certipy(Toolset):
                 env=None,
             )
 
-        return await execute(cmd, timeout=self.timeout, input=input)
+        return await execute(cmd, timeout=self.timeout, input=input or _CONFIRM_INPUT)
 
     # Specialized methods
 
@@ -220,7 +236,6 @@ class Certipy(Toolset):
             domain=domain,
             password=password,
             nt_hash=nt_hash,
-            input="y",
         )
 
     @tool_method(catch=True, variants=["specialized", "all"])
@@ -247,7 +262,6 @@ class Certipy(Toolset):
             username=username,
             domain=domain,
             target=target,
-            input="y",
         )
 
     # General methods
@@ -318,12 +332,14 @@ class Certipy(Toolset):
 
         Args:
             args: List of arguments for the command.
-            input: Optional input string to pass to the command's stdin.
+            input: Optional stdin for the command. The default (and any empty
+                value) auto-confirms certipy's interactive prompts with "y";
+                pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "account", *args], timeout=self.timeout, input=input)
+        return await execute([self.certipy_cmd, "account", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
 
     @tool_method(catch=True, variants=["generic", "all"])
-    async def certipy_auth(self, args: list[str], input: str | None = "y") -> str:
+    async def certipy_auth(self, args: list[str], input: str | None = None) -> str:
         """
         Execute a certipy-ad auth command.
 
@@ -364,9 +380,11 @@ class Certipy(Toolset):
 
         Args:
             args: List of arguments for the command.
-            input: Optional input string to pass to the command's stdin.
+            input: Optional stdin for the command. The default (and any empty
+                value) auto-confirms certipy's interactive prompts with "y";
+                pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "auth", *args], timeout=self.timeout, input=input)
+        return await execute([self.certipy_cmd, "auth", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_ca(self, args: list[str], input: str | None = None) -> str:
@@ -447,12 +465,14 @@ class Certipy(Toolset):
 
         Args:
             args: List of arguments for the command.
-            input: Optional input string to pass to the command's stdin.
+            input: Optional stdin for the command. The default (and any empty
+                value) auto-confirms certipy's interactive prompts with "y";
+                pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "ca", *args], timeout=self.timeout, input=input)
+        return await execute([self.certipy_cmd, "ca", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
 
     @tool_method(catch=True, variants=["generic", "all"])
-    async def certipy_cert(self, args: list[str], input: str | None = "y") -> str:
+    async def certipy_cert(self, args: list[str], input: str | None = None) -> str:
         r"""
         Execute a certipy-ad cert command.
 
@@ -479,9 +499,11 @@ class Certipy(Toolset):
 
         Args:
             args: List of arguments for the command.
-            input: Optional input string to pass to the command's stdin.
+            input: Optional stdin for the command. The default (and any empty
+                value) auto-confirms certipy's interactive prompts with "y";
+                pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "cert", *args], timeout=self.timeout, input=input)
+        return await execute([self.certipy_cmd, "cert", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_find(
@@ -539,7 +561,9 @@ class Certipy(Toolset):
             domain: The domain name (combined with username as user@domain).
             password: The password for authentication.
             nt_hash: The NTLM hash for authentication.
-            input: Optional input string to pass to the command.
+            input: Optional stdin for the command. The default (and any empty
+                value) auto-confirms certipy's interactive prompts with "y";
+                pass an explicit answer such as "n" to respond differently.
         """
         return await self.certipy(
             action="find",
@@ -553,7 +577,7 @@ class Certipy(Toolset):
         )
 
     @tool_method(catch=True, variants=["generic", "all"])
-    async def certipy_req(self, args: list[str], input: str | None = "y") -> str:
+    async def certipy_req(self, args: list[str], input: str | None = None) -> str:
         r"""
         Execute a certipy-ad req command.
 
@@ -643,8 +667,11 @@ class Certipy(Toolset):
 
         Args:
             args: List of arguments for the command.
+            input: Optional stdin for the command. The default (and any empty
+                value) auto-confirms certipy's interactive prompts with "y";
+                pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "req", *args], timeout=self.timeout, input=input)
+        return await execute([self.certipy_cmd, "req", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_template(self, args: list[str], input: str | None = None) -> str:
@@ -713,6 +740,8 @@ class Certipy(Toolset):
 
         Args:
             args: List of arguments for the command.
-            input: Optional input string to pass to the command's stdin.
+            input: Optional stdin for the command. The default (and any empty
+                value) auto-confirms certipy's interactive prompts with "y";
+                pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "template", *args], timeout=self.timeout, input=input)
+        return await execute([self.certipy_cmd, "template", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
