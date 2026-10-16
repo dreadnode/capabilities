@@ -37,8 +37,10 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
         local_auth: bool = False,
     ) -> str:
         """
@@ -53,8 +55,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
             local_auth: Use local authentication (`--local-auth`). Mutually exclusive with `domain`.
         """
         # Fix netexec first-run setup issue if .nxc exists as a file instead of directory
@@ -74,16 +79,21 @@ class Netexec(Toolset):
             cmd.extend(["-u", *(username if isinstance(username, list) else [username])])
         if _emit_auth_flag(password):
             cmd.extend(["-p", *(password if isinstance(password, list) else [password])])
-        if hash:
-            cmd.extend(["-H", *(hash if isinstance(hash, list) else [hash])])
+        if nt_hash:
+            cmd.extend(["-H", *(nt_hash if isinstance(nt_hash, list) else [nt_hash])])
+
+        if aes_key and ccache:
+            raise ValueError(
+                "Pass only one of aes_key or ccache for Kerberos authentication, not both."
+            )
 
         env: dict[str, str] | None = None
-        if kerberos:
-            cmd.extend(["-k"])
-            if len(kerberos) == 32 or len(kerberos) == 64:  # AES key
-                cmd.extend(["--aesKey", kerberos])
-            else:
-                env = {"KRB5CCNAME": kerberos}
+        if kerberos or aes_key or ccache:
+            cmd.append("-k")
+            if aes_key:
+                cmd.extend(["--aesKey", aes_key])
+            elif ccache:
+                env = {"KRB5CCNAME": ccache}
                 cmd.append("--use-kcache")
 
         cmd.extend(args)
@@ -101,8 +111,10 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
         local_auth: bool = False,
     ) -> str:
         """
@@ -113,8 +125,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
             local_auth: Use local authentication (`--local-auth`). Mutually exclusive with `domain`.
         """
         return await self.netexec(
@@ -124,8 +139,10 @@ class Netexec(Toolset):
             username=username,
             password=password,
             domain=domain,
-            hash=hash,
+            nt_hash=nt_hash,
             kerberos=kerberos,
+            aes_key=aes_key,
+            ccache=ccache,
             local_auth=local_auth,
         )
 
@@ -137,8 +154,10 @@ class Netexec(Toolset):
         *,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
         local_auth: bool = False,
     ) -> str:
         """
@@ -151,8 +170,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
             local_auth: Use local authentication (`--local-auth`). Mutually exclusive with `domain`.
         """
         return await self.netexec(
@@ -162,8 +184,10 @@ class Netexec(Toolset):
             username=username,
             password=password,
             domain=domain,
-            hash=hash,
+            nt_hash=nt_hash,
             kerberos=kerberos,
+            aes_key=aes_key,
+            ccache=ccache,
             local_auth=local_auth,
         )
 
@@ -176,8 +200,10 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
         local_auth: bool = False,
     ) -> str:
         """
@@ -189,8 +215,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
             local_auth: Use local authentication (`--local-auth`). Mutually exclusive with `domain`.
         """
         # netexec --groups only accepts one group at a time, so we loop
@@ -205,8 +234,10 @@ class Netexec(Toolset):
                     username=username,
                     password=password,
                     domain=domain,
-                    hash=hash,
+                    nt_hash=nt_hash,
                     kerberos=kerberos,
+                    aes_key=aes_key,
+                    ccache=ccache,
                     local_auth=local_auth,
                 )
                 results.append(output)
@@ -223,8 +254,10 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
         local_auth: bool = False,
     ) -> str:
         """
@@ -235,8 +268,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
             local_auth: Use local authentication (`--local-auth`). Mutually exclusive with `domain`.
         """
         return await self.netexec(
@@ -246,8 +282,10 @@ class Netexec(Toolset):
             username=username,
             password=password,
             domain=domain,
-            hash=hash,
+            nt_hash=nt_hash,
             kerberos=kerberos,
+            aes_key=aes_key,
+            ccache=ccache,
             local_auth=local_auth,
         )
 
@@ -259,8 +297,10 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
     ) -> str:
         """
         Enumerates domain computers, users, groups, domain controllers, and trusts via LDAP using netexec.
@@ -270,8 +310,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
         """
         return await self.netexec(
             "ldap",
@@ -280,8 +323,10 @@ class Netexec(Toolset):
             username=username,
             password=password,
             domain=domain,
-            hash=hash,
+            nt_hash=nt_hash,
             kerberos=kerberos,
+            aes_key=aes_key,
+            ccache=ccache,
         )
 
     @tool_method(catch=True, variants=["specialized", "all"])
@@ -292,8 +337,10 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
     ) -> str:
         """
         Authenticate via LDAP to one or more domain controllers using netexec to verify credentials.
@@ -303,8 +350,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
         """
         return await self.netexec(
             "ldap",
@@ -313,8 +363,10 @@ class Netexec(Toolset):
             username=username,
             password=password,
             domain=domain,
-            hash=hash,
+            nt_hash=nt_hash,
             kerberos=kerberos,
+            aes_key=aes_key,
+            ccache=ccache,
         )
 
     @tool_method(catch=True, variants=["specialized", "all"])
@@ -326,8 +378,10 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
     ) -> str:
         """
         Enumerates domain group members.
@@ -338,8 +392,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
         """
         # netexec --groups only accepts one group at a time, so we loop
         # and join results when multiple groups are requested.
@@ -353,8 +410,10 @@ class Netexec(Toolset):
                     username=username,
                     password=password,
                     domain=domain,
-                    hash=hash,
+                    nt_hash=nt_hash,
                     kerberos=kerberos,
+                    aes_key=aes_key,
+                    ccache=ccache,
                 )
                 results.append(output)
             except Exception:
@@ -370,7 +429,7 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | None = None,
+        nt_hash: str | None = None,
     ) -> str:
         """
         Performs an AS-REP roasting attack against a domain controller.
@@ -383,7 +442,7 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
         """
         _, output_path = tempfile.mkstemp(suffix="_asreproast.txt")
         output = await self.netexec(
@@ -393,7 +452,7 @@ class Netexec(Toolset):
             username=username,
             password=password,
             domain=domain,
-            hash=hash,
+            nt_hash=nt_hash,
         )
         if "$krb5asrep$" in output:
             output += f"\n\n[+] AS-REP roast hashes saved to {output_path}"
@@ -407,7 +466,7 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
+        nt_hash: str | list[str] | None = None,
     ) -> str:
         """
         Performs a Kerberoasting attack against one or more Domain Controllers.
@@ -417,7 +476,7 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
         """
         _, output_path = tempfile.mkstemp(suffix="_kerberoast.txt")
         output = await self.netexec(
@@ -427,7 +486,7 @@ class Netexec(Toolset):
             username=username,
             password=password,
             domain=domain,
-            hash=hash,
+            nt_hash=nt_hash,
         )
         if "$krb5tgs$" in output:
             output += f"\n\n[+] Kerberoast hashes saved to {output_path}"
@@ -444,8 +503,10 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
         local_auth: bool = False,
     ) -> str:
         """
@@ -474,7 +535,7 @@ class Netexec(Toolset):
                 targets=["dc01.corp.local"],
                 args=["--sam"],
                 username="administrator",
-                hash="aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
+                nt_hash="aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
             )
 
         <documentation>
@@ -766,8 +827,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
             local_auth: Use local authentication (`--local-auth`). Mutually exclusive with `domain`.
         """
         if args is None:
@@ -779,8 +843,10 @@ class Netexec(Toolset):
             username=username,
             password=password,
             domain=domain,
-            hash=hash,
+            nt_hash=nt_hash,
             kerberos=kerberos,
+            aes_key=aes_key,
+            ccache=ccache,
             local_auth=local_auth,
         )
 
@@ -793,8 +859,10 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
     ) -> str:
         """
         Execute a netexec LDAP protocol command.
@@ -823,7 +891,7 @@ class Netexec(Toolset):
                 targets=["192.168.1.5"],
                 args=["--gmsa"],
                 username="administrator",
-                hash="aad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0",
+                nt_hash="aad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0",
                 domain="corp.local"
             )
 
@@ -992,8 +1060,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
         """
         if args is None:
             args = []
@@ -1004,8 +1075,10 @@ class Netexec(Toolset):
             username=username,
             password=password,
             domain=domain,
-            hash=hash,
+            nt_hash=nt_hash,
             kerberos=kerberos,
+            aes_key=aes_key,
+            ccache=ccache,
         )
 
     @tool_method(catch=True, variants=["generic", "all"])
@@ -1017,8 +1090,10 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
         local_auth: bool = False,
     ) -> str:
         """
@@ -1202,8 +1277,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
             local_auth: Use local authentication (`--local-auth`). Mutually exclusive with `domain`.
         """
         if args is None:
@@ -1215,8 +1293,10 @@ class Netexec(Toolset):
             username=username,
             password=password,
             domain=domain,
-            hash=hash,
+            nt_hash=nt_hash,
             kerberos=kerberos,
+            aes_key=aes_key,
+            ccache=ccache,
             local_auth=local_auth,
         )
 
@@ -1229,8 +1309,10 @@ class Netexec(Toolset):
         username: str | list[str] | None = None,
         password: str | list[str] | None = None,
         domain: str | None = None,
-        hash: str | list[str] | None = None,
-        kerberos: str | None = None,
+        nt_hash: str | list[str] | None = None,
+        kerberos: bool = False,
+        aes_key: str | None = None,
+        ccache: str | None = None,
         local_auth: bool = False,
     ) -> str:
         r"""
@@ -1396,8 +1478,11 @@ class Netexec(Toolset):
             username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
             password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
-            hash: A single NTLM hash, a list of hashes, or a path to a hash file.
-            kerberos: Kerberos ccache file path or AES key for authentication.
+            nt_hash: A single NTLM hash, a list of hashes, or a path to a hash file.
+            kerberos: Use Kerberos authentication (``-k``). Use alone with a password or an
+                existing ticket, or combine with ``aes_key`` or ``ccache``.
+            aes_key: AES key (hex, 128/256-bit) for Kerberos authentication. Maps to ``--aesKey``.
+            ccache: Path to a Kerberos credential cache. Sets ``KRB5CCNAME`` and uses ``--use-kcache``.
             local_auth: Use local authentication (`--local-auth`). Mutually exclusive with `domain`.
         """
         if args is None:
@@ -1409,7 +1494,9 @@ class Netexec(Toolset):
             username=username,
             password=password,
             domain=domain,
-            hash=hash,
+            nt_hash=nt_hash,
             kerberos=kerberos,
+            aes_key=aes_key,
+            ccache=ccache,
             local_auth=local_auth,
         )
