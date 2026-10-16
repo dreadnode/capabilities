@@ -7,6 +7,16 @@ from dreadnode.tools.execute import execute
 from loguru import logger
 
 
+def _emit_auth_flag(value: str | list[str] | None) -> bool:
+    """Whether an auth value should produce its command-line flag.
+
+    ``None`` and an empty list mean no value was supplied, so the flag is
+    omitted. An empty string is the explicit null-session form (``-u ''`` /
+    ``-p ''``) and must still emit the flag with its empty value.
+    """
+    return value is not None and value != []
+
+
 class Netexec(Toolset):
     """
     A toolset for network operations using the Netexec (nxc) utility.
@@ -40,8 +50,8 @@ class Netexec(Toolset):
                 ssh, wmi, mssql, vnc, ldap, nfs, smb, winrm, ftp, or rdp.
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
             args: A list of additional arguments and flags for netexec (e.g., ['--help']).
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
@@ -50,9 +60,7 @@ class Netexec(Toolset):
         # Fix netexec first-run setup issue if .nxc exists as a file instead of directory
         nxc_path = Path.home() / ".nxc"
         if nxc_path.exists() and nxc_path.is_file():
-            logger.warning(
-                f"Found {nxc_path} as a file instead of directory, removing to allow netexec setup"
-            )
+            logger.warning(f"Found {nxc_path} as a file instead of directory, removing to allow netexec setup")
             nxc_path.unlink()
 
         cmd = ["netexec", protocol, *targets]
@@ -62,14 +70,10 @@ class Netexec(Toolset):
         elif domain:
             cmd.extend(["-d", domain])
 
-        if username:
-            cmd.extend(
-                ["-u", *(username if isinstance(username, list) else [username])]
-            )
-        if password:
-            cmd.extend(
-                ["-p", *(password if isinstance(password, list) else [password])]
-            )
+        if _emit_auth_flag(username):
+            cmd.extend(["-u", *(username if isinstance(username, list) else [username])])
+        if _emit_auth_flag(password):
+            cmd.extend(["-p", *(password if isinstance(password, list) else [password])])
         if hash:
             cmd.extend(["-H", *(hash if isinstance(hash, list) else [hash])])
 
@@ -106,8 +110,8 @@ class Netexec(Toolset):
 
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
@@ -144,8 +148,8 @@ class Netexec(Toolset):
 
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
@@ -182,8 +186,8 @@ class Netexec(Toolset):
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
             groups: Group names to query members for.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
@@ -228,8 +232,8 @@ class Netexec(Toolset):
 
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
@@ -263,8 +267,8 @@ class Netexec(Toolset):
 
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
@@ -296,8 +300,8 @@ class Netexec(Toolset):
 
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
@@ -331,8 +335,8 @@ class Netexec(Toolset):
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
             groups: Group names to query members for.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
@@ -376,8 +380,8 @@ class Netexec(Toolset):
 
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
         """
@@ -410,8 +414,8 @@ class Netexec(Toolset):
 
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
         """
@@ -759,8 +763,8 @@ class Netexec(Toolset):
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
             args: Additional command line arguments for the command.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
@@ -985,8 +989,8 @@ class Netexec(Toolset):
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
             args: Additional command line arguments for the command.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
@@ -1195,8 +1199,8 @@ class Netexec(Toolset):
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
             args: Additional command line arguments for the command.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.
@@ -1389,8 +1393,8 @@ class Netexec(Toolset):
         Args:
             targets: A list of IPs, ranges, CIDRs, hostnames, or FQDNs.
             args: Additional command line arguments for the command.
-            username: Username, list of usernames, or a path to a user file (empty for null session).
-            password: Password, list of passwords, or a path to a password file (empty for null session).
+            username: Username, list of usernames, or a path to a user file. Pass "" to emit `-u ''` (pair with password="" for an anonymous null session).
+            password: Password, list of passwords, or a path to a password file. Pass "" to emit `-p ''` (pair with username="" for an anonymous null session).
             domain: Domain for authentication.
             hash: A single NTLM hash, a list of hashes, or a path to a hash file.
             kerberos: Kerberos ccache file path or AES key for authentication.

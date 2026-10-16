@@ -1,6 +1,6 @@
 schema: 1
 name: mythic-c2-readonly
-version: "1.0.0"
+version: "1.0.1"
 description: >
   Read-only Mythic C2 integration. Query callbacks, task history (command
   input/output), credentials, downloaded files, artifacts, keylogs,

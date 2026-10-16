@@ -4,7 +4,7 @@
 # dependencies = [
 #   "pytest>=8.0",
 #   "pytest-asyncio>=0.23",
-#   "fastmcp>=2.0",
+#   "fastmcp>=3.2.0",
 #   "mythic>=0.2",
 # ]
 # ///

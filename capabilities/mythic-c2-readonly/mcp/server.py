@@ -2,9 +2,9 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "fastmcp>=2.0",
+#   "fastmcp>=3.2.0",
 #   "mythic>=0.2",
-#   "gql[aiohttp,websockets]>=3.0,<4.0",
+#   "gql[aiohttp,websockets]>=4.0",
 #   "pydantic>=2.0,<3.0",
 # ]
 # ///
@@ -31,12 +31,37 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Literal, TypeAlias, TypedDict, TypeVar
+from typing import Annotated, Any, Literal, TypeAlias, TypedDict, TypeVar
 
 from fastmcp import FastMCP
 from mythic import mythic as mythic_sdk, mythic_utilities
 from mythic.mythic_classes import Mythic
 from pydantic import BaseModel, Field, JsonValue, ValidationInfo, field_validator
+
+
+def _patch_mythic_for_gql4() -> None:
+    """Make mythic's ``get_operation_name`` accept gql 4's ``GraphQLRequest``.
+
+    mythic 0.2.x expects ``gql(query)`` to return a ``DocumentNode`` (gql 3.x).
+    gql 4.0 returns a ``GraphQLRequest`` wrapper, so the SDK raises
+    ``AttributeError: 'GraphQLRequest' object has no attribute 'definitions'``.
+    This shim unwraps ``.document`` and still accepts a plain ``DocumentNode``.
+    Copy of ``mythic-c2/lib/mythic_api.py`` (capabilities cannot share code, ENG-7049).
+
+    Remove once ``mythic`` ships a release that supports gql 4.0 natively.
+    """
+
+    async def _get_operation_name(graphql_data: Any) -> str:
+        doc = getattr(graphql_data, "document", graphql_data)
+        definitions = getattr(doc, "definitions", None) or []
+        if definitions and getattr(definitions[0], "name", None):
+            return definitions[0].name.value
+        return ""
+
+    mythic_utilities.get_operation_name = _get_operation_name
+
+
+_patch_mythic_for_gql4()
 
 
 # ── Type aliases ─────────────────────────────────────────────────────
@@ -402,9 +427,7 @@ async def _ensure_connected() -> Mythic:
     if _config is None:
         _config = _default_config()
     if not _config["password"] and not _config["api_token"]:
-        raise RuntimeError(
-            "Set MYTHIC_PASSWORD or MYTHIC_API_TOKEN env var."
-        )
+        raise RuntimeError("Set MYTHIC_PASSWORD or MYTHIC_API_TOKEN env var.")
 
     try:
         if _config["api_token"]:
@@ -437,9 +460,7 @@ async def _ensure_connected() -> Mythic:
 
 async def _gql(query: str, variables: GqlVariables | None = None) -> JsonObject:
     client = await _ensure_connected()
-    result = await mythic_utilities.graphql_post(
-        mythic=client, query=query, variables=variables or {}
-    )
+    result = await mythic_utilities.graphql_post(mythic=client, query=query, variables=variables or {})
     return result if isinstance(result, dict) else {}
 
 
@@ -605,14 +626,12 @@ async def list_tasks(
     # Mythic SDK types callback_display_id as int (not Optional), so we can't
     # unify the two calls via kwargs without fighting the type checker.
     if callback_id is not None:
-        rows = await mythic_sdk.get_all_tasks(
-            client, custom_return_attributes=attrs, callback_display_id=callback_id
-        )
+        rows = await mythic_sdk.get_all_tasks(client, custom_return_attributes=attrs, callback_display_id=callback_id)
     else:
         rows = await mythic_sdk.get_all_tasks(client, custom_return_attributes=attrs)
     tasks = [Task.model_validate(row) for row in rows]
     tasks.sort(key=lambda t: t.id, reverse=True)
-    return tasks[offset: offset + limit]
+    return tasks[offset : offset + limit]
 
 
 @mcp.tool
@@ -623,17 +642,11 @@ async def get_task_output(
 ) -> TaskOutput | None:
     """Get decoded task output with optional line paging. Returns None if the task has no output."""
     client = await _ensure_connected()
-    responses = await mythic_sdk.get_all_task_and_subtask_output_by_id(
-        mythic=client, task_display_id=display_id
-    )
+    responses = await mythic_sdk.get_all_task_and_subtask_output_by_id(mythic=client, task_display_id=display_id)
     if not responses:
         return None
 
-    parts = [
-        _decode_b64(str(text))
-        for r in responses
-        if (text := r.get("response_text") or r.get("response"))
-    ]
+    parts = [_decode_b64(str(text)) for r in responses if (text := r.get("response_text") or r.get("response"))]
     lines = "\n".join(parts).split("\n")
     stop = offset + max_lines if max_lines is not None else None
     sliced = lines[offset:stop]
@@ -770,12 +783,14 @@ async def list_keylogs(
     offset: Annotated[int, "Offset for pagination"] = 0,
 ) -> list[Keylog]:
     """List keylog captures."""
-    where, decls, variables = _build_where({
-        "callback_display_id": {
-            "predicate": "task: {callback: {display_id: {_eq: $callback_display_id}}}",
-            "value": callback_id,
-        },
-    })
+    where, decls, variables = _build_where(
+        {
+            "callback_display_id": {
+                "predicate": "task: {callback: {display_id: {_eq: $callback_display_id}}}",
+                "value": callback_id,
+            },
+        }
+    )
     variables.update({"limit": limit, "offset": offset})
     where_clause = f"{where}, " if where else ""
     result = await _gql(
@@ -854,10 +869,7 @@ async def list_processes(
         host=host,
         path=None,
         limit=limit,
-        columns=(
-            "id, task_id, timestamp, host, name_text, parent_path_text, "
-            "full_path_text, metadata, os, success"
-        ),
+        columns=("id, task_id, timestamp, host, name_text, parent_path_text, " "full_path_text, metadata, os, success"),
     )
 
 
@@ -886,12 +898,14 @@ async def list_tokens(
     limit: Annotated[int, "Maximum results to return"] = 50,
 ) -> list[Token]:
     """List Windows token captures."""
-    where, decls, variables = _build_where({
-        "callback_display_id": {
-            "predicate": "task: {callback: {display_id: {_eq: $callback_display_id}}}",
-            "value": callback_id,
-        },
-    })
+    where, decls, variables = _build_where(
+        {
+            "callback_display_id": {
+                "predicate": "task: {callback: {display_id: {_eq: $callback_display_id}}}",
+                "value": callback_id,
+            },
+        }
+    )
     variables["limit"] = limit
     where_clause = f"{where}, " if where else ""
     result = await _gql(
@@ -988,7 +1002,9 @@ def _valid_search_types(raw: str | None) -> set[SearchType]:
 @mcp.tool
 async def search(
     query: Annotated[str, "Search term"],
-    types: Annotated[str | None, "Comma-separated types to search (tasks,credentials,files,artifacts,keylogs). Default: all"] = None,
+    types: Annotated[
+        str | None, "Comma-separated types to search (tasks,credentials,files,artifacts,keylogs). Default: all"
+    ] = None,
     limit: Annotated[int, "Maximum results per type"] = 10,
 ) -> SearchResult:
     """Search across tasks, credentials, files, artifacts, and keylogs concurrently."""

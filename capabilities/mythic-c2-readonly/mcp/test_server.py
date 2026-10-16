@@ -4,9 +4,9 @@
 # dependencies = [
 #   "pytest>=8.0",
 #   "pytest-asyncio>=0.23",
-#   "fastmcp>=2.0",
+#   "fastmcp>=3.2.0",
 #   "mythic>=0.2",
-#   "gql[aiohttp,websockets]>=3.0,<4.0",
+#   "gql[aiohttp,websockets]>=4.0",
 # ]
 # ///
 """Tests for mythic-readonly MCP server — no Mythic instance required."""
@@ -26,8 +26,8 @@ class TestToolRegistration:
     def test_expected_tools_registered(self):
         import asyncio
 
-        tools = asyncio.run(server.mcp.get_tools())
-        tool_names = set(tools) if isinstance(tools, dict) else {t.name for t in tools}
+        tools = asyncio.run(server.mcp.list_tools())
+        tool_names = {t.name for t in tools}
         expected = {
             "get_status",
             "list_callbacks",
@@ -45,14 +45,12 @@ class TestToolRegistration:
             "list_tokens",
             "search",
         }
-        assert expected == tool_names, (
-            f"Unexpected: {tool_names - expected}, Missing: {expected - tool_names}"
-        )
+        assert expected == tool_names, f"Unexpected: {tool_names - expected}, Missing: {expected - tool_names}"
 
     def test_tool_count(self):
         import asyncio
 
-        tools = asyncio.run(server.mcp.get_tools())
+        tools = asyncio.run(server.mcp.list_tools())
         assert len(tools) == 15
 
 
@@ -99,6 +97,7 @@ class TestHelpers:
 
     def test_decode_b64_valid(self):
         import base64
+
         encoded = base64.b64encode(b"secret output").decode()
         assert server._decode_b64(encoded) == "secret output"
 
@@ -185,6 +184,23 @@ class TestSearchTypes:
 
     def test_valid_search_types_strips_whitespace(self):
         assert server._valid_search_types("tasks, credentials ") == {"tasks", "credentials"}
+
+
+class TestGqlOperationName:
+    """mythic's get_operation_name must accept gql 4 ``GraphQLRequest`` and gql 3 ``DocumentNode``."""
+
+    @pytest.mark.parametrize("build", ["gql", "parse"])
+    def test_get_operation_name(self, build):
+        import asyncio
+
+        from gql import gql
+        from graphql import parse
+        from mythic import mythic_utilities
+
+        query = "query GetThing { callback { id } }"
+        arg = gql(query) if build == "gql" else parse(query)
+        assert asyncio.run(mythic_utilities.get_operation_name(arg)) == "GetThing"
+        assert mythic_utilities.get_operation_name is server.mythic_utilities.get_operation_name
 
 
 if __name__ == "__main__":

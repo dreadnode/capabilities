@@ -122,6 +122,7 @@ impacket_mod = _load_module("impacket", "impacket.py")
 cracking_mod = _load_module("cracking", "cracking.py")
 bloodyad_mod = _load_module("bloodyad", "bloodyad.py")
 krbrelayx_mod = _load_module("krbrelayx", "krbrelayx.py")
+netexec_mod = _load_module("netexec", "netexec.py")
 # The tool modules above import ``._relay`` relatively, so it is already loaded
 # under the package; reuse that instance rather than loading a second copy.
 relay_mod = sys.modules.get(f"{_PKG}._relay") or _load_module("_relay", "_relay.py")
@@ -1162,6 +1163,108 @@ class TestJohnResultsSurviveNonCleanExit:
                     wordlist_path=str(wordlist),
                 )
         assert not any("--show" in cmd for cmd in calls)
+
+
+# ===================================================================
+# Netexec: null-session / empty-credential argv construction
+# ===================================================================
+
+
+class TestNetexecNullSession:
+    """The base netexec() builder must distinguish None (omit the flag) from
+    "" (emit the explicit `-u ''` / `-p ''` null-session form)."""
+
+    def _make_netexec(self):
+        nx = netexec_mod.Netexec()
+        nx.timeout = 60
+        nx.variant = "all"
+        return nx
+
+    @pytest.mark.asyncio
+    async def test_empty_strings_emit_null_session(self):
+        """username="" and password="" → `-u '' -p ''`, the anonymous null session."""
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec("smb", ["10.0.0.1"], args=["--shares"], username="", password="")
+            cmd = mock_exec.call_args[0][0]
+            assert "-u" in cmd and "-p" in cmd
+            assert cmd[cmd.index("-u") + 1] == ""
+            assert cmd[cmd.index("-p") + 1] == ""
+
+    @pytest.mark.asyncio
+    async def test_none_omits_flags(self):
+        """username=None / password=None → no auth flags at all."""
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec("smb", ["10.0.0.1"], args=["--shares"])
+            cmd = mock_exec.call_args[0][0]
+            assert "-u" not in cmd
+            assert "-p" not in cmd
+
+    @pytest.mark.asyncio
+    async def test_populated_credentials_unchanged(self):
+        """Non-empty credentials still build `-u user -p pass` (regression)."""
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec("smb", ["10.0.0.1"], args=[], username="admin", password="Passw0rd")
+            cmd = mock_exec.call_args[0][0]
+            assert cmd[cmd.index("-u") + 1] == "admin"
+            assert cmd[cmd.index("-p") + 1] == "Passw0rd"
+
+    @pytest.mark.asyncio
+    async def test_username_with_empty_password(self):
+        """AS-REP-roast style: a real username with password="" → `-u svc -p ''`."""
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec("ldap", ["dc.corp.local"], args=[], username="svc", password="")
+            cmd = mock_exec.call_args[0][0]
+            assert cmd[cmd.index("-u") + 1] == "svc"
+            assert cmd[cmd.index("-p") + 1] == ""
+
+    @pytest.mark.asyncio
+    async def test_multi_value_lists_expand(self):
+        """A list of usernames/passwords expands to repeated values after each flag."""
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec(
+                "smb",
+                ["10.0.0.1"],
+                args=[],
+                username=["u1", "u2"],
+                password=["p1", "p2"],
+            )
+            cmd = mock_exec.call_args[0][0]
+            u_idx = cmd.index("-u")
+            assert cmd[u_idx + 1 : u_idx + 3] == ["u1", "u2"]
+            p_idx = cmd.index("-p")
+            assert cmd[p_idx + 1 : p_idx + 3] == ["p1", "p2"]
+
+    @pytest.mark.asyncio
+    async def test_empty_list_omits_flag(self):
+        """An empty list is "no value supplied", not a null session — no dangling `-u`."""
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec("smb", ["10.0.0.1"], args=["--shares"], username=[])
+            cmd = mock_exec.call_args[0][0]
+            assert "-u" not in cmd
+
+    @pytest.mark.asyncio
+    async def test_enum_shares_wrapper_passes_null_session(self):
+        """The specialized wrapper threads "" through to the null-session form."""
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec_smb_enum_shares(["10.0.0.1"], username="", password="")
+            cmd = mock_exec.call_args[0][0]
+            assert cmd[cmd.index("-u") + 1] == ""
+            assert cmd[cmd.index("-p") + 1] == ""
+            assert "--shares" in cmd
 
 
 # ===================================================================
