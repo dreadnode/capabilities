@@ -19,7 +19,7 @@ Report every discovered host, service, DC, and member server immediately via `re
 
 1. **Host Inventory**: all discovered hosts with IP addresses and open ports.
 2. **Service Map**: identified services and versions per host.
-3. **Domain Controllers**: hosts with AD service ports (88, 389, 636, 445). Report as DomainController.
-4. **Member Servers**: non-DC Windows hosts. Report as MemberServer.
+3. **Domain Controllers**: hosts with AD service ports (88, 389, 636, 445). Report via `report_item` as a `host` with `role: domain_controller`.
+4. **Member Servers**: non-DC Windows hosts. Report via `report_item` as a `host` with `role: member_server`.
 5. **Network Topology**: subnets observed, segmentation notes.
 6. **Scan Coverage**: what was scanned, what was excluded, any failures.
