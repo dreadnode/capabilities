@@ -123,6 +123,7 @@ cracking_mod = _load_module("cracking", "cracking.py")
 bloodyad_mod = _load_module("bloodyad", "bloodyad.py")
 krbrelayx_mod = _load_module("krbrelayx", "krbrelayx.py")
 netexec_mod = _load_module("netexec", "netexec.py")
+coercion_mod = _load_module("coercion", "coercion.py")
 # The tool modules above import ``._relay`` relatively, so it is already loaded
 # under the package; reuse that instance rather than loading a second copy.
 relay_mod = sys.modules.get(f"{_PKG}._relay") or _load_module("_relay", "_relay.py")
@@ -202,7 +203,7 @@ class TestCertipyDomainHandling:
             await c.certipy(
                 action="find",
                 args=["-vulnerable"],
-                target="10.0.0.1",
+                dc_ip="10.0.0.1",
                 username="Admin",
                 domain="corp.local",
             )
@@ -220,7 +221,7 @@ class TestCertipyDomainHandling:
             await c.certipy(
                 action="find",
                 args=[],
-                target="10.0.0.1",
+                dc_ip="10.0.0.1",
                 username="Admin@corp.local",
             )
             cmd = mock_exec.call_args[0][0]
@@ -236,7 +237,7 @@ class TestCertipyDomainHandling:
             await c.certipy(
                 action="find",
                 args=[],
-                target="10.0.0.1",
+                dc_ip="10.0.0.1",
                 username="Admin@corp.local",
                 domain="corp.local",
             )
@@ -250,7 +251,7 @@ class TestCertipyDomainHandling:
         c = self._make_certipy()
         with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = "output"
-            await c.certipy(action="find", args=[], target="10.0.0.1")
+            await c.certipy(action="find", args=[], dc_ip="10.0.0.1")
             cmd = mock_exec.call_args[0][0]
             assert "-u" not in cmd
 
@@ -275,7 +276,7 @@ class TestCertipyFind:
         with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = "output"
             await c.certipy_find(
-                target="10.0.0.1",
+                dc_ip="10.0.0.1",
                 username="Administrator",
                 domain="deltasystems.local",
                 nt_hash="c56b4bc88c94f5b0db14acaaac702fc4",
@@ -349,13 +350,13 @@ class TestCertipyConfirmInput:
         c = self._make_certipy()
         with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = "output"
-            await c.certipy(action="find", args=[], target="10.0.0.1")
+            await c.certipy(action="find", args=[], dc_ip="10.0.0.1")
             assert self._input_kwarg(mock_exec) == self.CONFIRM
 
         c = self._make_certipy()
         with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = "output"
-            await c.certipy_find(target="10.0.0.1")
+            await c.certipy_find(dc_ip="10.0.0.1")
             assert self._input_kwarg(mock_exec) == self.CONFIRM
 
     @pytest.mark.asyncio
@@ -368,7 +369,7 @@ class TestCertipyConfirmInput:
             patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec,
         ):
             mock_relay.return_value = "output"
-            await c.certipy(action="relay", args=["-target", "http://ca"], target="1.2.3.4")
+            await c.certipy(action="relay", args=["-target", "http://ca"], dc_ip="1.2.3.4")
             mock_exec.assert_not_awaited()
             mock_relay.assert_awaited_once()
 
@@ -380,7 +381,7 @@ class TestCertipyConfirmInput:
         with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = "output"
             await c.certipy_request_certificate(
-                target="10.0.0.1",
+                dc_ip="10.0.0.1",
                 ca_server="ca.corp.local",
                 ca_name="corp-CA",
                 template="User",
@@ -392,7 +393,7 @@ class TestCertipyConfirmInput:
         c = self._make_certipy()
         with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = "output"
-            await c.certipy_certificate_auth(pfx_file="admin.pfx", target="10.0.0.1")
+            await c.certipy_certificate_auth(pfx_file="admin.pfx", dc_ip="10.0.0.1")
             assert self._input_kwarg(mock_exec) == self.CONFIRM
 
     @pytest.mark.asyncio
@@ -531,7 +532,7 @@ class TestBuildCoercionCommand:
                 "10.0.0.2",
                 username="admin",
                 domain="corp.local",
-                hashes=":abc123",
+                nt_hash=":abc123",
                 pipe="efsr",
             )
 
@@ -874,13 +875,13 @@ class TestBuildConnectionOptions:
         return bloodyad_mod.BloodyAD()
 
     def _base_kwargs(self):
-        return {"domain": "domain.local", "username": "alice", "host": "dc01"}
+        return {"domain": "domain.local", "username": "alice", "dc_ip": "dc01"}
 
     def test_bare_nt_hash_uses_leading_colon_password(self):
         bad = self._make_bloodyad()
         cmd = bad._build_connection_options(
             **self._base_kwargs(),
-            hashes="aad3b435b51404eeaad3b435b51404ee",
+            nt_hash="aad3b435b51404eeaad3b435b51404ee",
         )
         assert "--hashes" not in cmd
         p_idx = cmd.index("-p")
@@ -889,7 +890,7 @@ class TestBuildConnectionOptions:
     def test_full_lm_nt_hash_passed_through_unchanged(self):
         bad = self._make_bloodyad()
         full = "aad3b435b51404eeaad3b435b51404ee:" "31d6cfe0d16ae931b73c59d7e0c089c0"
-        cmd = bad._build_connection_options(**self._base_kwargs(), hashes=full)
+        cmd = bad._build_connection_options(**self._base_kwargs(), nt_hash=full)
         assert "--hashes" not in cmd
         p_idx = cmd.index("-p")
         assert cmd[p_idx + 1] == full
@@ -899,7 +900,7 @@ class TestBuildConnectionOptions:
         cmd = bad._build_connection_options(
             **self._base_kwargs(),
             password="Summer2026!",
-            hashes="deadbeef",
+            nt_hash="deadbeef",
         )
         assert "--hashes" not in cmd
         p_idx = cmd.index("-p")
@@ -910,7 +911,7 @@ class TestBuildConnectionOptions:
 
     def test_no_hashes_flag_ever_emitted(self):
         bad = self._make_bloodyad()
-        cmd = bad._build_connection_options(**self._base_kwargs(), hashes="deadbeef")
+        cmd = bad._build_connection_options(**self._base_kwargs(), nt_hash="deadbeef")
         assert "--hashes" not in cmd
 
 
@@ -924,7 +925,7 @@ _BLOODYAD_TOOL_METHODS = sorted(
     if name.startswith("bloodyad_")
 )
 
-_CONNECTION_PARAMS = {"domain", "username", "host"}
+_CONNECTION_PARAMS = {"domain", "username", "dc_ip"}
 _NT_HASH = "aad3b435b51404eeaad3b435b51404ee"
 
 
@@ -936,7 +937,7 @@ def _call_kwargs_for(method) -> dict:
     for name, param in inspect.signature(method).parameters.items():
         if name == "self":
             continue
-        if name == "hashes":
+        if name == "nt_hash":
             kwargs[name] = _NT_HASH
         elif name in _CONNECTION_PARAMS:
             kwargs[name] = f"test-{name}"
@@ -1388,7 +1389,7 @@ class TestCertipyRelayRouting:
             patch.object(certipy_mod, "stream_listener", side_effect=fake_stream),
             patch.object(certipy_mod, "execute", side_effect=fake_execute),
         ):
-            out = await inst.certipy(action="relay", args=["-target", "http://ca"], target="1.2.3.4")
+            out = await inst.certipy(action="relay", args=["-target", "http://ca"], dc_ip="1.2.3.4")
 
         assert out == "relayed"
         assert captured["timeout"] == 7
@@ -1408,7 +1409,7 @@ class TestCertipyRelayRouting:
             patch.object(certipy_mod, "execute", side_effect=fake_execute),
             patch.object(certipy_mod, "stream_listener", side_effect=fake_stream),
         ):
-            out = await inst.certipy(action="find", args=["-enabled"], target="1.2.3.4")
+            out = await inst.certipy(action="find", args=["-enabled"], dc_ip="1.2.3.4")
 
         assert out == "executed"
 
@@ -1506,3 +1507,220 @@ class TestRelayRedactionAndCap:
         assert "Output truncated at 1000 bytes" in out
         # Retained output stays bounded near the cap, not the full ~5 KB.
         assert len(out) < 2000
+
+
+# ===================================================================
+# Netexec: explicit Kerberos params (no AES-key-vs-ccache length guess)
+# ===================================================================
+
+
+class TestNetexecKerberos:
+    """netexec routes Kerberos auth by explicit parameter.
+
+    aes_key maps to --aesKey; ccache maps to --use-kcache with KRB5CCNAME; the
+    two are mutually exclusive; kerberos alone adds -k. Routing is by parameter,
+    independent of the value's length.
+    """
+
+    def _make_netexec(self):
+        nx = netexec_mod.Netexec()
+        nx.timeout = 60
+        nx.variant = "all"
+        return nx
+
+    @pytest.mark.asyncio
+    async def test_64_char_ccache_path_uses_kcache_not_aeskey(self):
+        nx = self._make_netexec()
+        # A 64-character ccache path must route by its parameter, not its length.
+        ccache_path = "/tmp/" + "a" * 59
+        assert len(ccache_path) == 64
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec("smb", ["10.0.0.1"], [], ccache=ccache_path)
+        cmd = mock_exec.call_args[0][0]
+        env = mock_exec.call_args[1].get("env")
+        assert "-k" in cmd
+        assert "--use-kcache" in cmd
+        assert "--aesKey" not in cmd
+        assert env == {"KRB5CCNAME": ccache_path}
+
+    @pytest.mark.asyncio
+    async def test_aes_key_uses_aeskey_flag(self):
+        nx = self._make_netexec()
+        aes_key = "a" * 64
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec("smb", ["10.0.0.1"], [], aes_key=aes_key)
+        cmd = mock_exec.call_args[0][0]
+        env = mock_exec.call_args[1].get("env")
+        assert "-k" in cmd
+        assert cmd[cmd.index("--aesKey") + 1] == aes_key
+        assert "--use-kcache" not in cmd
+        assert env is None
+
+    @pytest.mark.asyncio
+    async def test_non_standard_length_aes_key_still_aeskey(self):
+        """An AES key of any length routes to --aesKey by its parameter."""
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec("smb", ["10.0.0.1"], [], aes_key="deadbeef")
+        cmd = mock_exec.call_args[0][0]
+        assert "--aesKey" in cmd
+        assert "--use-kcache" not in cmd
+
+    @pytest.mark.asyncio
+    async def test_kerberos_bool_only(self):
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec("smb", ["10.0.0.1"], [], kerberos=True)
+        cmd = mock_exec.call_args[0][0]
+        env = mock_exec.call_args[1].get("env")
+        assert "-k" in cmd
+        assert "--aesKey" not in cmd
+        assert "--use-kcache" not in cmd
+        assert env is None
+
+    @pytest.mark.asyncio
+    async def test_aes_key_and_ccache_conflict_raises(self):
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock):
+            with pytest.raises(ValueError, match="only one of aes_key or ccache"):
+                await nx.netexec("smb", ["10.0.0.1"], [], aes_key="a" * 32, ccache="/tmp/ccache")
+
+    @pytest.mark.asyncio
+    async def test_nt_hash_routes_to_H_flag(self):
+        nx = self._make_netexec()
+        nt_hash = "aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await nx.netexec("smb", ["10.0.0.1"], [], nt_hash=nt_hash)
+        cmd = mock_exec.call_args[0][0]
+        assert cmd[cmd.index("-H") + 1] == nt_hash
+
+
+# Every kerberos-bearing netexec wrapper re-forwards aes_key/ccache by hand; a
+# copy-paste that dropped one would silently discard the credential.
+_NETEXEC_WRAPPERS = [
+    lambda n, **kw: n.netexec_smb_enum(["10.0.0.1"], **kw),
+    lambda n, **kw: n.netexec_smb_auth(["10.0.0.1"], "admin", **kw),
+    lambda n, **kw: n.netexec_smb_enum_group_members(["10.0.0.1"], ["Domain Admins"], **kw),
+    lambda n, **kw: n.netexec_smb_enum_shares(["10.0.0.1"], **kw),
+    lambda n, **kw: n.netexec_ldap_enum(["10.0.0.1"], **kw),
+    lambda n, **kw: n.netexec_ldap_auth(["10.0.0.1"], **kw),
+    lambda n, **kw: n.netexec_ldap_enum_group_members(["10.0.0.1"], ["Domain Admins"], **kw),
+    lambda n, **kw: n.netexec_smb(["10.0.0.1"], **kw),
+    lambda n, **kw: n.netexec_ldap(["10.0.0.1"], **kw),
+    lambda n, **kw: n.netexec_mssql(["10.0.0.1"], **kw),
+    lambda n, **kw: n.netexec_wmi(["10.0.0.1"], **kw),
+]
+
+
+class TestNetexecWrapperForwarding:
+    def _make_netexec(self):
+        nx = netexec_mod.Netexec()
+        nx.timeout = 60
+        nx.variant = "all"
+        return nx
+
+    @pytest.mark.parametrize("call", _NETEXEC_WRAPPERS)
+    @pytest.mark.asyncio
+    async def test_wrapper_forwards_aes_key(self, call):
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await call(nx, aes_key="a" * 32)
+        assert "--aesKey" in mock_exec.call_args[0][0]
+
+    @pytest.mark.parametrize("call", _NETEXEC_WRAPPERS)
+    @pytest.mark.asyncio
+    async def test_wrapper_forwards_ccache(self, call):
+        nx = self._make_netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await call(nx, ccache="/tmp/krb5cc")
+        assert "--use-kcache" in mock_exec.call_args[0][0]
+
+
+# ===================================================================
+# Certipy: nt_hash accepts the family-wide LMHASH:NTHASH format
+# ===================================================================
+
+
+class TestCertipyHashFormat:
+    def _make_certipy(self):
+        c = certipy_mod.Certipy()
+        c.certipy_cmd = "certipy"
+        c.timeout = 10
+        return c
+
+    @pytest.mark.asyncio
+    async def test_full_lmhash_nthash_passed_verbatim(self):
+        c = self._make_certipy()
+        full = "aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
+        with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await c.certipy_find(dc_ip="10.0.0.1", username="u", domain="d", nt_hash=full)
+        cmd = mock_exec.call_args[0][0]
+        assert cmd[cmd.index("-hashes") + 1] == full
+
+    @pytest.mark.asyncio
+    async def test_bare_nt_hash_gets_empty_lm_half(self):
+        c = self._make_certipy()
+        nt = "31d6cfe0d16ae931b73c59d7e0c089c0"
+        with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = "output"
+            await c.certipy_find(dc_ip="10.0.0.1", username="u", domain="d", nt_hash=nt)
+        cmd = mock_exec.call_args[0][0]
+        assert cmd[cmd.index("-hashes") + 1] == f":{nt}"
+
+
+# ===================================================================
+# Auth parameter naming consistency across the tool family
+# ===================================================================
+
+
+class TestAuthParamNaming:
+    """Sibling tools share one auth vocabulary: nt_hash + kerberos, never
+    hash / hashes / use_kerberos / host."""
+
+    _AUTH_TOOLSETS = [
+        (netexec_mod, "Netexec"),
+        (impacket_mod, "Impacket"),
+        (bloodyad_mod, "BloodyAD"),
+        (krbrelayx_mod, "Krbrelayx"),
+        (coercion_mod, "Coercion"),
+        (certipy_mod, "Certipy"),
+    ]
+    _BANNED = ("hash", "hashes", "use_kerberos", "host")
+
+    def test_no_legacy_auth_param_names_in_any_method(self):
+        offenders: list[str] = []
+        for mod, cls_name in self._AUTH_TOOLSETS:
+            cls = getattr(mod, cls_name)
+            for name in dir(cls):
+                if name.startswith("_"):
+                    continue
+                attr = getattr(cls, name)
+                if not callable(attr):
+                    continue
+                try:
+                    params = inspect.signature(attr).parameters
+                except (TypeError, ValueError):
+                    continue
+                offenders.extend(
+                    f"{cls_name}.{name}({banned})" for banned in self._BANNED if banned in params
+                )
+        assert not offenders, f"legacy auth param names remain: {offenders}"
+
+    def test_netexec_kerberos_is_bool_with_aes_key_and_ccache(self):
+        params = inspect.signature(netexec_mod.Netexec.netexec).parameters
+        assert params["kerberos"].default is False
+        assert "aes_key" in params
+        assert "ccache" in params
+
+    def test_certipy_uses_dc_ip_not_target(self):
+        params = inspect.signature(certipy_mod.Certipy.certipy).parameters
+        assert "dc_ip" in params
+        assert "target" not in params

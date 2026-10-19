@@ -53,11 +53,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
     ) -> list[str]:
         """
         Build connection option arguments for bloodyAD commands.
@@ -65,29 +65,29 @@ class BloodyAD(Toolset):
         Args:
             domain: Domain name.
             username: Username for authentication.
-            host: Domain controller hostname or IP.
+            dc_ip: Domain controller to connect to (hostname or IP).
             password: Password for authentication.
-            hashes: NTLM hash for pass-the-hash, as ``LMHASH:NTHASH`` or a bare NT hash.
-            use_kerberos: Use Kerberos authentication.
-            dc_ip: Optional DC IP to override DNS.
+            nt_hash: NTLM hash for pass-the-hash, as ``LMHASH:NTHASH`` or a bare NT hash.
+            kerberos: Use Kerberos authentication.
+            dc_ip_override: Optional DC IP to override DNS resolution.
 
         Returns:
             List of connection option arguments.
         """
-        cmd = ["-u", username, "-d", domain, "-H", host]
+        cmd = ["-u", username, "-d", domain, "-H", dc_ip]
 
         if password:
             cmd.extend(["-p", password])
-        elif hashes:
+        elif nt_hash:
             # bloodyAD takes a hash through the password field: -p LMHASH:NTHASH,
             # or -p :NTHASH when only the NT half is known.
-            cmd.extend(["-p", hashes if ":" in hashes else f":{hashes}"])
+            cmd.extend(["-p", nt_hash if ":" in nt_hash else f":{nt_hash}"])
 
-        if use_kerberos:
+        if kerberos:
             cmd.append("-k")
 
-        if dc_ip:
-            cmd.extend(["--dc-ip", dc_ip])
+        if dc_ip_override:
+            cmd.extend(["--dc-ip", dc_ip_override])
 
         return cmd
 
@@ -98,11 +98,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         attributes: list[str] | None = None,
         resolve: bool = False,
         env: dict[str, str] | None = None,
@@ -119,11 +119,11 @@ class BloodyAD(Toolset):
             object_name: The AD object to query (DN, sAMAccountName, or other identifier).
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             attributes: List of specific attributes to retrieve (e.g., ['memberOf', 'mail']).
             resolve: Resolve DNs in attributes to human-readable names.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
@@ -134,11 +134,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -165,11 +165,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         object_type: str | None = None,
         attributes: list[str] | None = None,
         env: dict[str, str] | None = None,
@@ -186,11 +186,11 @@ class BloodyAD(Toolset):
             target_dn: The target DN or container to query (e.g., 'DC=domain,DC=local').
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             object_type: Filter by object type (e.g., 'user', 'computer', 'group').
             attributes: List of specific attributes to retrieve.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
@@ -201,11 +201,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -232,11 +232,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         no_recurse: bool = False,
         env: dict[str, str] | None = None,
         input: str | None = None,
@@ -252,11 +252,11 @@ class BloodyAD(Toolset):
             object_name: The user or group to query for memberships.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             no_recurse: Don't recurse into nested groups.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
@@ -266,11 +266,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -293,11 +293,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -312,11 +312,11 @@ class BloodyAD(Toolset):
             target_username: The user to check for write access.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -325,11 +325,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -348,11 +348,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -366,11 +366,11 @@ class BloodyAD(Toolset):
         Args:
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -379,11 +379,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -402,11 +402,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -420,11 +420,11 @@ class BloodyAD(Toolset):
         Args:
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -433,11 +433,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -457,11 +457,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         base_dn: str | None = None,
         attributes: list[str] | None = None,
         env: dict[str, str] | None = None,
@@ -478,11 +478,11 @@ class BloodyAD(Toolset):
             ldap_filter: LDAP filter query (e.g., '(objectClass=user)' or '(servicePrincipalName=*)').
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             base_dn: Base DN for the search (e.g., 'DC=domain,DC=local').
             attributes: List of attributes to retrieve.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
@@ -493,11 +493,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -525,11 +525,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -545,11 +545,11 @@ class BloodyAD(Toolset):
             member_name: The user or computer to add to the group.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -558,11 +558,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -582,11 +582,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         computer_password: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
@@ -602,11 +602,11 @@ class BloodyAD(Toolset):
             computer_name: The name of the computer account to create.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             computer_password: Optional password for the computer account.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
@@ -616,11 +616,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -643,11 +643,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         user_password: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
@@ -663,11 +663,11 @@ class BloodyAD(Toolset):
             new_username: The username for the new account to create.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication (the account performing the action).
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             user_password: Optional password for the new user account.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
@@ -677,11 +677,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -704,11 +704,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -723,11 +723,11 @@ class BloodyAD(Toolset):
             target_username: The user to grant DCSync rights to.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication (the account performing the action).
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -736,11 +736,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -761,11 +761,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -781,11 +781,11 @@ class BloodyAD(Toolset):
             delegate_from: The object that can impersonate to delegate_to.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -794,11 +794,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -818,11 +818,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         pfx_password: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
@@ -838,11 +838,11 @@ class BloodyAD(Toolset):
             target_object: The target object to add shadow credentials to.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             pfx_password: Optional password for the PFX certificate.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
@@ -852,11 +852,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -880,11 +880,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -900,11 +900,11 @@ class BloodyAD(Toolset):
             principal: The principal to grant GenericAll rights to.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -913,11 +913,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -938,11 +938,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -958,11 +958,11 @@ class BloodyAD(Toolset):
             ip_address: The IP address for the DNS record.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -971,11 +971,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -996,11 +996,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -1016,11 +1016,11 @@ class BloodyAD(Toolset):
             new_password: The new password to set for the target user.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication (the account performing the action).
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -1029,11 +1029,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -1055,11 +1055,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -1076,11 +1076,11 @@ class BloodyAD(Toolset):
             values: The value(s) to set for the attribute.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -1089,11 +1089,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -1115,11 +1115,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -1135,11 +1135,11 @@ class BloodyAD(Toolset):
             member_name: The user or computer to remove from the group.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -1148,11 +1148,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -1172,11 +1172,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -1191,11 +1191,11 @@ class BloodyAD(Toolset):
             object_name: The object to delete from Active Directory.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -1204,11 +1204,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -1228,11 +1228,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -1247,11 +1247,11 @@ class BloodyAD(Toolset):
             target_username: The user to remove DCSync rights from.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication (the account performing the action).
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -1260,11 +1260,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -1285,11 +1285,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -1305,11 +1305,11 @@ class BloodyAD(Toolset):
             delegate_from: The object that can no longer impersonate to delegate_to.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -1318,11 +1318,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -1342,11 +1342,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -1361,11 +1361,11 @@ class BloodyAD(Toolset):
             target_object: The target object to remove shadow credentials from.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -1374,11 +1374,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -1399,11 +1399,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -1419,11 +1419,11 @@ class BloodyAD(Toolset):
             ip_address: The IP address of the DNS record to remove.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -1432,11 +1432,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 
@@ -1457,11 +1457,11 @@ class BloodyAD(Toolset):
         *,
         domain: str,
         username: str,
-        host: str,
+        dc_ip: str,
         password: str | None = None,
-        hashes: str | None = None,
-        use_kerberos: bool = False,
-        dc_ip: str | None = None,
+        nt_hash: str | None = None,
+        kerberos: bool = False,
+        dc_ip_override: str | None = None,
         env: dict[str, str] | None = None,
         input: str | None = None,
     ) -> str:
@@ -1477,11 +1477,11 @@ class BloodyAD(Toolset):
             principal: The principal to remove GenericAll rights from.
             domain: Domain name (e.g., 'domain.local').
             username: Username for authentication.
-            host: Hostname or IP address of the domain controller.
-            password: Password for authentication. Use either this or hashes.
-            hashes: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
-            use_kerberos: Use Kerberos authentication (requires -k flag).
-            dc_ip: Optional DC IP address to override DNS resolution.
+            dc_ip: Domain controller to connect to (hostname or IP).
+            password: Password for authentication. Use either this or nt_hash.
+            nt_hash: NTLM hashes in LMHASH:NTHASH format for pass-the-hash.
+            kerberos: Use Kerberos authentication (requires -k flag).
+            dc_ip_override: Optional DC IP address to override DNS resolution.
             env: Optional environment variables (e.g., KRB5CCNAME for Kerberos).
             input: Optional input string to pass to the command's stdin.
         """
@@ -1490,11 +1490,11 @@ class BloodyAD(Toolset):
             *self._build_connection_options(
                 domain=domain,
                 username=username,
-                host=host,
-                password=password,
-                hashes=hashes,
-                use_kerberos=use_kerberos,
                 dc_ip=dc_ip,
+                password=password,
+                nt_hash=nt_hash,
+                kerberos=kerberos,
+                dc_ip_override=dc_ip_override,
             ),
         ]
 

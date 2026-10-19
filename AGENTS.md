@@ -32,6 +32,7 @@ Run these before declaring work complete. Don't bypass hooks — fix the underly
 - **Raise for failures; no `{"error": str}` unions.** FastMCP surfaces raised exceptions as tool-call errors. Clean for the LLM, clean for the return type.
 - **Plain dicts, null-omitted, over Pydantic.** LLMs pay tokens for every null-coerced empty field. Return `dict[str, Any]`, drop `None`/`""`/`[]`/`{}`, keep `0` and `False`.
 - **Disambiguate sibling tools by name.** Encode actor + action + destination when tools are close. Overloading one verb (three `download*` variants) is a pick-the-wrong-one landmine.
+- **One auth vocabulary across a tool family.** When sibling tools take the same authentication inputs, name them identically so the agent carries one mental model as it chains them: `nt_hash` for an NTLM hash in `LMHASH:NTHASH` form (never `hash`/`hashes`), `kerberos: bool` to switch on Kerberos. Where a tool accepts an AES key or a credential cache, expose each as its own explicit param (`aes_key`, `ccache`) — never one string disambiguated by length or content. For hosts, `target`/`targets` is the host(s) a tool acts against and `dc_ip` is the domain controller — keep both roles distinct rather than overloading one name.
 - **After renames, grep the skill/agent/doc layer.** Markdown callers don't fail a build, and LLMs read that prose to form tool-call intent.
 
 ---
