@@ -754,6 +754,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -879,6 +880,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -984,6 +986,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -1094,6 +1097,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -1284,6 +1288,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (nthash, aes_key, request_password, request_hashes) if s],
         )
 
     @tool_method(catch=True)
@@ -1444,6 +1449,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -1596,6 +1602,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -1765,6 +1772,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key, computer_pass) if s],
         )
 
     @tool_method(catch=True)
@@ -1883,6 +1891,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True, variants=["all", "relay"])
@@ -2330,7 +2339,12 @@ class Impacket(Toolset):
             logger.info(f"Relay ready. Running {coerce_method} coercion against {coerce_target}")
             coerce_timeout = min(30, relay_timeout - ready_timeout)
             try:
-                coerce_result = await execute(coerce_cmd, timeout=coerce_timeout, env=env)
+                coerce_result = await execute(
+                    coerce_cmd,
+                    timeout=coerce_timeout,
+                    env=env,
+                    secrets=[s for s in (coerce_password, coerce_nt_hash) if s],
+                )
             except (RuntimeError, TimeoutError) as exc:
                 coerce_result = f"[coercion error] {exc}"
                 logger.warning(f"Coercion failed: {exc}")
@@ -2530,6 +2544,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -2750,6 +2765,7 @@ class Impacket(Toolset):
             timeout=self.timeout + 120,  # secretsdump can take longer
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -2870,6 +2886,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -3030,6 +3047,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key, newpass, newhashes, altpass, althash) if s],
         )
 
     @tool_method(catch=True)
@@ -3240,6 +3258,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -3351,6 +3370,7 @@ class Impacket(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash) if s],
         )
 
     # -------------------------------------------------------------------
@@ -3485,6 +3505,7 @@ class Impacket(Toolset):
             timeout=timeout or self.timeout + 60,
             input=effective_input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -3613,6 +3634,7 @@ class Impacket(Toolset):
             timeout=timeout or self.timeout + 60,
             input=effective_input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -3732,6 +3754,7 @@ class Impacket(Toolset):
             timeout=timeout or self.timeout + 60,
             input=stdin_input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -3830,6 +3853,7 @@ class Impacket(Toolset):
             timeout=timeout or self.timeout + 60,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )
 
     @tool_method(catch=True)
@@ -3960,4 +3984,5 @@ class Impacket(Toolset):
             timeout=timeout or self.timeout + 60,
             input=effective_input,
             env=env,
+            secrets=[s for s in (password, nt_hash, aes_key) if s],
         )

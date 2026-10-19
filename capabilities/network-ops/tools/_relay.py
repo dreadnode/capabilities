@@ -36,7 +36,20 @@ NTLMRELAYX_SUCCESS_PATTERNS = [
 ]
 
 # argv flags whose following value is a credential and must not be logged.
-_SECRET_FLAGS = {"-p", "--password", "-hashes", "--hashes", "-aeskey", "--aeskey", "-aesKey"}
+# ``--add-computer`` carries a "NAME PASSWORD" value (ntlmrelayx); the others
+# cover the identity/operation secrets relay tools accept.
+_SECRET_FLAGS = {
+    "-p",
+    "--password",
+    "-hashes",
+    "--hashes",
+    "-aeskey",
+    "--aeskey",
+    "-aesKey",
+    "--add-computer",
+    "-pfx-password",
+    "--computer-pass",
+}
 
 # How long to wait after SIGTERM before escalating to SIGKILL.
 _SIGKILL_TIMEOUT = 5.0

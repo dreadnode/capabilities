@@ -213,6 +213,7 @@ class Krbrelayx(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash) if s],
         )
 
     @tool_method(catch=True)
@@ -382,6 +383,7 @@ class Krbrelayx(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash) if s],
         )
 
     @tool_method(catch=True)
@@ -623,4 +625,5 @@ class Krbrelayx(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash) if s],
         )

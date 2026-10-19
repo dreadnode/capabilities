@@ -13,10 +13,7 @@ def _require_smbclient() -> str:
     """Return the smbclient binary path, raising a clear error if missing."""
     path = shutil.which("smbclient")
     if path is None:
-        raise FileNotFoundError(
-            "smbclient is not installed or not on PATH. "
-            "Install via: apt install smbclient"
-        )
+        raise FileNotFoundError("smbclient is not installed or not on PATH. " "Install via: apt install smbclient")
     return path
 
 
@@ -32,9 +29,7 @@ def _sanitize_smb_path(path: str) -> str:
     """
     bad = _SMBCLIENT_UNSAFE_CHARS & set(path)
     if bad:
-        raise ValueError(
-            f"SMB path contains unsafe characters {bad!r}: {path!r}"
-        )
+        raise ValueError(f"SMB path contains unsafe characters {bad!r}: {path!r}")
     return f'"{path}"'
 
 
@@ -91,26 +86,27 @@ class SmbClient(Toolset):
         except TimeoutError:
             proc.kill()
             await proc.wait()
-            raise TimeoutError(
-                f"smbclient timed out after {timeout}s listing {share_path}\\{path}"
-            )
+            raise TimeoutError(f"smbclient timed out after {timeout}s listing {share_path}\\{path}")
         output = stdout.decode(errors="replace")
         errors = stderr.decode(errors="replace")
 
+        # This method runs smbclient directly (not via execute), so mask the
+        # password before it can reach the returned result or the raised error,
+        # both of which are recorded on the trace.
+        if password:
+            output = output.replace(password, "***")
+            errors = errors.replace(password, "***")
+
         if proc.returncode != 0 and output.strip():
             if errors.strip():
-                logger.warning(
-                    f"smbclient exited {proc.returncode} with partial output. Errors: {errors.strip()}"
-                )
+                logger.warning(f"smbclient exited {proc.returncode} with partial output. Errors: {errors.strip()}")
             warning = "\n\n[smbclient exited non-zero — listing may be incomplete]"
             if errors.strip():
                 warning += f"\n{errors}"
             return f"{output}{warning}"
 
         if proc.returncode != 0:
-            raise RuntimeError(
-                f"Command failed ({proc.returncode}):\n{errors or output}"
-            )
+            raise RuntimeError(f"Command failed ({proc.returncode}):\n{errors or output}")
 
         return output
 
@@ -148,7 +144,8 @@ class SmbClient(Toolset):
                 f"{username}%{password}",
                 "-c",
                 smb_command,
-            ]
+            ],
+            secrets=[password],
         )
 
     @tool_method(catch=True)
@@ -197,7 +194,8 @@ class SmbClient(Toolset):
                     f"{username}%{password}",
                     "-c",
                     smb_command,
-                ]
+                ],
+                secrets=[password],
             )
         finally:
             if local_path is not None:

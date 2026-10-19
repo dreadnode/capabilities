@@ -6,6 +6,10 @@ from dreadnode.agents.tools import Toolset, tool_method
 from dreadnode.tools.execute import execute
 from loguru import logger
 
+# Credential flags an agent may place in the passthrough ``args`` list; their
+# value is recovered so execute() and the log line below mask it.
+_NETEXEC_SECRET_FLAGS = frozenset({"-p", "--password", "-H", "--hash", "-aesKey", "--aesKey"})
+
 
 def _emit_auth_flag(value: str | list[str] | None) -> bool:
     """Whether an auth value should produce its command-line flag.
@@ -83,9 +87,7 @@ class Netexec(Toolset):
             cmd.extend(["-H", *(nt_hash if isinstance(nt_hash, list) else [nt_hash])])
 
         if aes_key and ccache:
-            raise ValueError(
-                "Pass only one of aes_key or ccache for Kerberos authentication, not both."
-            )
+            raise ValueError("Pass only one of aes_key or ccache for Kerberos authentication, not both.")
 
         env: dict[str, str] | None = None
         if kerberos or aes_key or ccache:
@@ -98,8 +100,20 @@ class Netexec(Toolset):
 
         cmd.extend(args)
 
-        logger.info(f"Running 'netexec {protocol}' with args: {' '.join(args)}")
-        return await execute(cmd, timeout=self.timeout, env=env)
+        secrets = [
+            value
+            for candidate in (password, nt_hash, aes_key)
+            if candidate
+            for value in (candidate if isinstance(candidate, list) else [candidate])
+        ]
+        arg_secrets = [value for flag, value in zip(args, args[1:], strict=False) if flag in _NETEXEC_SECRET_FLAGS]
+        secrets += arg_secrets
+
+        logged_args = " ".join(args)
+        for secret in arg_secrets:
+            logged_args = logged_args.replace(secret, "***")
+        logger.info(f"Running 'netexec {protocol}' with args: {logged_args}")
+        return await execute(cmd, timeout=self.timeout, env=env, secrets=secrets)
 
     # Specialized methods
 
