@@ -2566,6 +2566,64 @@ _TRANSFORM_DEFS: dict[str, dict] = {
         "name": "compaction_summary_injection",
         "code": "compaction_summary_injection()",
     },
+    # Data-boundary injection via confusable glyphs (AIRT-INC-0082 ADI)
+    "delimiter_confusion": {
+        "module": "dreadnode.transforms.delimiter_confusion",
+        "name": "delimiter_confusion",
+        "code": "delimiter_confusion()",
+    },
+    "curly_quote_field_spoof": {
+        "module": "dreadnode.transforms.delimiter_confusion",
+        "name": "curly_quote_field_spoof",
+        "code": "curly_quote_field_spoof()",
+    },
+    "fullwidth_bracket_spoof": {
+        "module": "dreadnode.transforms.delimiter_confusion",
+        "name": "fullwidth_bracket_spoof",
+        "code": "fullwidth_bracket_spoof()",
+    },
+    "escaped_quote_field_break": {
+        "module": "dreadnode.transforms.delimiter_confusion",
+        "name": "escaped_quote_field_break",
+        "code": "escaped_quote_field_break()",
+    },
+    # Workspace-file-triggered RCE via poisoned VCS config (AIRT-INC-0121 GitSpawn)
+    "git_config_fsmonitor_rce": {
+        "module": "dreadnode.transforms.workspace_git_config",
+        "name": "git_config_fsmonitor_rce",
+        "code": "git_config_fsmonitor_rce()",
+    },
+    "git_hook_rce": {
+        "module": "dreadnode.transforms.workspace_git_config",
+        "name": "git_hook_rce",
+        "code": "git_hook_rce()",
+    },
+    "bare_repo_fsmonitor_rce": {
+        "module": "dreadnode.transforms.workspace_git_config",
+        "name": "bare_repo_fsmonitor_rce",
+        "code": "bare_repo_fsmonitor_rce()",
+    },
+    # Path-traversal / symlink-escape payloads for file tools
+    "path_traversal_read": {
+        "module": "dreadnode.transforms.path_traversal",
+        "name": "path_traversal_read",
+        "code": "path_traversal_read()",
+    },
+    "encoded_path_traversal": {
+        "module": "dreadnode.transforms.path_traversal",
+        "name": "encoded_path_traversal",
+        "code": "encoded_path_traversal()",
+    },
+    "glob_path_escape": {
+        "module": "dreadnode.transforms.path_traversal",
+        "name": "glob_path_escape",
+        "code": "glob_path_escape()",
+    },
+    "symlink_escape": {
+        "module": "dreadnode.transforms.path_traversal",
+        "name": "symlink_escape",
+        "code": "symlink_escape()",
+    },
 }
 
 # Short aliases -> canonical transform name
@@ -2913,6 +2971,11 @@ SCORER_REGISTRY: dict[str, dict] = {
     "indirect_injection_success": {
         "type": "agentic",
         "code": "dn.scorers.indirect_injection_success",
+    },
+    # Covert-success (CSR): injected action executed AND hidden from the user (ICoA)
+    "covert_injection_success": {
+        "type": "builtin",
+        "code": "dn.scorers.covert_injection_success()",
     },
     "mcp_tool_manipulation": {
         "type": "agentic",
