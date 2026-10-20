@@ -390,7 +390,7 @@ MODEL_ALIASES: dict[str, str] = {
     "databricks llama": "databricks/databricks-meta-llama-3-1-70b-instruct",
 }
 
-_ATTACK_DEFS: dict[str, dict] = {
+_MANUAL_ATTACK_DEFS: dict[str, dict] = {
     "tap_attack": {
         "module": "tap",
         "function": "tap_attack",
@@ -942,6 +942,81 @@ _ATTACK_DEFS: dict[str, dict] = {
         "extra_defaults": {"early_stopping_score": 0.9, "context_depth": 5},
     },
 }
+
+# White-box gradient attacks are SDK-only: they require a LOCAL open-weight
+# surrogate for gradients, which the hosted inference sandbox cannot provide, so
+# they are excluded from auto-discovery (they would crash at runtime here).
+_WHITEBOX_LOCAL_ONLY = frozenset(
+    {
+        "gcg_attack",
+        "faster_gcg_attack",
+        "i_gcg_attack",
+        "attngcg_attack",
+        "mask_gcg_attack",
+        "gbda_attack",
+        "pez_attack",
+        "cold_attack",
+        "soft_gcg_attack",
+        "arca_attack",
+        "amplegcg_attack",
+        "refusal_ablation_attack",
+        "soft_prompt_attack",
+        "latentbreak_attack",
+    }
+)
+
+
+def _discover_attack_defs() -> dict[str, dict]:
+    """Auto-discover text-jailbreak attacks from the installed SDK so new attacks
+    flow into the capability without hand-wiring. Only functions with the standard
+    ``(goal, target, evaluator_model, ...)`` signature are included (skips
+    evasion/extraction/inversion/image attacks, which take a different target), and
+    white-box gradient attacks are excluded (no local surrogate in the sandbox).
+    Defaults are read from each function's signature; the manual table above
+    overrides these for attacks with specially tuned parameters."""
+    import inspect
+
+    try:
+        import dreadnode.airt as _airt
+    except Exception:
+        return {}
+
+    discovered: dict[str, dict] = {}
+    for _name in dir(_airt):
+        if not _name.endswith("_attack") or _name in _WHITEBOX_LOCAL_ONLY:
+            continue
+        _fn = getattr(_airt, _name, None)
+        if not callable(_fn):
+            continue
+        try:
+            _params = inspect.signature(_fn).parameters
+        except (TypeError, ValueError):
+            continue
+        if not ({"goal", "target", "evaluator_model"} <= set(_params)):
+            continue
+
+        def _default(key: str, fallback: object, _p: object = _params) -> object:
+            value = _p[key].default if key in _p else inspect.Parameter.empty
+            return fallback if value is inspect.Parameter.empty else value
+
+        extra: dict[str, object] = {}
+        early_stop = _default("early_stopping_score", None)
+        if early_stop is not None:
+            extra["early_stopping_score"] = early_stop
+
+        discovered[_name] = {
+            "module": _fn.__module__.rsplit(".", 1)[-1],
+            "function": _name,
+            "has_attacker": "attacker_model" in _params,
+            "default_iterations": _default("n_iterations", 20),
+            "extra_defaults": extra,
+        }
+    return discovered
+
+
+# Auto-discovered base (all standard-signature SDK attacks), with the hand-tuned
+# manual table taking precedence where an attack needs specific defaults.
+_ATTACK_DEFS: dict[str, dict] = {**_discover_attack_defs(), **_MANUAL_ATTACK_DEFS}
 
 # Short aliases -> canonical attack name
 ATTACK_ALIASES: dict[str, str] = {}
