@@ -4,8 +4,8 @@
 # dependencies = [
 #   "pytest>=8.0",
 #   "pytest-asyncio>=0.23",
-#   "fastmcp>=2.0",
-#   "gql[aiohttp,websockets]>=3.0,<4.0",
+#   "fastmcp>=3.2.0",
+#   "gql[aiohttp,websockets]>=4.0",
 #   "aiohttp>=3.9,<4.0",
 #   "pydantic>=2.0,<3.0",
 # ]
@@ -15,9 +15,11 @@
 from __future__ import annotations
 
 import sys
+import warnings
 from pathlib import Path
 
 import pytest
+from aiohttp import web
 
 sys.path.insert(0, str(Path(__file__).parent))
 import server
@@ -27,8 +29,8 @@ class TestToolRegistration:
     def test_expected_tools_registered(self):
         import asyncio
 
-        tools = asyncio.run(server.mcp.get_tools())
-        tool_names = set(tools) if isinstance(tools, dict) else {t.name for t in tools}
+        tools = asyncio.run(server.mcp.list_tools())
+        tool_names = {t.name for t in tools}
         expected = {
             "get_status",
             "list_clients",
@@ -60,7 +62,7 @@ class TestToolRegistration:
     def test_tool_count(self):
         import asyncio
 
-        tools = asyncio.run(server.mcp.get_tools())
+        tools = asyncio.run(server.mcp.list_tools())
         assert len(tools) == 22
 
 
@@ -101,6 +103,47 @@ class TestConnectionState:
         monkeypatch.delenv("GHOSTWRITER_PASSWORD", raising=False)
         with pytest.raises(RuntimeError, match="GHOSTWRITER_API_TOKEN"):
             await server._ensure_connected()
+
+
+class TestRunQuery:
+    @pytest.mark.asyncio
+    async def test_variables_sent_without_deprecation_warning(self, monkeypatch):
+        """Variables reach the wire on the gql 4 request object, with no deprecation warning."""
+        bodies: list[dict] = []
+        data = {"client_aggregate": {"aggregate": {"count": 0}}, "finding_by_pk": None}
+
+        async def handler(request: web.Request) -> web.Response:
+            bodies.append(await request.json())
+            return web.json_response({"data": data})
+
+        app = web.Application()
+        app.router.add_post(server.GRAPHQL_PATH, handler)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "127.0.0.1", 0)
+        await site.start()
+        port = runner.addresses[0][1]
+
+        monkeypatch.setenv("GHOSTWRITER_URL", f"http://127.0.0.1:{port}")
+        monkeypatch.setenv("GHOSTWRITER_API_TOKEN", "tok")
+        monkeypatch.setattr(server, "_gql_client", None)
+        monkeypatch.setattr(server, "_gql_session", None)
+        monkeypatch.setattr(server, "_config", None)
+        try:
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                result = await server._run_query(
+                    "query q($id: bigint!) { finding_by_pk(id: $id) { id } }",
+                    {"id": 7},
+                )
+            assert result == data
+            assert bodies[-1]["variables"] == {"id": 7}
+            assert not [w for w in caught if "variable_values" in str(w.message)]
+            assert not [w for w in caught if str(w.message).startswith("Using variable_values")]
+        finally:
+            if server._gql_client is not None:
+                await server._gql_client.close_async()
+            await runner.cleanup()
 
 
 class TestNoteTables:

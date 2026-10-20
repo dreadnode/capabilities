@@ -2,8 +2,8 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "fastmcp>=2.0",
-#   "gql[aiohttp,websockets]>=3.0,<4.0",
+#   "fastmcp>=3.2.0",
+#   "gql[aiohttp,websockets]>=4.0",
 #   "aiohttp>=3.9,<4.0",
 #   "pydantic>=2.0,<3.0",
 # ]
@@ -595,7 +595,9 @@ async def _ensure_connected() -> AsyncClientSession:
 
 async def _run_query(query: str, variables: GqlVariables | None = None) -> JsonObject:
     session = await _ensure_connected()
-    result = await session.execute(gql_parse(query), variable_values=variables)
+    request = gql_parse(query)
+    request.variable_values = variables
+    result = await session.execute(request)
     return result if isinstance(result, dict) else {}
 
 
