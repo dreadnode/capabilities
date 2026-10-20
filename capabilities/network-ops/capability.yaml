@@ -60,6 +60,14 @@ dependencies:
   # hashcat rules, and the NTLM coercion scripts.
   scripts:
     - scripts/install_coercion_tools.sh
+  # Directory the install script drops CLI tools into (nxc, certipy, bloodyAD).
+  # The runtime appends these to PATH (after the image's own PATH, so the
+  # platform's verified tools win) for install scripts, preflight checks, MCP
+  # subprocesses, and the agent's shell tools — including under `dreadnode
+  # serve` off-platform, where the image PATH does not apply. Mirrors
+  # web-security/capability.yaml.
+  path:
+    - $HOME/.local/bin
 
 checks:
   - name: nmap
