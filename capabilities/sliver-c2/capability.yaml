@@ -1,6 +1,6 @@
 schema: 1
 name: sliver-c2
-version: "1.0.0"
+version: "1.0.1"
 description: >
   Sliver C2 framework integration. Provides server management (session
   and beacon listing, listener creation, implant generation) and implant
