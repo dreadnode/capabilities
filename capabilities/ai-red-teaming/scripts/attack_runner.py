@@ -491,6 +491,21 @@ _ATTACK_DEFS: dict[str, dict] = {
             "top_k_strategies": 5,
         },
     },
+    # AutoDAN (Liu et al. ICLR 2024): genetic-algorithm readable jailbreak. Closed-box
+    # (needs only text output + a judge), so it runs against hosted dn/ models like any
+    # other jailbreak. The other white-box attacks (GCG family, embedding, activation)
+    # are SDK-only: they require dreadnode[whitebox] + a LOCAL open-weight surrogate for
+    # gradients, which the hosted inference sandbox does not provide.
+    "autodan_attack": {
+        "module": "autodan",
+        "function": "autodan_attack",
+        "has_attacker": True,
+        "default_iterations": 50,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 8,
+        },
+    },
     "renellm_attack": {
         "module": "renellm",
         "function": "renellm_attack",
