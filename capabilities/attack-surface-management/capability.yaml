@@ -1,6 +1,6 @@
 schema: 1
 name: attack-surface-management
-version: "2.0.3"
+version: "2.0.4"
 description: >
   External attack surface management with BBOT reconnaissance scanning,
   Neo4j graph database analysis, Shodan internet intelligence, and
@@ -50,8 +50,8 @@ dependencies:
   packages:
     - nmap
   python:
-    - "badsecrets~=0.13.47"
-    - "baddns~=1.12.294"
+    - "badsecrets~=1.2.1"
+    - "baddns~=2.4.0"
     - "bbot"
     - "aiosqlite>=0.21.0"
     - "extractous~=0.3.0"

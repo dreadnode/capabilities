@@ -2,8 +2,8 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#   "badsecrets~=0.13.47",
-#   "baddns~=1.12.294",
+#   "badsecrets~=1.2.1",
+#   "baddns~=2.4.0",
 #   "fastmcp>=2.0",
 #   "neo4j>=5.28.1",
 #   "bbot",
