@@ -35,8 +35,7 @@ def _resolve_script(base_path: Path, script_name: str, repo_url: str) -> Path:
     if script.is_file():
         return script
     raise FileNotFoundError(
-        f"Coercion script '{script_name}' not found at '{base_path}'. "
-        f"Install via: git clone {repo_url} {base_path}"
+        f"Coercion script '{script_name}' not found at '{base_path}'. " f"Install via: git clone {repo_url} {base_path}"
     )
 
 
@@ -180,7 +179,8 @@ class Coercion(Toolset):
         args.extend([listener, target])
 
         script = _resolve_script(
-            self.petitpotam_path, "PetitPotam.py",
+            self.petitpotam_path,
+            "PetitPotam.py",
             "https://github.com/topotam/PetitPotam",
         )
         return await execute(
@@ -188,6 +188,7 @@ class Coercion(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash) if s],
         )
 
     @tool_method(catch=True)
@@ -292,7 +293,8 @@ class Coercion(Toolset):
         args.extend([listener, target])
 
         script = _resolve_script(
-            self.dfscoerce_path, "dfscoerce.py",
+            self.dfscoerce_path,
+            "dfscoerce.py",
             "https://github.com/Wh04m1001/DFSCoerce",
         )
         return await execute(
@@ -300,6 +302,7 @@ class Coercion(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash) if s],
         )
 
     @tool_method(catch=True)
@@ -393,7 +396,8 @@ class Coercion(Toolset):
         args.extend([listener, target])
 
         script = _resolve_script(
-            self.shadowcoerce_path, "shadowcoerce.py",
+            self.shadowcoerce_path,
+            "shadowcoerce.py",
             "https://github.com/ShutdownRepo/ShadowCoerce",
         )
         return await execute(
@@ -401,4 +405,5 @@ class Coercion(Toolset):
             timeout=self.timeout,
             input=input,
             env=env,
+            secrets=[s for s in (password, nt_hash) if s],
         )

@@ -124,6 +124,7 @@ bloodyad_mod = _load_module("bloodyad", "bloodyad.py")
 krbrelayx_mod = _load_module("krbrelayx", "krbrelayx.py")
 netexec_mod = _load_module("netexec", "netexec.py")
 coercion_mod = _load_module("coercion", "coercion.py")
+smbclient_mod = _load_module("smbclient", "smbclient.py")
 # The tool modules above import ``._relay`` relatively, so it is already loaded
 # under the package; reuse that instance rather than loading a second copy.
 relay_mod = sys.modules.get(f"{_PKG}._relay") or _load_module("_relay", "_relay.py")
@@ -1709,9 +1710,7 @@ class TestAuthParamNaming:
                     params = inspect.signature(attr).parameters
                 except (TypeError, ValueError):
                     continue
-                offenders.extend(
-                    f"{cls_name}.{name}({banned})" for banned in self._BANNED if banned in params
-                )
+                offenders.extend(f"{cls_name}.{name}({banned})" for banned in self._BANNED if banned in params)
         assert not offenders, f"legacy auth param names remain: {offenders}"
 
     def test_netexec_kerberos_is_bool_with_aes_key_and_ccache(self):
@@ -1724,3 +1723,91 @@ class TestAuthParamNaming:
         params = inspect.signature(certipy_mod.Certipy.certipy).parameters
         assert "dc_ip" in params
         assert "target" not in params
+
+
+# ===================================================================
+# Credential redaction: secrets= threaded into execute()
+# ===================================================================
+
+
+def _secrets_of(mock_exec):
+    """The secrets= list passed to a patched execute()."""
+    return mock_exec.call_args.kwargs.get("secrets")
+
+
+class TestCredentialRedaction:
+    """Spot-checks that each threading style carries the credential into
+    execute(secrets=...): named auth params, a list-valued param, an opaque
+    arg list (flag recovery), and embedded operation secrets."""
+
+    @pytest.mark.asyncio
+    async def test_bloodyad_password_and_nt_hash_threaded(self):
+        bad = bloodyad_mod.BloodyAD()
+        with patch.object(bloodyad_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            await bad.bloodyad_get_object(
+                "CN=alice", domain="corp.local", username="alice", dc_ip="dc01", password="hunter2"
+            )
+            assert "hunter2" in _secrets_of(mock_exec)
+        with patch.object(bloodyad_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            await bad.bloodyad_get_object(
+                "CN=alice", domain="corp.local", username="alice", dc_ip="dc01", nt_hash="aad3b:5f4"
+            )
+            assert "aad3b:5f4" in _secrets_of(mock_exec)
+
+    @pytest.mark.asyncio
+    async def test_netexec_named_and_args_embedded_secrets(self):
+        nxc = netexec_mod.Netexec()
+        with patch.object(netexec_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            await nxc.netexec(
+                protocol="smb",
+                targets=["10.0.0.1"],
+                args=["-M", "spider", "-p", "argpw"],
+                username="alice",
+                password="hunter2",
+            )
+            secrets = _secrets_of(mock_exec)
+            assert "hunter2" in secrets
+            assert "argpw" in secrets
+
+    @pytest.mark.asyncio
+    async def test_certipy_named_and_opaque_args_secrets(self):
+        c = certipy_mod.Certipy()
+        c.certipy_cmd = "certipy"
+        c.timeout = 10
+        with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            await c.certipy(action="find", args=[], dc_ip="10.0.0.1", username="alice", password="hunter2")
+            assert "hunter2" in _secrets_of(mock_exec)
+        with patch.object(certipy_mod, "execute", new_callable=AsyncMock) as mock_exec:
+            await c.certipy_auth(args=["-aes", "deadbeefkey", "-pfx-password", "pfxpw"])
+            secrets = _secrets_of(mock_exec)
+            assert "deadbeefkey" in secrets
+            assert "pfxpw" in secrets
+
+    @pytest.mark.asyncio
+    async def test_impacket_secretsdump_threads_password_and_aes_key(self):
+        imp = impacket_mod.Impacket()
+        imp.timeout = 120
+        with (
+            patch.object(impacket_mod, "execute", new_callable=AsyncMock) as mock_exec,
+            patch.object(imp, "_build_script_command", return_value=["secretsdump.py"]),
+        ):
+            await imp.impacket_secretsdump(target="10.0.0.1", username="alice", password="hunter2", aes_key="deadbeef")
+            secrets = _secrets_of(mock_exec)
+            assert "hunter2" in secrets
+            assert "deadbeef" in secrets
+
+    @pytest.mark.asyncio
+    async def test_smbclient_password_threaded(self):
+        smb = smbclient_mod.SmbClient()
+        with (
+            patch.object(smbclient_mod, "execute", new_callable=AsyncMock) as mock_exec,
+            patch.object(smbclient_mod, "_require_smbclient", return_value="smbclient"),
+        ):
+            await smb.smb_download_file(
+                target="10.0.0.1",
+                share_name="C$",
+                remote_path="f.txt",
+                username="alice",
+                password="hunter2",
+            )
+            assert "hunter2" in _secrets_of(mock_exec)

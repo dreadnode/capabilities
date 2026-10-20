@@ -9,6 +9,17 @@ from loguru import logger
 
 from ._relay import stream_listener
 
+# certipy credential flags. A flag that carries a secret but is missing here
+# reaches execute()'s logs in cleartext. certipy uses single-dash long flags.
+_CERTIPY_SECRET_FLAGS = frozenset({"-p", "-password", "-hashes", "-aes", "-pfx-password"})
+
+
+def _secrets_from_args(args: list[str]) -> list[str]:
+    """Recover credential values that follow a secret flag in an opaque ``args``
+    list, so ``execute`` can mask them in logs."""
+    return [value for flag, value in zip(args, args[1:], strict=False) if flag in _CERTIPY_SECRET_FLAGS]
+
+
 # Substrings in certipy relay stdout that indicate a relayed AD CS auth
 # succeeded. Kept specific to certificate issuance so routine status lines
 # ("... successfully", "wrote config") cannot trip a premature success.
@@ -146,7 +157,11 @@ class Certipy(Toolset):
         cmd.extend(["-dc-ip", dc_ip])
         cmd.extend(args)
 
-        logger.info(f"Running '{self.certipy_cmd} {action}' with args: {' '.join(args)}")
+        arg_secrets = _secrets_from_args(args)
+        logged_args = " ".join(args)
+        for secret in arg_secrets:
+            logged_args = logged_args.replace(secret, "***")
+        logger.info(f"Running '{self.certipy_cmd} {action}' with args: {logged_args}")
 
         # `relay` is a long-lived listener, not a one-shot command: stream its
         # output and keep it up until a relayed cert arrives or relay_timeout,
@@ -159,7 +174,12 @@ class Certipy(Toolset):
                 env=None,
             )
 
-        return await execute(cmd, timeout=self.timeout, input=input or _CONFIRM_INPUT)
+        return await execute(
+            cmd,
+            timeout=self.timeout,
+            input=input or _CONFIRM_INPUT,
+            secrets=[s for s in (password, nt_hash) if s] + arg_secrets,
+        )
 
     # Specialized methods
 
@@ -339,7 +359,12 @@ class Certipy(Toolset):
                 value) auto-confirms certipy's interactive prompts with "y";
                 pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "account", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
+        return await execute(
+            [self.certipy_cmd, "account", *args],
+            timeout=self.timeout,
+            input=input or _CONFIRM_INPUT,
+            secrets=_secrets_from_args(args),
+        )
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_auth(self, args: list[str], input: str | None = None) -> str:
@@ -390,7 +415,12 @@ class Certipy(Toolset):
                 value) auto-confirms certipy's interactive prompts with "y";
                 pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "auth", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
+        return await execute(
+            [self.certipy_cmd, "auth", *args],
+            timeout=self.timeout,
+            input=input or _CONFIRM_INPUT,
+            secrets=_secrets_from_args(args),
+        )
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_ca(self, args: list[str], input: str | None = None) -> str:
@@ -475,7 +505,12 @@ class Certipy(Toolset):
                 value) auto-confirms certipy's interactive prompts with "y";
                 pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "ca", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
+        return await execute(
+            [self.certipy_cmd, "ca", *args],
+            timeout=self.timeout,
+            input=input or _CONFIRM_INPUT,
+            secrets=_secrets_from_args(args),
+        )
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_cert(self, args: list[str], input: str | None = None) -> str:
@@ -509,7 +544,12 @@ class Certipy(Toolset):
                 value) auto-confirms certipy's interactive prompts with "y";
                 pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "cert", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
+        return await execute(
+            [self.certipy_cmd, "cert", *args],
+            timeout=self.timeout,
+            input=input or _CONFIRM_INPUT,
+            secrets=_secrets_from_args(args),
+        )
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_find(
@@ -680,7 +720,12 @@ class Certipy(Toolset):
                 value) auto-confirms certipy's interactive prompts with "y";
                 pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "req", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
+        return await execute(
+            [self.certipy_cmd, "req", *args],
+            timeout=self.timeout,
+            input=input or _CONFIRM_INPUT,
+            secrets=_secrets_from_args(args),
+        )
 
     @tool_method(catch=True, variants=["generic", "all"])
     async def certipy_template(self, args: list[str], input: str | None = None) -> str:
@@ -753,4 +798,9 @@ class Certipy(Toolset):
                 value) auto-confirms certipy's interactive prompts with "y";
                 pass an explicit answer such as "n" to respond differently.
         """
-        return await execute([self.certipy_cmd, "template", *args], timeout=self.timeout, input=input or _CONFIRM_INPUT)
+        return await execute(
+            [self.certipy_cmd, "template", *args],
+            timeout=self.timeout,
+            input=input or _CONFIRM_INPUT,
+            secrets=_secrets_from_args(args),
+        )
