@@ -10,7 +10,7 @@ description: Use when operating Sliver C2 implants, managing listeners, or perfo
 - **Sessions**: Real-time interactive. Use for active enumeration. Higher detection risk.
 - **Beacons**: Async callback with interval + jitter. Use for persistence. Lower detection risk.
 
-Our MCP handles both transparently — `interact(implant_id, implant_type="beacon")` resolves async tasks automatically. Read `docs/sliver/tutorials/2---beacons-vs-sessions.md` for details.
+Our MCP handles both transparently — `interact(implant_id, implant_type="beacon")` resolves async tasks automatically. Beacons check in on a set interval with jitter and queue tasks between check-ins; sessions hold a live, interactive connection. See Sliver's "Beacons vs. Sessions" documentation at https://sliver.sh/docs.
 
 ## Orientation (do this first)
 
@@ -42,7 +42,7 @@ execute_assembly(assembly_path="/local/Rubeus.exe", arguments="kerberoast /forma
 execute_assembly(assembly_path="/local/SharpHound.exe", arguments="-c All -d domain.local")
 ```
 
-**BOFs** — see `docs/sliver/reference/bof-and-coff-support.md`. Install via Sliver's armory, execute via Sliver CLI.
+**BOFs** — Beacon Object Files are small compiled COFF programs that run inside the implant process without spawning a new one. Install via Sliver's armory, execute via Sliver CLI. See Sliver's "BOF and COFF Support" documentation at https://sliver.sh/docs.
 
 ## Lateral Movement
 
@@ -54,9 +54,9 @@ execute_assembly(assembly_path="/local/SharpHound.exe", arguments="-c All -d dom
 **Other options**: `impersonate(username)`, `run_as(username, process_name, args)`, `get_system()`.
 
 **Pivoting/Tunneling** — not available via our MCP tools, use Sliver CLI:
-- TCP/named pipe pivots: `docs/sliver/reference/pivots.md`
-- Port forwarding: `docs/sliver/reference/port-forwarding.md`
-- SOCKS proxy: `docs/sliver/reference/reverse-socks.md`
+- TCP/named pipe pivots — chain an implant through another implant to reach hosts with no direct route to the C2 server. See Sliver's "Pivots" documentation at https://sliver.sh/docs.
+- Port forwarding — forward a local or remote port across the implant link to reach an internal service. See Sliver's "Port Forwarding" documentation at https://sliver.sh/docs.
+- SOCKS proxy — open a reverse SOCKS5 proxy through the implant so local tools can reach the target network. See Sliver's "Reverse SOCKS" documentation at https://sliver.sh/docs.
 
 ## Execution
 
@@ -69,7 +69,7 @@ execute_assembly(assembly_path="/local/SharpHound.exe", arguments="-c All -d dom
 
 ## C2 Transport Selection
 
-Read the full docs at `docs/sliver/c2/`.
+Each transport is configured when you start its listener (see Listener Management below). For protocol-specific setup — mTLS, HTTPS, DNS, and WireGuard — see Sliver's C2 documentation at https://sliver.sh/docs.
 
 | Transport | Speed | Stealth | Notes |
 |-----------|-------|---------|-------|
@@ -99,4 +99,4 @@ kill_beacon(beacon_id="def-456")                   # terminate beacon
 
 ## Sliver Native MCP
 
-Sliver v1.6+ has built-in MCP support (`docs/sliver/reference/mcp.md`). This provides direct access to ALL Sliver commands. If the native MCP is available, prefer it for commands our wrapper doesn't cover (pivots, SOCKS, port forwarding, armory, implant generation).
+Sliver v1.6+ has built-in MCP support — a server that exposes Sliver's full command set to MCP clients. See Sliver's MCP documentation at https://sliver.sh/docs. This provides direct access to ALL Sliver commands. If the native MCP is available, prefer it for commands our wrapper doesn't cover (pivots, SOCKS, port forwarding, armory, implant generation).

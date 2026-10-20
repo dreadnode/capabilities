@@ -14,10 +14,6 @@ capabilities/mythic-c2/docs/apollo/
   Copyright (c) 2022, Dwight Hohnstein.
   License: BSD-3-Clause. See capabilities/mythic-c2/docs/apollo/LICENSE.
 
-capabilities/sliver-c2/docs/sliver/
-  Sliver documentation by Bishop Fox.
-  License: GPL-3.0. See capabilities/sliver-c2/docs/sliver/LICENSE.
-
 capabilities/web-security/skills/agent-browser/
   Skill documentation ported from the agent-browser CLI by Vercel Labs
   (https://github.com/vercel-labs/agent-browser).
