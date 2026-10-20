@@ -53,7 +53,7 @@ The original scrape script lived in the working tree at the time of the first sn
 - **Author:** Aleksandra "hasherezade" Doniec
 - **License posture:** Personal research blog. Index mirrored; full posts fetched on demand.
 - **Files:** 1 (blog index)
-- **Volume:** 4,293 lines
+- **Volume:** 43 lines
 
 ### oalabs/
 

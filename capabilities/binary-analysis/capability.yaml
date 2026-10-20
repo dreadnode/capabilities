@@ -1,6 +1,6 @@
 schema: 1
 name: binary-analysis
-version: "0.6.0"
+version: "0.6.1"
 description: >
   Binary reverse engineering for PE, ELF, Mach-O, and raw shellcode on
   macOS and Linux. Static triage (pefile / pyelftools / lief, entropy,
