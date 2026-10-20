@@ -10,7 +10,7 @@ description: Use when operating Sliver C2 implants, managing listeners, or perfo
 - **Sessions**: Real-time interactive. Use for active enumeration. Higher detection risk.
 - **Beacons**: Async callback with interval + jitter. Use for persistence. Lower detection risk.
 
-Our MCP handles both transparently — `interact(implant_id, implant_type="beacon")` resolves async tasks automatically. Beacons check in on a set interval with jitter and queue tasks between check-ins; sessions hold a live, interactive connection. See Sliver's "Beacons vs. Sessions" documentation at https://sliver.sh/docs.
+Our MCP handles both transparently — `interact(implant_id, implant_type="beacon")` resolves async tasks automatically. Beacons check in on a set interval with jitter and queue tasks between check-ins; sessions hold a live, interactive connection. See Sliver's [Beacons vs. Sessions](https://sliver.sh/docs?name=Beacons+vs.+Sessions) docs.
 
 ## Orientation (do this first)
 
@@ -42,7 +42,7 @@ execute_assembly(assembly_path="/local/Rubeus.exe", arguments="kerberoast /forma
 execute_assembly(assembly_path="/local/SharpHound.exe", arguments="-c All -d domain.local")
 ```
 
-**BOFs** — Beacon Object Files are small compiled COFF programs that run inside the implant process without spawning a new one. Install via Sliver's armory, execute via Sliver CLI. See Sliver's "BOF and COFF Support" documentation at https://sliver.sh/docs.
+**BOFs** — Beacon Object Files are small compiled COFF programs that run inside the implant process without spawning a new one. Install via Sliver's armory, execute via Sliver CLI. See Sliver's [BOF and COFF Support](https://sliver.sh/docs?name=BOF+and+COFF+Support) docs.
 
 ## Lateral Movement
 
@@ -54,9 +54,9 @@ execute_assembly(assembly_path="/local/SharpHound.exe", arguments="-c All -d dom
 **Other options**: `impersonate(username)`, `run_as(username, process_name, args)`, `get_system()`.
 
 **Pivoting/Tunneling** — not available via our MCP tools, use Sliver CLI:
-- TCP/named pipe pivots — chain an implant through another implant to reach hosts with no direct route to the C2 server. See Sliver's "Pivots" documentation at https://sliver.sh/docs.
-- Port forwarding — forward a local or remote port across the implant link to reach an internal service. See Sliver's "Port Forwarding" documentation at https://sliver.sh/docs.
-- SOCKS proxy — open a reverse SOCKS5 proxy through the implant so local tools can reach the target network. See Sliver's "Reverse SOCKS" documentation at https://sliver.sh/docs.
+- TCP/named pipe pivots — chain an implant through another implant to reach hosts with no direct route to the C2 server. See Sliver's [Pivots](https://sliver.sh/docs?name=Pivots) docs.
+- Port forwarding — forward a local or remote port across the implant link to reach an internal service. See Sliver's [Port Forwarding](https://sliver.sh/docs?name=Port+Forwarding) docs.
+- SOCKS proxy — open a reverse SOCKS5 proxy through the implant so local tools can reach the target network. See Sliver's [Reverse SOCKS](https://sliver.sh/docs?name=Reverse+SOCKS) docs.
 
 ## Execution
 
@@ -69,7 +69,7 @@ execute_assembly(assembly_path="/local/SharpHound.exe", arguments="-c All -d dom
 
 ## C2 Transport Selection
 
-Each transport is configured when you start its listener (see Listener Management below). For protocol-specific setup — mTLS, HTTPS, DNS, and WireGuard — see Sliver's C2 documentation at https://sliver.sh/docs.
+Pick the transport when you **generate the implant** — the callback endpoint (host, port, domain) is embedded in the implant at build time. `start_*_listener` only starts the matching server-side receiver (see Listener Management below); it does not set the implant's endpoint. Per-protocol setup: [mTLS C2](https://sliver.sh/docs?name=mTLS+C2), [HTTPS C2](https://sliver.sh/docs?name=HTTPS+C2), [DNS C2](https://sliver.sh/docs?name=DNS+C2), [WireGuard C2](https://sliver.sh/docs?name=WireGuard+C2), and [C2 Advanced Options](https://sliver.sh/docs?name=C2+Advanced+Options).
 
 | Transport | Speed | Stealth | Notes |
 |-----------|-------|---------|-------|
@@ -99,4 +99,4 @@ kill_beacon(beacon_id="def-456")                   # terminate beacon
 
 ## Sliver Native MCP
 
-Sliver v1.6+ has built-in MCP support — a server that exposes Sliver's full command set to MCP clients. See Sliver's MCP documentation at https://sliver.sh/docs. This provides direct access to ALL Sliver commands. If the native MCP is available, prefer it for commands our wrapper doesn't cover (pivots, SOCKS, port forwarding, armory, implant generation).
+Sliver v1.6+ ships a built-in MCP server (see Sliver's [MCP](https://sliver.sh/docs?name=MCP) docs). Upstream marks it experimental: not all commands are exposed yet, and authentication over HTTP/SSE isn't supported. Where it does expose a command our wrapper doesn't cover (pivots, SOCKS, port forwarding, armory, implant generation), prefer it; otherwise use the Sliver CLI.
