@@ -98,6 +98,35 @@ else
     rm -rf /tmp/nxc.zip /tmp/nxc-extract 2>/dev/null || true
 fi
 
+# -- certipy-ad ---------------------------------------------------------------
+# Installed into its own isolated `uv tool` environment (not declared in
+# dependencies.python) to avoid dependency conflicts with the shared
+# capability virtualenv. Lands the `certipy`/`certipy-ad` command in
+# $HOME/.local/bin.
+if command -v certipy >/dev/null 2>&1 || command -v certipy-ad >/dev/null 2>&1; then
+    echo "[*] certipy already present, skipping"
+elif ! command -v uv >/dev/null 2>&1; then
+    echo "[!] uv not found, cannot install certipy-ad (non-fatal)"
+else
+    echo "[+] Installing certipy-ad 5.1.0 (uv tool)"
+    uv tool install certipy-ad==5.1.0 \
+        || echo "[!] Failed to install certipy-ad (non-fatal)"
+fi
+
+# -- bloodyAD -------------------------------------------------------------
+# Installed into its own isolated `uv tool` environment (not declared in
+# dependencies.python) to avoid dependency conflicts with the shared
+# capability virtualenv. Lands the `bloodyAD` command in $HOME/.local/bin.
+if command -v bloodyAD >/dev/null 2>&1; then
+    echo "[*] bloodyAD already present, skipping"
+elif ! command -v uv >/dev/null 2>&1; then
+    echo "[!] uv not found, cannot install bloodyAD (non-fatal)"
+else
+    echo "[+] Installing bloodyAD 2.5.5 (uv tool)"
+    uv tool install bloodyAD==2.5.5 \
+        || echo "[!] Failed to install bloodyAD (non-fatal)"
+fi
+
 # -- Coercion scripts -------------------------------------------------------
 # These /opt paths are hardcoded in three places that must stay in sync: here,
 # the coercion-script checks: in capability.yaml, and the path defaults in the

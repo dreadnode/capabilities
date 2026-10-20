@@ -65,7 +65,8 @@ class Certipy(Toolset):
         """Initialize Certipy toolset and verify certipy is installed."""
         if not shutil.which(self.certipy_cmd):
             logger.warning(
-                f"certipy command '{self.certipy_cmd}' not found in PATH. " "Install with: pip install certipy-ad"
+                f"certipy command '{self.certipy_cmd}' not found in PATH. "
+                "Install with: uv tool install certipy-ad==5.1.0"
             )
         else:
             logger.info(f"Certipy toolset initialized, using command: {self.certipy_cmd}")

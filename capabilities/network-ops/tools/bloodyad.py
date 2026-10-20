@@ -20,7 +20,7 @@ class BloodyAD(Toolset):
     cleartext passwords, pass-the-hash, pass-the-ticket, and certificates.
 
     Repository: https://github.com/CravateRouge/bloodyAD
-    Install: pip install bloodyAD
+    Install: uv tool install bloodyAD==2.5.5
     """
 
     timeout: int = Config(default=60)
@@ -34,7 +34,8 @@ class BloodyAD(Toolset):
         # Check if bloodyAD command is available
         if not shutil.which(self.bloodyad_cmd):
             logger.warning(
-                f"bloodyAD command '{self.bloodyad_cmd}' not found in PATH. Install it with: pip install bloodyAD"
+                f"bloodyAD command '{self.bloodyad_cmd}' not found in PATH. "
+                "Install it with: uv tool install bloodyAD==2.5.5"
             )
         return self
 
