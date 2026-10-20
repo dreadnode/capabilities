@@ -943,10 +943,13 @@ _MANUAL_ATTACK_DEFS: dict[str, dict] = {
     },
 }
 
-# White-box gradient attacks are SDK-only: they require a LOCAL open-weight
-# surrogate for gradients, which the hosted inference sandbox cannot provide, so
-# they are excluded from auto-discovery (they would crash at runtime here).
-_WHITEBOX_LOCAL_ONLY = frozenset(
+# White-box gradient attacks optimize against a LOCAL open-weight surrogate: the
+# user must pass that model path/id as `attacker_model` (see the
+# whitebox-local-surrogate skill). They are discoverable (unified SDK + TUI
+# support), but flagged `requires_surrogate` so the agent knows to supply a local
+# model and run in local runtime. In the hosted sandbox with a dn/* attacker, the
+# SDK raises a clear error (no gradients over the proxy) rather than crashing.
+_WHITEBOX_REQUIRES_SURROGATE = frozenset(
     {
         "gcg_attack",
         "faster_gcg_attack",
@@ -970,10 +973,12 @@ def _discover_attack_defs() -> dict[str, dict]:
     """Auto-discover text-jailbreak attacks from the installed SDK so new attacks
     flow into the capability without hand-wiring. Only functions with the standard
     ``(goal, target, evaluator_model, ...)`` signature are included (skips
-    evasion/extraction/inversion/image attacks, which take a different target), and
-    white-box gradient attacks are excluded (no local surrogate in the sandbox).
-    Defaults are read from each function's signature; the manual table above
-    overrides these for attacks with specially tuned parameters."""
+    evasion/extraction/inversion/image attacks, which take a different target).
+    White-box gradient attacks ARE included for unified SDK + TUI support, flagged
+    ``requires_surrogate`` so the agent supplies a local model path as
+    ``attacker_model`` (see the whitebox-local-surrogate skill). Defaults are read
+    from each function's signature; the manual table above overrides these for
+    attacks with specially tuned parameters."""
     import inspect
 
     try:
@@ -983,7 +988,7 @@ def _discover_attack_defs() -> dict[str, dict]:
 
     discovered: dict[str, dict] = {}
     for _name in dir(_airt):
-        if not _name.endswith("_attack") or _name in _WHITEBOX_LOCAL_ONLY:
+        if not _name.endswith("_attack"):
             continue
         _fn = getattr(_airt, _name, None)
         if not callable(_fn):
@@ -1010,6 +1015,7 @@ def _discover_attack_defs() -> dict[str, dict]:
             "has_attacker": "attacker_model" in _params,
             "default_iterations": _default("n_iterations", 20),
             "extra_defaults": extra,
+            "requires_surrogate": _name in _WHITEBOX_REQUIRES_SURROGATE,
         }
     return discovered
 
