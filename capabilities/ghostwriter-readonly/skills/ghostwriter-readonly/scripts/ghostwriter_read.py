@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "gql[aiohttp,websockets]>=3.0,<4.0",
+#   "gql[aiohttp,websockets]>=4.0",
 #   "aiohttp>=3.9,<4.0",
 #   "pydantic>=2.0,<3.0",
 # ]
@@ -428,7 +428,9 @@ async def run_query(
     variables: dict[str, int | str] | None = None,
 ) -> dict[str, object]:
     """Execute a GraphQL query and return the result dict."""
-    result = await session.execute(gql_parse(query), variable_values=variables)
+    request = gql_parse(query)
+    request.variable_values = variables
+    result = await session.execute(request)
     return result  # type: ignore[return-value]
 
 

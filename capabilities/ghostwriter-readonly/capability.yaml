@@ -1,6 +1,6 @@
 schema: 1
 name: ghostwriter-readonly
-version: "1.0.0"
+version: "1.0.1"
 description: >
   Read-only GhostWriter integration. Query clients, projects, findings,
   objectives, targets, scope, deconflictions, evidence, observations,
