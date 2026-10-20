@@ -32,11 +32,32 @@ def test_apt_tools_declared() -> None:
 def test_pip_tools_declared() -> None:
     python = _manifest()["dependencies"].get("python", [])
     joined = " ".join(python)
-    for pkg in ("impacket", "certipy-ad", "bloodyAD"):
+    for pkg in ("loguru", "impacket"):
         assert pkg in joined, f"{pkg} must be declared in dependencies.python"
+    # certipy-ad and bloodyAD are installed into isolated `uv tool`
+    # environments by the install script instead, to avoid dependency
+    # conflicts with the shared capability virtualenv. They must stay out of
+    # the shared pip install.
+    assert "certipy-ad" not in joined, "certipy-ad must not be declared in dependencies.python"
+    assert "bloodyAD" not in joined, "bloodyAD must not be declared in dependencies.python"
     # NetExec is not on PyPI; declaring it here hard-fails the SDK's combined
     # pip install and takes the whole capability down. It must stay out.
     assert "netexec" not in joined.lower(), "netexec is not pip-installable; provision it in the image"
+
+
+def test_certipy_and_bloodyad_installed_via_isolated_uv_tool_envs() -> None:
+    # certipy-ad and bloodyAD get their own `uv tool` environments (not the
+    # shared capability virtualenv) to avoid dependency conflicts, and each
+    # install is skipped when the tool is already present.
+    script = INSTALL_SCRIPT.read_text()
+    for pin, guard in (
+        ("uv tool install certipy-ad==5.1.0", "command -v certipy"),
+        ("uv tool install bloodyAD==2.5.5", "command -v bloodyAD"),
+    ):
+        assert pin in script, f"script must install {pin}"
+        pin_index = script.index(pin)
+        guard_index = script.rfind(guard, 0, pin_index)
+        assert guard_index != -1, f"{pin} must be preceded by a `{guard}` guard"
 
 
 def test_every_invoked_binary_has_a_check() -> None:
@@ -112,7 +133,7 @@ def test_script_is_non_fatal_when_every_privileged_op_fails(tmp_path: Path) -> N
     """
     stub_dir = tmp_path / "stubs"
     stub_dir.mkdir()
-    for name in ("mkdir", "sudo", "git", "curl", "gunzip"):
+    for name in ("mkdir", "sudo", "git", "curl", "gunzip", "uv"):
         stub = stub_dir / name
         stub.write_text("#!/bin/sh\nexit 1\n")
         stub.chmod(stub.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)

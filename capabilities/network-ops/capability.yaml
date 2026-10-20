@@ -1,6 +1,6 @@
 schema: 1
 name: network-ops
-version: "3.0.1"
+version: "3.0.2"
 description: >
   Network operations and Active Directory exploitation. Multi-agent
   pipeline for autonomous red teaming with Nmap scanning, Netexec
@@ -51,14 +51,23 @@ dependencies:
   python:
     - "loguru>=0.7.0"
     - "impacket>=0.12.0"
-    - "certipy-ad"
-    - "bloodyAD"
   # NetExec (nxc) is deliberately absent here: it is not published on PyPI. The
   # install script below fetches the project's prebuilt standalone binary.
+  # certipy-ad and bloodyAD are also installed by the script below, each into
+  # its own isolated `uv tool` environment, to avoid dependency conflicts with
+  # the shared python deps above.
   # Runtime-fetched assets apt/pip can't provide: the NetExec binary, wordlists,
   # hashcat rules, and the NTLM coercion scripts.
   scripts:
     - scripts/install_coercion_tools.sh
+  # Directory the install script drops CLI tools into (nxc, certipy, bloodyAD).
+  # The runtime appends these to PATH (after the image's own PATH, so the
+  # platform's verified tools win) for install scripts, preflight checks, MCP
+  # subprocesses, and the agent's shell tools — including under `dreadnode
+  # serve` off-platform, where the image PATH does not apply. Mirrors
+  # web-security/capability.yaml.
+  path:
+    - $HOME/.local/bin
 
 checks:
   - name: nmap
