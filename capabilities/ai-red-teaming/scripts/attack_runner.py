@@ -390,7 +390,7 @@ MODEL_ALIASES: dict[str, str] = {
     "databricks llama": "databricks/databricks-meta-llama-3-1-70b-instruct",
 }
 
-_ATTACK_DEFS: dict[str, dict] = {
+_MANUAL_ATTACK_DEFS: dict[str, dict] = {
     "tap_attack": {
         "module": "tap",
         "function": "tap_attack",
@@ -489,6 +489,21 @@ _ATTACK_DEFS: dict[str, dict] = {
             "early_stopping_score": 0.9,
             "exploration_rate": 0.3,
             "top_k_strategies": 5,
+        },
+    },
+    # AutoDAN (Liu et al. ICLR 2024): genetic-algorithm readable jailbreak. Closed-box
+    # (needs only text output + a judge), so it runs against hosted dn/ models like any
+    # other jailbreak. The other white-box attacks (GCG family, embedding, activation)
+    # are SDK-only: they require dreadnode[whitebox] + a LOCAL open-weight surrogate for
+    # gradients, which the hosted inference sandbox does not provide.
+    "autodan_attack": {
+        "module": "autodan",
+        "function": "autodan_attack",
+        "has_attacker": True,
+        "default_iterations": 50,
+        "extra_defaults": {
+            "early_stopping_score": 0.9,
+            "beam_width": 8,
         },
     },
     "renellm_attack": {
@@ -927,6 +942,88 @@ _ATTACK_DEFS: dict[str, dict] = {
         "extra_defaults": {"early_stopping_score": 0.9, "context_depth": 5},
     },
 }
+
+# White-box gradient attacks optimize against a LOCAL open-weight surrogate: the
+# user must pass that model path/id as `attacker_model` (see the
+# whitebox-local-surrogate skill). They are discoverable (unified SDK + TUI
+# support), but flagged `requires_surrogate` so the agent knows to supply a local
+# model and run in local runtime. In the hosted sandbox with a dn/* attacker, the
+# SDK raises a clear error (no gradients over the proxy) rather than crashing.
+_WHITEBOX_REQUIRES_SURROGATE = frozenset(
+    {
+        "gcg_attack",
+        "faster_gcg_attack",
+        "i_gcg_attack",
+        "attngcg_attack",
+        "mask_gcg_attack",
+        "gbda_attack",
+        "pez_attack",
+        "cold_attack",
+        "soft_gcg_attack",
+        "arca_attack",
+        "amplegcg_attack",
+        "refusal_ablation_attack",
+        "soft_prompt_attack",
+        "latentbreak_attack",
+        "adaptive_random_search_attack",
+    }
+)
+
+
+def _discover_attack_defs() -> dict[str, dict]:
+    """Auto-discover text-jailbreak attacks from the installed SDK so new attacks
+    flow into the capability without hand-wiring. Only functions with the standard
+    ``(goal, target, evaluator_model, ...)`` signature are included (skips
+    evasion/extraction/inversion/image attacks, which take a different target).
+    White-box gradient attacks ARE included for unified SDK + TUI support, flagged
+    ``requires_surrogate`` so the agent supplies a local model path as
+    ``attacker_model`` (see the whitebox-local-surrogate skill). Defaults are read
+    from each function's signature; the manual table above overrides these for
+    attacks with specially tuned parameters."""
+    import inspect
+
+    try:
+        import dreadnode.airt as _airt
+    except Exception:
+        return {}
+
+    discovered: dict[str, dict] = {}
+    for _name in dir(_airt):
+        if not _name.endswith("_attack"):
+            continue
+        _fn = getattr(_airt, _name, None)
+        if not callable(_fn):
+            continue
+        try:
+            _params = inspect.signature(_fn).parameters
+        except (TypeError, ValueError):
+            continue
+        if not ({"goal", "target", "evaluator_model"} <= set(_params)):
+            continue
+
+        def _default(key: str, fallback: object, _p: object = _params) -> object:
+            value = _p[key].default if key in _p else inspect.Parameter.empty
+            return fallback if value is inspect.Parameter.empty else value
+
+        extra: dict[str, object] = {}
+        early_stop = _default("early_stopping_score", None)
+        if early_stop is not None:
+            extra["early_stopping_score"] = early_stop
+
+        discovered[_name] = {
+            "module": _fn.__module__.rsplit(".", 1)[-1],
+            "function": _name,
+            "has_attacker": "attacker_model" in _params,
+            "default_iterations": _default("n_iterations", 20),
+            "extra_defaults": extra,
+            "requires_surrogate": _name in _WHITEBOX_REQUIRES_SURROGATE,
+        }
+    return discovered
+
+
+# Auto-discovered base (all standard-signature SDK attacks), with the hand-tuned
+# manual table taking precedence where an attack needs specific defaults.
+_ATTACK_DEFS: dict[str, dict] = {**_discover_attack_defs(), **_MANUAL_ATTACK_DEFS}
 
 # Short aliases -> canonical attack name
 ATTACK_ALIASES: dict[str, str] = {}
