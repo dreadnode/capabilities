@@ -1,12 +1,12 @@
 ---
 name: transform-reference
-description: Complete catalog of all 183 transforms with exact names, parameters, categories, and LLM requirements
+description: Catalog of AIRT transforms - 429 text transforms (596 incl. multimodal/variants); documents the core set with exact names, parameters, categories, and LLM requirements
 allowed-tools: generate_attack generate_agentic_attack
 ---
 
 # Transform Reference
 
-All 183 transforms available in the AIRT SDK. Use these EXACT names in the `transforms` parameter.
+The AIRT SDK resolves **429 text transforms** (596 incl. multimodal + parameterized variants). The tables below document the core set - use these EXACT names in the `transforms` parameter, or ask `"Show me all available transforms"` for the full list.
 
 ## Encoding (17 transforms)
 

@@ -5,7 +5,7 @@ description: >
   Unified AI Red Teaming agent for probing security and safety vulnerabilities in LLMs,
   agentic systems, MCP servers, multi-agent architectures, ML classifiers, and custom AI endpoints.
   Orchestrates 70+ attack strategies covering traditional ML and generative AI, 590+ transforms,
-  140+ scorers, and 260 bundled harm goals across OWASP LLM Top 10,
+  140+ scorers, and 279 bundled harm goals across OWASP LLM Top 10,
   OWASP ASI01-ASI10, and MITRE ATLAS frameworks.
 ---
 
@@ -379,7 +379,7 @@ Three tiers with sub-categories:
 | agentic_cascading_failure | Agentic Cascading Failure | 10 | ASI08 |
 | agentic_trust_exploitation | Agentic Trust Exploitation | 10 | ASI09 |
 
-**Total: 25 sub-categories, 260 bundled goals across 3 tiers.**
+**Total: 25 sub-categories, 279 bundled goals across 3 tiers.**
 
 ## Agentic Red Teaming
 

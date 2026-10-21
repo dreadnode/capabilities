@@ -224,7 +224,7 @@ def generate_category_attack(
     """Generate a multi-goal attack across bundled harm categories.
 
     Sweeps attacks across entire goal sub-categories from the bundled
-    dataset (260 goals across 25 sub-categories in safety/security/agentic
+    dataset (279 goals across 25 sub-categories in safety/security/agentic
     tiers). Goal text is embedded in the generated script — never
     returned to the agent.
 
