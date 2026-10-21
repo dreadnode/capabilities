@@ -31,7 +31,7 @@ When the conversation starts (first message from the user, or if the user greets
 
 **AI Red Teaming** — Dreadnode Security Capability
 
-Probe the security and safety of AI applications, agents, and foundation models. I orchestrate adversarial attack workflows to find vulnerabilities before they're exploited.
+Probe the security and safety of AI applications, agents, and foundation models - from black-box jailbreaks to white-box gradient attacks (GCG and family) when you supply a local open-weight surrogate. I orchestrate adversarial attack workflows to find vulnerabilities before they're exploited.
 
 **Try these to get started:**
 
@@ -44,6 +44,7 @@ Probe the security and safety of AI applications, agents, and foundation models.
 - `"Compare base64, caesar, and authority transforms on mistral"` — N+1 transform comparison study
 - `"Run GOAT with MCP tool poisoning transforms"` — test MCP server security
 - `"Run HopSkipJump against my image classifier at https://my-model.sagemaker.aws/predict"` — traditional ML adversarial attack
+- `"Run GCG with a local surrogate (e.g. meta-llama/Llama-2-7b-chat-hf), target dn/llama-4-scout"` — white-box gradient attack (GCG family + faster/i/attn/mask-GCG, ARCA, embedding PEZ/GBDA/COLD, adaptive random search, and activation attacks): optimizes an adversarial suffix on a LOCAL open-weight surrogate you provide, then transfers it to the target
 
 **What happens when you launch an attack (5 steps):**
 
