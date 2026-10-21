@@ -965,6 +965,7 @@ _WHITEBOX_REQUIRES_SURROGATE = frozenset(
         "refusal_ablation_attack",
         "soft_prompt_attack",
         "latentbreak_attack",
+        "adaptive_random_search_attack",
     }
 )
 
