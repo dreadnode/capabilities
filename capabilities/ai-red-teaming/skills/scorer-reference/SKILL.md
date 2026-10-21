@@ -1,12 +1,12 @@
 ---
 name: scorer-reference
-description: Complete catalog of all 84 scorers with exact names, categories, and when to use each
+description: Catalog of AIRT scorers - 146 user-selectable (+ agentic *_detected scorers auto-wired per OWASP-ASI category); documents the core set with exact names, categories, and when to use each
 allowed-tools: generate_attack generate_agentic_attack
 ---
 
 # Scorer Reference
 
-All 84 scorers available in the AIRT SDK. Use these EXACT names in the `scorers` parameter.
+The AIRT SDK exposes **146 user-selectable scorers** (plus agentic `*_detected` scorers that the agentic suite auto-wires per OWASP-ASI category). The tables below document the core set - use these EXACT names in the `scorers` parameter, or ask `"Show me the available scorers"` for the full list.
 
 ## Default Scorer
 

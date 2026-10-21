@@ -96,7 +96,7 @@ Maps AIRT attacks, transforms, and scorers to major AI security compliance frame
 - MCP security — 12 transforms, 7 scorers
 - Multi-agent security — 10 transforms, 6 scorers
 - Exfiltration — 8 transforms, 5 scorers
-- Content policy — 260 bundled goals across 25 sub-categories
+- Content policy — 279 bundled goals across 25 sub-categories
 - System prompt extraction — 6 transforms
 - RAG poisoning — 7 transforms
 
