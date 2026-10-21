@@ -435,8 +435,10 @@ install_waymore() {
 run_stage waymore install_waymore
 
 # -- Pacu (AWS exploitation framework) ----------------------------------------
+# Installed in its own uv tool environment: pacu pins urllib3<2 and
+# botocore<1.32, which would downgrade the shared sandbox venv.
 install_pacu() {
-  have pacu || retry py_install pacu || { echo "WARN: pacu install failed, skipping" >&2; return 1; }
+  have pacu || retry uv tool install pacu==1.7.0 || { echo "WARN: pacu install failed, skipping" >&2; return 1; }
 }
 run_stage pacu install_pacu
 

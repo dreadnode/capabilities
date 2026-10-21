@@ -143,8 +143,14 @@ RUN pip install --no-cache-dir \
         "fastmcp>=2.0" \
         "httpx>=0.28" \
         "caido-sdk-client>=0.3.0" \
-        "pacu" \
         "ast-grep-cli"
+
+# ── Pacu (AWS exploitation framework) ───────────────────────────────
+# Own tool environment: pacu pins urllib3<2 and botocore<1.32, which would
+# downgrade the packages above. The venv lives outside /root so `runner` can
+# run it; the launcher is linked into /usr/local/bin.
+RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin \
+    uv tool install --python /usr/bin/python3 pacu==1.7.0
 
 # ── fireprox (AWS API Gateway IP rotation) ──────────────────────────
 # Installed to a predictable path; requires AWS credentials at runtime.

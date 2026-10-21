@@ -811,3 +811,20 @@ def test_sealed_install_checks_local_tools_without_fetches_or_retries(
     assert "WARN: optional artifact unavailable:" in result.stderr
     if missing_required:
         assert "Missing required tool: nuclei" in result.stderr
+
+
+class TestPacuOwnToolEnvironment:
+    """pacu pins urllib3<2 and botocore<1.32, so it must not share the venv."""
+
+    def test_install_script_uses_isolated_uv_tool(self) -> None:
+        stage = _shell_function("install_pacu")
+        assert "have pacu || retry uv tool install pacu==1.7.0" in stage
+        assert "py_install pacu" not in INSTALL_SCRIPT
+
+    def test_runtime_image_installs_pacu_in_own_environment(self) -> None:
+        dockerfile = (ROOT / "docker" / "Dockerfile.runtime").read_text(
+            encoding="utf-8"
+        )
+        assert "uv tool install" in dockerfile
+        assert "pacu==1.7.0" in dockerfile
+        assert not re.search(r'^\s*"pacu"', dockerfile, re.M)
