@@ -117,7 +117,7 @@ def _resolve_platform_env() -> dict[str, str]:
     return env
 
 
-def _auto_execute_workflow(filename: str, timeout: int = 3600) -> str:
+def _auto_execute_workflow(filename: str, timeout: int = 1200) -> str:
     """Execute a workflow script and return output. Used for auto-execution after generate."""
     filepath = WORKFLOWS_DIR / filename
     if not filepath.exists():
@@ -7054,16 +7054,27 @@ def generate_atlas_attack(params: dict) -> dict:
         return {
             "error": "objectives must be a non-empty list of {id, category, goal} dicts"
         }
-    for obj in objectives:
-        if (
-            not isinstance(obj, dict)
-            or not obj.get("id")
-            or not obj.get("category")
-            or not obj.get("goal")
-        ):
+    normalized_objectives = []
+    for idx, obj in enumerate(objectives):
+        if not isinstance(obj, dict):
+            return {"error": f"objective #{idx} must be a dict with 'id', 'category', 'goal'"}
+        # Accept common aliases so callers don't fail on a near-miss schema.
+        oid = obj.get("id") or obj.get("name") or obj.get("objective_id")
+        ocat = obj.get("category") or obj.get("cat")
+        ogoal = obj.get("goal") or obj.get("description") or obj.get("objective") or obj.get("prompt")
+        missing = [k for k, v in (("id", oid), ("category", ocat), ("goal", ogoal)) if not v]
+        if missing:
             return {
-                "error": "each objective requires non-empty 'id', 'category', and 'goal' fields"
+                "error": (
+                    f"objective #{idx} ({oid or '?'}) missing required field(s): "
+                    f"{', '.join(missing)}. Accepted aliases: id<-name/objective_id, "
+                    "goal<-description/objective/prompt."
+                )
             }
+        merged = dict(obj)
+        merged["id"], merged["category"], merged["goal"] = oid, ocat, ogoal
+        normalized_objectives.append(merged)
+    objectives = normalized_objectives
     try:
         total_budget = int(total_budget)
     except (TypeError, ValueError):
