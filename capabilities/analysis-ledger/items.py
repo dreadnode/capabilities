@@ -60,29 +60,7 @@ RunKey = t.Annotated[
 class AnalysisRun(BaseModel):
     """One bounded analysis of a repository revision."""
 
-    model_config = ConfigDict(
-        extra="forbid",
-        json_schema_extra={
-            "allOf": [
-                {
-                    "if": {
-                        "properties": {
-                            "run_state": {
-                                "enum": ["paused", "completed", "exhausted", "stale"]
-                            }
-                        },
-                        "required": ["run_state"],
-                    },
-                    "then": {
-                        "required": ["stop_reason"],
-                        "properties": {
-                            "stop_reason": {"type": "string", "minLength": 1}
-                        },
-                    },
-                }
-            ]
-        },
-    )
+    model_config = ConfigDict(extra="forbid")
 
     title: str = Field(..., min_length=1, max_length=512)
     run_key: RunKey = Field(
@@ -157,40 +135,7 @@ class AnalysisRun(BaseModel):
 class AnalysisTarget(BaseModel):
     """One bounded code unit or path waiting on the analysis frontier."""
 
-    model_config = ConfigDict(
-        extra="forbid",
-        json_schema_extra={
-            "allOf": [
-                {
-                    "if": {
-                        "properties": {
-                            "target_state": {"enum": ["analyzed", "blocked", "skipped"]}
-                        },
-                        "required": ["target_state"],
-                    },
-                    "then": {
-                        "required": ["summary"],
-                        "properties": {"summary": {"type": "string", "minLength": 1}},
-                    },
-                },
-                {
-                    "if": {
-                        "properties": {"target_state": {"const": "analyzed"}},
-                        "required": ["target_state"],
-                    },
-                    "then": {
-                        "required": ["evidence_refs"],
-                        "properties": {
-                            "evidence_refs": {
-                                "type": "array",
-                                "minItems": 1,
-                            }
-                        },
-                    },
-                },
-            ]
-        },
-    )
+    model_config = ConfigDict(extra="forbid")
 
     title: str = Field(..., min_length=1, max_length=512)
     run_ref: str = Field(
@@ -255,38 +200,7 @@ class AnalysisTarget(BaseModel):
 class AnalysisClaim(BaseModel):
     """An evidence-bearing hypothesis or conclusion about one analysis target."""
 
-    model_config = ConfigDict(
-        extra="forbid",
-        json_schema_extra={
-            "allOf": [
-                {
-                    "if": {
-                        "properties": {
-                            "disposition": {"const": "verified"},
-                            "claim_category": {"const": "vulnerability"},
-                        },
-                        "required": ["disposition", "claim_category"],
-                    },
-                    "then": {
-                        "required": ["weakness", "severity", "impact"],
-                        "properties": {
-                            "weakness": {"type": "string", "minLength": 1},
-                            "severity": {
-                                "enum": [
-                                    "critical",
-                                    "high",
-                                    "medium",
-                                    "low",
-                                    "info",
-                                ]
-                            },
-                            "impact": {"type": "string", "minLength": 1},
-                        },
-                    },
-                }
-            ]
-        },
-    )
+    model_config = ConfigDict(extra="forbid")
 
     title: str = Field(..., min_length=1, max_length=512)
     run_ref: str = Field(

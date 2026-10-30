@@ -6,7 +6,6 @@ import typing as t
 from pathlib import Path
 from types import SimpleNamespace
 
-import jsonschema
 import pytest
 import yaml
 
@@ -185,50 +184,121 @@ def test_item_schemas_reject_unknown_fields() -> None:
         )
 
 
-def test_exported_json_schemas_enforce_terminal_invariants() -> None:
+UNSUPPORTED_SCHEMA_KEYWORDS = {"allOf", "if", "then", "else", "not"}
+
+
+def _schema_keywords(node: t.Any) -> set[str]:
+    if isinstance(node, dict):
+        found = set(node)
+        for value in node.values():
+            found |= _schema_keywords(value)
+        return found
+    if isinstance(node, list):
+        found = set()
+        for value in node:
+            found |= _schema_keywords(value)
+        return found
+    return set()
+
+
+@pytest.mark.parametrize(
+    "model_name", ["AnalysisRun", "AnalysisTarget", "AnalysisClaim"]
+)
+def test_exported_json_schemas_use_only_supported_keywords(model_name: str) -> None:
     items = _load_module("analysis_ledger_json_schemas", "items.py")
 
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(
-            {
-                "title": "Authentication analysis",
-                "run_key": "0123456789abcdef01234567",
-                "objective": "Find authentication bypasses",
-                "repository": "/repo",
-                "revision": "deadbeef",
-                "run_state": "completed",
-            },
-            items.AnalysisRun.model_json_schema(),
+    schema = getattr(items, model_name).model_json_schema()
+
+    assert not _schema_keywords(schema) & UNSUPPORTED_SCHEMA_KEYWORDS
+
+
+def _run_payload(**overrides: t.Any) -> dict[str, t.Any]:
+    run_material = "/repo\ndeadbeef\nFind authentication bypasses"
+    return {
+        "title": "Authentication analysis",
+        "run_key": sha256(run_material.encode()).hexdigest()[:24],
+        "objective": "Find authentication bypasses",
+        "repository": "/repo",
+        "revision": "deadbeef",
+        **overrides,
+    }
+
+
+def _target_payload(**overrides: t.Any) -> dict[str, t.Any]:
+    return {
+        "title": "Analyze login",
+        "run_ref": "run-auth",
+        "target_key": "src/auth.py::login",
+        "kind": "function",
+        "location": "src/auth.py:40",
+        "rationale": "Externally reachable authentication path",
+        **overrides,
+    }
+
+
+@pytest.mark.parametrize("run_state", ["paused", "completed", "exhausted", "stale"])
+def test_run_validator_requires_stop_reason(run_state: str) -> None:
+    items = _load_module("analysis_ledger_run_invariants", "items.py")
+
+    with pytest.raises(ValueError, match="requires stop_reason"):
+        items.AnalysisRun.model_validate(_run_payload(run_state=run_state))
+
+    run = items.AnalysisRun.model_validate(
+        _run_payload(run_state=run_state, stop_reason="Frontier exhausted.")
+    )
+    assert run.stop_reason == "Frontier exhausted."
+
+
+@pytest.mark.parametrize("target_state", ["analyzed", "blocked", "skipped"])
+def test_target_validator_requires_summary(target_state: str) -> None:
+    items = _load_module("analysis_ledger_target_summary", "items.py")
+
+    with pytest.raises(ValueError, match="requires summary"):
+        items.AnalysisTarget.model_validate(
+            _target_payload(target_state=target_state, evidence_refs=["src/auth.py:42"])
         )
 
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(
-            {
-                "title": "Verified SQL injection",
-                "run_ref": "run-auth",
-                "target_ref": "run-auth-target-login",
-                "claim_category": "vulnerability",
-                "statement": "User input reaches the query.",
-                "disposition": "verified",
-                "evidence_refs": ["src/auth.py:42"],
-            },
-            items.AnalysisClaim.model_json_schema(),
+
+def test_target_validator_requires_evidence_refs_when_analyzed() -> None:
+    items = _load_module("analysis_ledger_target_evidence", "items.py")
+
+    with pytest.raises(ValueError, match="requires evidence_refs"):
+        items.AnalysisTarget.model_validate(
+            _target_payload(target_state="analyzed", summary="No bypass found.")
         )
 
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(
-            {
-                "title": "Analyze login",
-                "run_ref": "run-auth",
-                "target_key": "src/auth.py::login",
-                "kind": "function",
-                "location": "src/auth.py:40",
-                "rationale": "Externally reachable authentication path",
-                "target_state": "analyzed",
-                "summary": "No bypass found.",
-            },
-            items.AnalysisTarget.model_json_schema(),
+    target = items.AnalysisTarget.model_validate(
+        _target_payload(
+            target_state="analyzed",
+            summary="No bypass found.",
+            evidence_refs=["src/auth.py:42"],
         )
+    )
+    assert target.evidence_refs == ["src/auth.py:42"]
+
+
+@pytest.mark.parametrize("missing", ["weakness", "severity", "impact"])
+def test_claim_validator_requires_verified_vulnerability_fields(missing: str) -> None:
+    items = _load_module("analysis_ledger_claim_invariants", "items.py")
+    payload = {
+        "title": "Verified SQL injection",
+        "run_ref": "run-auth",
+        "target_ref": "run-auth-target-login",
+        "claim_category": "vulnerability",
+        "statement": "User input reaches the query.",
+        "disposition": "verified",
+        "evidence_refs": ["src/auth.py:42"],
+        "weakness": "CWE-89",
+        "severity": "high",
+        "impact": "Authentication bypass.",
+    }
+    items.AnalysisClaim.model_validate(payload)
+
+    del payload[missing]
+    with pytest.raises(
+        ValueError, match=f"verified vulnerability claim requires {missing}"
+    ):
+        items.AnalysisClaim.model_validate(payload)
 
 
 def test_manifest_builds_combined_report_item_schema() -> None:

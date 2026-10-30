@@ -1,6 +1,6 @@
 schema: 1
 name: analysis-ledger
-version: "0.2.1"
+version: "0.2.2"
 description: >
   Persistent single-agent code analysis over a durable Agent Output worklist.
   The agent records analysis runs, ranked targets, and evidence-bearing claims,
