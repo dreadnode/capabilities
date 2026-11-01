@@ -1,6 +1,6 @@
 schema: 1
 name: web-security
-version: "2.0.4"
+version: "2.0.5"
 description: >
   Web application penetration testing with 83 attack technique playbooks
   covering HTTP desync/request smuggling, cache poisoning, SSRF, SSTI, DOM
@@ -181,6 +181,48 @@ checks:
     command: 'command -v interactsh-client >/dev/null 2>&1 || test -x "$HOME/go/bin/interactsh-client"'
   - name: protoscope
     command: 'command -v protoscope >/dev/null 2>&1 || test -x "$HOME/go/bin/protoscope"'
+
+secrets:
+  - name: CAIDO_ACCESS_TOKEN
+    required: false
+  - name: CAIDO_PAT
+    required: false
+  - name: CAIDO_URL
+    required: false
+  - name: CF_ACCOUNT_ID
+    required: false
+  - name: CF_API_TOKEN
+    required: false
+  - name: CLOUDFLARE_ACCOUNT_ID
+    required: false
+  - name: CLOUDFLARE_API_TOKEN
+    required: false
+  - name: GITHUB_API_URL
+    required: false
+  - name: GITHUB_TOKEN
+    required: false
+  - name: H1_API_TOKEN
+    required: false
+  - name: H1_USERNAME
+    required: false
+  - name: INTERACTSH_SERVER
+    required: false
+  - name: JIRA_API_TOKEN
+    required: false
+  - name: JIRA_BASE_URL
+    required: false
+  - name: JIRA_EMAIL
+    required: false
+  - name: LINEAR_ACCESS_TOKEN
+    required: false
+  - name: LINEAR_API_KEY
+    required: false
+  - name: LINEAR_API_URL
+    required: false
+  - name: SECURITYCONTEXT_API_KEY
+    required: false
+  - name: THERMOPTIC_PROXY_URL
+    required: false
 
 author:
   name: Dreadnode

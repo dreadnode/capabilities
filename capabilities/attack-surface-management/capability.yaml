@@ -1,6 +1,6 @@
 schema: 1
 name: attack-surface-management
-version: "2.0.4"
+version: "2.0.5"
 description: >
   External attack surface management with BBOT reconnaissance scanning,
   Neo4j graph database analysis, Shodan internet intelligence, and
@@ -75,6 +75,18 @@ checks:
     command: "python3 -c 'import neo4j'"
   - name: fastmcp-python
     command: "python3 -c 'import fastmcp'"
+
+secrets:
+  - name: NEO4J_PASSWORD
+    required: false
+  - name: NEO4J_URI
+    required: false
+  - name: NEO4J_USER
+    required: false
+  - name: SHODAN_API_KEY
+    required: false
+  - name: SHODAN_API_URL
+    required: false
 
 author:
   name: Dreadnode

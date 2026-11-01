@@ -1,6 +1,6 @@
 schema: 1
 name: sliver-c2
-version: "1.0.2"
+version: "1.0.3"
 description: >
   Sliver C2 framework integration. Provides server management (session
   and beacon listing, listener creation, implant generation) and implant
@@ -13,6 +13,10 @@ mcp:
       command: "uv"
       args: ["run", "${CAPABILITY_ROOT}/mcp/server.py"]
       init_timeout: 30
+
+secrets:
+  - name: SLIVER_CONFIG_FILE
+    required: false
 
 author:
   name: Dreadnode

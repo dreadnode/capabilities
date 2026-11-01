@@ -1,6 +1,6 @@
 schema: 1
 name: mythic-c2-readonly
-version: "1.0.1"
+version: "1.0.2"
 description: >
   Read-only Mythic C2 integration. Query callbacks, task history (command
   input/output), credentials, downloaded files, artifacts, keylogs,
@@ -20,6 +20,18 @@ mcp:
         MYTHIC_PASSWORD: "${MYTHIC_PASSWORD:-}"
         MYTHIC_API_TOKEN: "${MYTHIC_API_TOKEN:-}"
         MYTHIC_TIMEOUT: "${MYTHIC_TIMEOUT:-}"
+
+secrets:
+  - name: MYTHIC_API_TOKEN
+    required: false
+  - name: MYTHIC_PASSWORD
+    required: false
+  - name: MYTHIC_SERVER_IP
+    required: false
+  - name: MYTHIC_SERVER_PORT
+    required: false
+  - name: MYTHIC_USERNAME
+    required: false
 
 author:
   name: Dreadnode

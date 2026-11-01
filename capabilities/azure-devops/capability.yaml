@@ -1,6 +1,6 @@
 schema: 1
 name: azure-devops
-version: "1.0.0"
+version: "1.0.1"
 description: >
   Connect to Azure DevOps (Boards, Repos, Pipelines, Wiki) from chat and
   agents — query work items with WIQL, read PRs, inspect pipeline runs,
@@ -62,6 +62,14 @@ checks:
 
 skills:
   - skills/azure-devops/
+
+secrets:
+  - name: ADO_ORG
+    required: false
+  - name: ADO_PROJECT
+    required: false
+  - name: ADO_TEAM
+    required: false
 
 author:
   name: Dreadnode

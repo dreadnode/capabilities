@@ -1,6 +1,6 @@
 schema: 1
 name: bloodhound
-version: "1.0.0"
+version: "1.0.1"
 description: >
   BloodHound CE integration for Active Directory attack path analysis.
   Graph-based queries against Neo4j for domain enumeration, tier zero
@@ -13,6 +13,22 @@ mcp:
       command: "uv"
       args: ["run", "${CAPABILITY_ROOT}/mcp/server.py"]
       init_timeout: 30
+
+secrets:
+  - name: BLOODHOUND_PASSWORD
+    required: false
+  - name: BLOODHOUND_URL
+    required: false
+  - name: BLOODHOUND_USERNAME
+    required: false
+  - name: NEO4J_DATABASE
+    required: false
+  - name: NEO4J_PASSWORD
+    required: false
+  - name: NEO4J_URL
+    required: false
+  - name: NEO4J_USERNAME
+    required: false
 
 author:
   name: Dreadnode

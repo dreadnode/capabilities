@@ -1,6 +1,6 @@
 schema: 1
 name: github
-version: "1.0.0"
+version: "1.0.1"
 description: >
   Connect to GitHub from chat and agents — issues, pull requests, code
   search, Actions, releases, Dependabot, and code scanning. Bundles
@@ -33,6 +33,10 @@ mcp:
 
 skills:
   - skills/github/
+
+secrets:
+  - name: GITHUB_PAT
+    required: false
 
 author:
   name: Dreadnode

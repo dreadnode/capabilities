@@ -1,6 +1,6 @@
 schema: 1
 name: bloodhound-enterprise
-version: "0.1.0"
+version: "0.1.1"
 description: >
   BloodHound Enterprise integration via the v2 REST API. HMAC-signed
   requests (long-lived integration) or JWT bearer (interactive); full
@@ -10,6 +10,20 @@ description: >
   and audit logs. Complementary to the existing bloodhound capability
   — that one talks Bolt to a local CE Neo4j; this one talks REST to a
   hosted BHE deployment.
+
+secrets:
+  - name: BHE_JWT
+    required: false
+  - name: BHE_PASSWORD
+    required: false
+  - name: BHE_TOKEN_ID
+    required: false
+  - name: BHE_TOKEN_KEY
+    required: false
+  - name: BHE_USERNAME
+    required: false
+  - name: BLOODHOUND_URL
+    required: false
 
 author:
   name: Dreadnode
