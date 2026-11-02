@@ -1,6 +1,6 @@
 schema: 1
 name: secure-software
-version: "1.0.0"
+version: "1.0.1"
 description: >
   Package supply-chain analysis via ReversingLabs Spectra Assure
   (secure.software). Search the Community catalogue by purl or hash,
@@ -10,6 +10,18 @@ description: >
   OpenSSF Scorecard health, archive extraction, strings/entropy, and
   YARA scanning. Chain secure.software findings with reversing tools
   (e.g. dotnet-reversing) to investigate suspicious packages.
+
+secrets:
+  - name: SPECTRA_ASSURE_GROUP
+    required: false
+  - name: SPECTRA_ASSURE_HOST
+    required: false
+  - name: SPECTRA_ASSURE_ORG
+    required: false
+  - name: SPECTRA_ASSURE_PATH
+    required: false
+  - name: SPECTRA_ASSURE_TOKEN
+    required: false
 
 author:
   name: Dreadnode

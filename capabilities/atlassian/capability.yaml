@@ -1,6 +1,6 @@
 schema: 1
 name: atlassian
-version: "1.0.0"
+version: "1.0.1"
 description: >
   Connect to Atlassian Cloud (Jira, Confluence, Compass) from chat and
   agents — search and read issues, pages, and components; create or
@@ -44,6 +44,10 @@ mcp:
 
 skills:
   - skills/atlassian/
+
+secrets:
+  - name: ATLASSIAN_BASIC
+    required: false
 
 author:
   name: Dreadnode

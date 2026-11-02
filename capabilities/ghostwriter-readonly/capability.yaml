@@ -1,6 +1,6 @@
 schema: 1
 name: ghostwriter-readonly
-version: "1.0.1"
+version: "1.0.2"
 description: >
   Read-only GhostWriter integration. Query clients, projects, findings,
   objectives, targets, scope, deconflictions, evidence, observations,
@@ -18,6 +18,16 @@ mcp:
         GHOSTWRITER_API_TOKEN: "${GHOSTWRITER_API_TOKEN:-}"
         GHOSTWRITER_USERNAME: "${GHOSTWRITER_USERNAME:-}"
         GHOSTWRITER_PASSWORD: "${GHOSTWRITER_PASSWORD:-}"
+
+secrets:
+  - name: GHOSTWRITER_API_TOKEN
+    required: false
+  - name: GHOSTWRITER_PASSWORD
+    required: false
+  - name: GHOSTWRITER_URL
+    required: false
+  - name: GHOSTWRITER_USERNAME
+    required: false
 
 author:
   name: Dreadnode

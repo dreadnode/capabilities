@@ -1,6 +1,6 @@
 schema: 1
 name: linear
-version: "1.0.0"
+version: "1.0.1"
 description: >
   Connect to Linear from chat and agents — search and read issues,
   projects, cycles, and teams; create and update issues; comment and
@@ -35,6 +35,10 @@ mcp:
 
 skills:
   - skills/linear/
+
+secrets:
+  - name: LINEAR_API_KEY
+    required: false
 
 author:
   name: Dreadnode
