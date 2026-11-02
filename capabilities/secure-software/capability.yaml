@@ -18,6 +18,8 @@ secrets:
     required: false
   - name: SPECTRA_ASSURE_ORG
     required: false
+  - name: SPECTRA_ASSURE_PATH
+    required: false
   - name: SPECTRA_ASSURE_TOKEN
     required: false
 

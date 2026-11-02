@@ -46,8 +46,6 @@ skills:
   - skills/atlassian/
 
 secrets:
-  - name: ATLASSIAN_API_KEY
-    required: false
   - name: ATLASSIAN_BASIC
     required: false
 

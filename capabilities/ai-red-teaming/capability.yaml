@@ -24,6 +24,8 @@ hooks:
   - hooks/block_cli_provisioning.py
 
 secrets:
+  - name: AGENT_API_KEY
+    required: false
   - name: TARGET_API_KEY
     required: false
 
